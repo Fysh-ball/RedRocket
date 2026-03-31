@@ -44,12 +44,12 @@ fun TutorialSpotlightOverlay(
     val stepIndex = step.coerceIn(0, totalSteps - 1)
 
     val title = when (stepIndex) {
-        0 -> "1 / 6 — Scenarios"
-        1 -> "2 / 6 — Rename It"
-        2 -> "3 / 6 — Trigger Keywords"
-        3 -> "4 / 6 — Contact Groups"
-        4 -> "5 / 6 — Your Message"
-        else -> "6 / 6 — Dashboard"
+        0 -> "1 / 6: Scenarios"
+        1 -> "2 / 6: Rename It"
+        2 -> "3 / 6: Trigger Keywords"
+        3 -> "4 / 6: Contact Groups"
+        4 -> "5 / 6: Your Message"
+        else -> "6 / 6: Dashboard"
     }
     val body = when (stepIndex) {
         0 -> "Tap this bar to open the scenario list. Switch to a different scenario, or tap '+ Add New Scenario' at the bottom to create one."
