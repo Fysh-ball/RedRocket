@@ -1,0 +1,31 @@
+*.iml
+.gradle
+.claude
+.continue
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# Built outputs
+app/build/
+*.apk
+*.aab
+*.dex
+
+# Keystore / signing — NEVER commit these
+*.jks
+*.keystore
+keystore.properties
+
+# OS
+Thumbs.db
