@@ -52,4 +52,4 @@ I will be using this app myself and thought others may benefit from it as well. 
 
 ## Support Red Rocket!
 If this app was of any use to you, consider buying me a cup of rice!
-https://ko-fi.com/fysh_yum
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/C0C71L2ELD)
