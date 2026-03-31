@@ -42,3 +42,10 @@ This app is for leaders, for parents, for guardians. For those who want to keep 
 
 In emergencies, communication saves lives.  
 Red Rocket gives you the tools to help others when it matters most. You will be the source of clarity in moments of chaos.
+
+### Please Note:	
+This app was dreamt up by me and quality assured by me. While I wish I could have coded this myself, current world events made me want to get this out as fast as possible so I was forced to use Claude and Gemini. 
+
+Rest assured I spent a lot of time painstakingly going through every part of the app repeatedly, so that there are minimal bugs and that the system works flawlessly. However, I am only human. I probably did miss something. 
+
+I will be using this app myself and thought others may benefit from it as well. Please report any critical bugs that affect functionality and reliability and I'll fix it asap!
