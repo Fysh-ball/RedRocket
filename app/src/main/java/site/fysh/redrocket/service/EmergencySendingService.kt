@@ -170,7 +170,7 @@ class EmergencySendingService : Service() {
                         PendingIntent.FLAG_IMMUTABLE
                     )
                     val completionNotif = NotificationCompat.Builder(this, CHANNEL_ID)
-                        .setContentTitle("Red Rocket — Complete")
+                        .setContentTitle("Red Rocket: Complete")
                         .setContentText(completionText)
                         .setSmallIcon(android.R.drawable.ic_dialog_info)
                         .setAutoCancel(true)

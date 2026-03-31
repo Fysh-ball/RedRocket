@@ -174,7 +174,7 @@ fun WelcomePage(onNext: () -> Unit) {
 
 Red Rocket is an automated emergency response app designed to help you keep your family and loved ones safe during critical situations.
 
-Red Rocket monitors emergency broadcast alerts and matches them to your custom trigger words. When a match is detected, it instantly sends your pre-written message to the contacts you choose — so you can act without hesitation when every second counts."""
+Red Rocket monitors emergency broadcast alerts and matches them to your custom trigger words. When a match is detected, it instantly sends your pre-written message to the contacts you choose, so you can act without hesitation when every second counts."""
 
             "FAQ" -> """Q: Are you gonna steal my data?
 A: All data is stored locally. I do not want your data.
@@ -185,10 +185,10 @@ A: When a filter matches an alert, the app will first assess if it's a false ala
 Q: What's Global Keyword Detection?
 A: While it's not needed or recommended, you can enable the app to listen to every other notification for keywords.
 
-Q: Will this work when even when my phone is locked?
-A: Yes it should. But to be safe check the app dashboard to see if it's waiting for responses."""
+Q: Will this work when My phone is off?
+A: It should work even when your phone's locked, but to be safe check the app dashboard to see if it's listening for responses."""
 
-            "Disclaimer" -> """IMPORTANT — PLEASE READ
+            "Disclaimer" -> """IMPORTANT: PLEASE READ
 
 Red Rocket is designed for legitimate emergency communications only. You, the user, take sole responsibility for all messages sent through this app. By using Red Rocket you agree to use the app only for lawful purposes and that you'll only send messages to people that have given you explicit consent in receiving emergency notifications from you.
 
@@ -294,7 +294,7 @@ fun PermissionsPage(onComplete: () -> Unit) {
 
         PermissionCard(
             title = "Notification Access",
-            description = "Required — lets the app detect emergency alerts from other apps and carrier broadcasts.",
+            description = "Required. Lets the app detect emergency alerts from other apps and carrier broadcasts.",
             isGranted = notificationAccessGranted,
             accentGranted = MaterialTheme.colorScheme.primary,
             onGrant = { context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) }
@@ -302,7 +302,7 @@ fun PermissionsPage(onComplete: () -> Unit) {
 
         PermissionCard(
             title = "SMS (Send & Receive)",
-            description = "Required — lets the app send emergency messages and receive 1/2/3 replies from contacts.",
+            description = "Required. Lets the app send emergency messages and receive 1/2/3 replies from contacts.",
             isGranted = smsGranted,
             accentGranted = MaterialTheme.colorScheme.primary,
             onGrant = { smsLauncher.launch(arrayOf(Manifest.permission.SEND_SMS, Manifest.permission.RECEIVE_SMS)) }
