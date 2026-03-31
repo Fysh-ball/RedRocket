@@ -49,3 +49,7 @@ This app was dreamt up by me and quality assured by me. While I wish I could hav
 Rest assured I spent a lot of time painstakingly going through every part of the app repeatedly, so that there are minimal bugs and that the system works flawlessly. However, I am only human. I probably did miss something. 
 
 I will be using this app myself and thought others may benefit from it as well. Please report any critical bugs that affect functionality and reliability and I'll fix it asap!
+
+## Support Red Rocket!
+If this app was of any use to you, consider buying me a cup of rice!
+https://ko-fi.com/fysh_yum
