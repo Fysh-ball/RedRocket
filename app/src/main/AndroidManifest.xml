@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Permissions for SMS and Notifications -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
+    <uses-permission android:name="android.permission.RECEIVE_SMS" />
+    <uses-permission android:name="android.permission.READ_SMS" />
+    <uses-permission android:name="android.permission.SEND_SMS" />
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+
+    <!-- Feature declaration for telephony -->
+    <uses-feature android:name="android.hardware.telephony" android:required="false" />
+
+    <application
+        android:name="site.fysh.redrocket.EmergencyApp"
+        android:allowBackup="true"
+        android:enableOnBackInvokedCallback="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.MyApplication">
+
+        <activity
+            android:name="site.fysh.redrocket.ui.MainActivity"
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <receiver
+            android:name=".service.EmergencyBroadcastReceiver"
+            android:exported="true"
+            android:permission="android.permission.BROADCAST_SMS">
+            <intent-filter android:priority="999">
+                <!-- Core AOSP cell broadcast actions -->
+                <action android:name="android.provider.Telephony.SMS_EMERGENCY_CB_RECEIVED" />
+                <action android:name="android.provider.Telephony.SMS_CB_RECEIVED" />
+                <action android:name="android.provider.Telephony.WAP_PUSH_RECEIVED" />
+                <!-- CMAS / WEA (Commercial Mobile Alert System / Wireless Emergency Alerts) -->
+                <action android:name="android.provider.Telephony.CMAS_RECEIVED" />
+                <!-- ETWS (Earthquake and Tsunami Warning System — Japan, etc.) -->
+                <action android:name="android.provider.Telephony.ETWS_RECEIVED" />
+                <!-- Android internal GSM cell broadcast (used on some AOSP builds) -->
+                <action android:name="com.android.internal.telephony.gsm.CB_AREA_INFO_RECEIVED" />
+                <action android:name="com.android.internal.telephony.cdma.CB_AREA_INFO_RECEIVED" />
+                <!-- Modern Android 14+ cell broadcast action -->
+                <action android:name="android.cellbroadcast.action.SMS_CB_RECEIVED" />
+                <!-- Samsung-specific emergency broadcast actions -->
+                <action android:name="com.samsung.android.cellbroadcastreceiver.CB_AREA_INFO_RECEIVED" />
+                <action android:name="com.sec.android.cellbroadcastreceiver.CB_AREA_INFO_RECEIVED" />
+                <!-- Xiaomi / MIUI cell broadcast -->
+                <action android:name="com.xiaomi.cellbroadcastreceiver.CB_AREA_INFO_RECEIVED" />
+                <action android:name="com.miui.cellbroadcastreceiver.CB_AREA_INFO_RECEIVED" />
+                <!-- Huawei / Honor -->
+                <action android:name="com.huawei.cellbroadcastreceiver.CB_AREA_INFO_RECEIVED" />
+                <!-- MediaTek chipset cell broadcast -->
+                <action android:name="com.mediatek.cellbroadcastreceiver.CB_AREA_INFO_RECEIVED" />
+                <!-- Qualcomm chipset cell broadcast -->
+                <action android:name="com.qualcomm.cellbroadcastreceiver.CB_AREA_INFO_RECEIVED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- SMS response receiver for response tracking -->
+        <receiver
+            android:name="site.fysh.redrocket.service.SmsResponseReceiver"
+            android:exported="true"
+            android:permission="android.permission.BROADCAST_SMS">
+            <intent-filter android:priority="999">
+                <action android:name="android.provider.Telephony.SMS_RECEIVED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- SMS send/delivery result receiver -->
+        <receiver
+            android:name="site.fysh.redrocket.service.SmsDeliveryReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="site.fysh.redrocket.SMS_SENT" />
+                <action android:name="site.fysh.redrocket.SMS_DELIVERED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Emergency Sending Service -->
+        <service
+            android:name="site.fysh.redrocket.service.EmergencySendingService"
+            android:foregroundServiceType="dataSync"
+            android:exported="false" />
+
+        <!-- Emergency Notification Listener Service -->
+        <service
+            android:name="site.fysh.redrocket.service.EmergencyNotificationListener"
+            android:exported="true"
+            android:label="Emergency Alert Detector"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
+    </application>
+
+</manifest>
