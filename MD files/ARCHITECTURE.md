@@ -39,6 +39,7 @@ There are three ways the system receives an alert:
 - Detects which OEM emergency alert packages are installed on the device
 - Layered detection: direct package lookup + broadcast receiver query
 - Fallback: if detection finds nothing, trusts ALL known packages
+- `isEmergencyAlertPackage()` ALWAYS checks `ALL_KNOWN_PACKAGES` first — partial runtime detection can never cause a known EAS package to be rejected
 - Determines isTrustedSource flag passed to FalseAlarmDetector
 - File: `util/EmergencyPackageDetector.kt`
 
@@ -220,23 +221,30 @@ File: `utils/ForceSendAbuseTracker.kt`
 - File: `model/LogEntry.kt`
 
 ### PastAlert
-- messageContent (500 char max), triggeredAt, source ("cell_broadcast"/"notification"/"manual"), scenariosTriggered
-- Logged for ALL system emergency alerts, regardless of whether they triggered
+- messageContent (500 char max), triggeredAt, source ("cell_broadcast"/"alert"/"notification"/"manual"), scenariosTriggered
+- Source values: `"cell_broadcast"` = WEA/CMAS/ETWS broadcast; `"alert"` = EAS companion notification from known package; `"notification"` = keyword-triggered non-EAS notification; `"manual"` = force send
+- Logged for ALL system emergency alerts, regardless of whether they triggered; non-EAS notifications only logged when they actually caused a trigger
 - File: `model/PastAlert.kt`
 
 ### ContactSendHistory
 - Tracks which contacts have been sent to (for dedup and history)
 - File: `model/ContactSendHistory.kt`
 
+### BlockPhrase
+- User-defined phrase that suppresses a keyword trigger even when keywords match
+- Evaluated in `FalseAlarmDetector.isBlockedDespiteKeywordMatch(content, userBlockPhrases)` for keyword-gated scenarios
+- Any language supported
+- File: `model/BlockPhrase.kt`
+
 ---
 
 ## PERSISTENCE LAYER
 
 ### AppDatabase (Room)
-- Entities: Scenario, ResponseRecord, PastAlert, ContactSendHistory, LogEntry
+- Entities: Scenario, ResponseRecord, PastAlert, ContactSendHistory, LogEntry, BlockPhrase
 - Version: 8
 - Migrations: v6→v7 (groups column), v7→v8 (app_logs table)
-- Fallback: destructive migration if migration path missing
+- No destructive migration fallback — explicit migrations only; schema exported to `app/schemas/`
 - File: `model/AppDatabase.kt`
 
 ### AppSettings (DataStore)
@@ -249,6 +257,7 @@ File: `utils/ForceSendAbuseTracker.kt`
 - THEME: String ("SYSTEM"/"LIGHT"/"GRAY"/"NIGHT")
 - REPLY_LISTEN_HOURS: Int (default 1, range 1–24)
 - PRESETS_OFFERED: Boolean (default false)
+- ALERT_SENSITIVITY: String ("HIGH"/"MEDIUM"/"LOW", default "MEDIUM") — controls FalseAlarmDetector threshold for wildcard scenarios
 - File: `utils/AppSettings.kt`
 
 ---
@@ -286,8 +295,8 @@ File: `utils/ForceSendAbuseTracker.kt`
 
 ### SettingsDialog
 - APPEARANCE: theme dropdown (52dp height)
-- DETECTION: wide spread toggle, reply listen hours
-- USER MANUAL: expandable accordion (6 sections) + Replay Tutorial button
+- DETECTION: wide spread toggle, alert sensitivity, reply listen hours
+- USER MANUAL: expandable accordion (6 sections) + Replay Tutorial button; covers Alert Filters (Activation Keywords + Block Phrases)
 - DEBUG (non-production only): debug toggle, force sequential, simulation tools
 - File: `ui/SettingsDialog.kt`
 
@@ -308,7 +317,7 @@ Cell Broadcast / Notification / Manual
          ↓
 EmergencyPackageDetector (trust level)
          ↓
-FalseAlarmDetector (7-step)
+FalseAlarmDetector (8-step)
          ↓
 Scenario matching (ALL scenarios evaluated independently)
          ↓

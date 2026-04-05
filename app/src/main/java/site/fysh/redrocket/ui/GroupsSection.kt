@@ -31,10 +31,9 @@ import androidx.compose.ui.window.Dialog
 import site.fysh.redrocket.model.Group
 import site.fysh.redrocket.model.Recipient
 import site.fysh.redrocket.model.Scenario
-import org.burnoutcrew.reorderable.ReorderableItem
-import org.burnoutcrew.reorderable.detectReorder
-import org.burnoutcrew.reorderable.rememberReorderableLazyListState
-import org.burnoutcrew.reorderable.reorderable
+import androidx.compose.foundation.lazy.rememberLazyListState
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.rememberReorderableLazyListState
 
 /**
  * GroupsSection handles group selection, management, and editing.
@@ -173,17 +172,12 @@ fun GroupsSection(
             }
         }
 
-        val reorderState = rememberReorderableLazyListState(
-            onMove = { from, to ->
-                isReordering = true
-                val item = localGroups.removeAt(from.index)
-                localGroups.add(to.index, item)
-            },
-            onDragEnd = { _, _ ->
-                onGroupsReordered(localGroups.toList())
-                isReordering = false
-            }
-        )
+        val lazyListState = rememberLazyListState()
+        val reorderState = rememberReorderableLazyListState(lazyListState) { from, to ->
+            isReordering = true
+            val item = localGroups.removeAt(from.index)
+            localGroups.add(to.index, item)
+        }
 
         Dialog(onDismissRequest = {
             showDialog = false
@@ -236,10 +230,8 @@ fun GroupsSection(
                     Spacer(Modifier.height(8.dp))
 
                     LazyColumn(
-                        state = reorderState.listState,
-                        modifier = Modifier
-                            .weight(1f, fill = false)
-                            .reorderable(reorderState)
+                        state = lazyListState,
+                        modifier = Modifier.weight(1f, fill = false)
                     ) {
                         items(localGroups, key = { it.id }) { group ->
                             ReorderableItem(reorderState, key = group.id) { isDragging ->
@@ -288,7 +280,12 @@ fun GroupsSection(
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier
                                             .size(24.dp)
-                                            .detectReorder(reorderState)
+                                            .draggableHandle(
+                                                onDragStopped = {
+                                                    onGroupsReordered(localGroups.toList())
+                                                    isReordering = false
+                                                }
+                                            )
                                     )
 
                                     if (showCheckbox) {

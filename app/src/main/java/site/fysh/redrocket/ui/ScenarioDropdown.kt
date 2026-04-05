@@ -30,10 +30,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import site.fysh.redrocket.model.Scenario
-import org.burnoutcrew.reorderable.ReorderableItem
-import org.burnoutcrew.reorderable.detectReorder
-import org.burnoutcrew.reorderable.rememberReorderableLazyListState
-import org.burnoutcrew.reorderable.reorderable
+import androidx.compose.foundation.lazy.rememberLazyListState
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.rememberReorderableLazyListState
 
 /**
  * ScenarioDropdown handles scenario selection, management, and editing.
@@ -109,17 +108,12 @@ fun ScenarioDropdown(
             }
         }
 
-        val reorderState = rememberReorderableLazyListState(
-            onMove = { from, to ->
-                isReordering = true
-                val item = localScenarios.removeAt(from.index)
-                localScenarios.add(to.index, item)
-            },
-            onDragEnd = { _, _ ->
-                onScenariosReordered(localScenarios.toList())
-                isReordering = false
-            }
-        )
+        val lazyListState = rememberLazyListState()
+        val reorderState = rememberReorderableLazyListState(lazyListState) { from, to ->
+            isReordering = true
+            val item = localScenarios.removeAt(from.index)
+            localScenarios.add(to.index, item)
+        }
 
         Dialog(onDismissRequest = {
             showDialog = false
@@ -173,10 +167,8 @@ fun ScenarioDropdown(
                     Spacer(Modifier.height(8.dp))
 
                     LazyColumn(
-                        state = reorderState.listState,
-                        modifier = Modifier
-                            .weight(1f, fill = false)
-                            .reorderable(reorderState)
+                        state = lazyListState,
+                        modifier = Modifier.weight(1f, fill = false)
                     ) {
                         items(localScenarios, key = { it.id }) { scenario ->
                             ReorderableItem(reorderState, key = scenario.id) { isDragging ->
@@ -226,7 +218,12 @@ fun ScenarioDropdown(
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier
                                             .size(24.dp)
-                                            .detectReorder(reorderState)
+                                            .draggableHandle(
+                                                onDragStopped = {
+                                                    onScenariosReordered(localScenarios.toList())
+                                                    isReordering = false
+                                                }
+                                            )
                                     )
 
                                     if (showCheckbox) {

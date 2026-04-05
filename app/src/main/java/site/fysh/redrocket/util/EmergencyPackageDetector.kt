@@ -291,17 +291,14 @@ object EmergencyPackageDetector {
     /**
      * Returns true if [packageName] is a known emergency alert source.
      *
-     * - If detection found specific packages on this device, only those are trusted.
-     * - If detection found nothing (unusual ROM/rooted device), ALL known variants are trusted
-     *   to ensure we never miss a real emergency alert.
+     * The static [ALL_KNOWN_PACKAGES] list is always checked first. Runtime detection
+     * adds any OEM/carrier packages discovered via broadcast-receiver queries that are
+     * not already in the static list. The two sets are never mutually exclusive:
+     * partial runtime detection (e.g. finding only one of several installed packages)
+     * must never cause a package that IS in the static list to be rejected.
      */
     fun isEmergencyAlertPackage(packageName: String): Boolean {
-        return if (detectionSucceeded) {
-            packageName in detectedPackages
-        } else {
-            // Fallback: trust all known variants
-            packageName in ALL_KNOWN_PACKAGES
-        }
+        return packageName in ALL_KNOWN_PACKAGES || packageName in detectedPackages
     }
 
     /**

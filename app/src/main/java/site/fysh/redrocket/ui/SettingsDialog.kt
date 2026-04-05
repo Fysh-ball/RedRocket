@@ -2,14 +2,15 @@ package site.fysh.redrocket.ui
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.DarkMode
@@ -26,17 +27,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import kotlinx.coroutines.withTimeoutOrNull
 
 @Composable
 fun SettingsDialog(
@@ -83,10 +80,26 @@ fun SettingsDialog(
                     )
                 }
 
+                val scrollState = rememberScrollState()
                 Column(
                     modifier = Modifier
                         .weight(1f)
-                        .verticalScroll(rememberScrollState())
+                        .drawWithContent {
+                            drawContent()
+                            val viewport = size.height
+                            if (scrollState.maxValue > 0) {
+                                val totalContent = scrollState.maxValue.toFloat() + viewport
+                                val thumbH = (viewport / totalContent) * viewport
+                                val thumbY = (scrollState.value.toFloat() / scrollState.maxValue) * (viewport - thumbH)
+                                drawRoundRect(
+                                    color = androidx.compose.ui.graphics.Color.Gray.copy(alpha = 0.45f),
+                                    topLeft = Offset(size.width - 6.dp.toPx(), thumbY),
+                                    size = Size(4.dp.toPx(), thumbH),
+                                    cornerRadius = CornerRadius(2.dp.toPx())
+                                )
+                            }
+                        }
+                        .verticalScroll(scrollState)
                         .padding(horizontal = 20.dp, vertical = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
@@ -451,9 +464,9 @@ private fun AlertSensitivityDropdown(
 @Composable
 private fun UserManualSection(onReplayTutorial: () -> Unit) {
     val sections = listOf(
-        "Quick Start" to "1. Create a scenario and add your trigger keywords.\n2. Add the contacts you want to reach and write your message.\n3. That's it. Red Rocket runs in the background and listens for alerts.\n4. When a match hits, your message goes out to everyone on the list.",
+        "Quick Start" to "1. Create a scenario and add your activation keywords.\n2. Add the contacts you want to reach and write your message.\n3. That's it. Red Rocket runs in the background and listens for alerts.\n4. When a match hits, your message goes out to everyone on the list.",
         "Scenarios" to "A scenario is your plan for a specific situation. Each one has its own keywords, contacts, and message. You can have as many as you want: one for family, one for coworkers, one for your building. They each run independently.",
-        "Trigger Keywords" to "These are the words Red Rocket looks for in incoming alerts. Hit the ⚡ button to pick from common disaster presets, or type in your own. You can use full phrases too. Matching is not case-sensitive.",
+        "Alert Filters" to "Activation Keywords are the words Red Rocket looks for in incoming alerts. Hit the ⚡ button to pick from common disaster presets, or type in your own. Block Phrases are words or phrases (in any language) that mark an alert as a test or false alarm — matching ones will never trigger sending.",
         "Response Dashboard" to "Once messages go out, head to the Dashboard tab to see who's replied. Contacts can text back 1 (Safe), 2 (Need Updates), or 3 (Urgent). The list updates as replies come in.",
         "Listening for Replies" to "After a send, Red Rocket waits for replies for however long you've set (1 to 24 hours). You'll see the timer at the top of the Dashboard. Hit Stop if you want to end it early.",
         "FAQ" to "Q: Are you gonna steal my data?\nA: All data is stored locally. I do not want your data.\n\nQ: Will my messages be automatically sent?\nA: When a filter matches an alert, the app will first assess if it's a false alarm and if not, it'll send the message.\n\nQ: What's Global Keyword Detection?\nA: While it's not needed or recommended, you can enable the app to listen to every other notification for keywords.\n\nQ: Will this work when My phone is off?\nA: It should work even when your phone's locked, but to be safe check the app dashboard to see if it's listening for responses."

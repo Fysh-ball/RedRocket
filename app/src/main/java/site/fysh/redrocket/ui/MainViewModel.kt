@@ -69,6 +69,9 @@ class MainViewModel(
     private val _pastAlerts = MutableStateFlow<List<PastAlert>>(emptyList())
     val pastAlerts: StateFlow<List<PastAlert>> = _pastAlerts.asStateFlow()
 
+    private val _blockPhrases = MutableStateFlow<List<BlockPhrase>>(emptyList())
+    val blockPhrases: StateFlow<List<BlockPhrase>> = _blockPhrases.asStateFlow()
+
     private val _logs = MutableStateFlow<List<LogEntry>>(emptyList())
     val logs: StateFlow<List<LogEntry>> = _logs.asStateFlow()
 
@@ -232,6 +235,13 @@ class MainViewModel(
         viewModelScope.launch {
             app.database.logEntryDao().getRecentLogs().collect { entries ->
                 _logs.value = entries
+            }
+        }
+
+        // Collect block phrases
+        viewModelScope.launch {
+            app.database.blockPhraseDao().getAll().collect { phrases ->
+                _blockPhrases.value = phrases
             }
         }
 
@@ -589,29 +599,6 @@ class MainViewModel(
 
     // --- Recipient Management ---
 
-    fun onAddRecipients(recipients: List<Recipient>) {
-        // Enforce global uniqueness: a contact cannot exist in multiple scenarios
-        val currentScenarioId = _uiState.value.currentScenario.id
-        val otherScenarioPhones = _uiState.value.scenarios
-            .filter { it.id != currentScenarioId }
-            .flatMap { it.recipients }
-            .map { normalizePhone(it.phoneNumber) }
-            .toSet()
-
-        val filtered = recipients.filter { r ->
-            normalizePhone(r.phoneNumber) !in otherScenarioPhones
-        }
-
-        if (filtered.isEmpty()) return
-
-        undoStack.addLast(_uiState.value.currentScenario.copy())
-        _uiState.update { state ->
-            val updatedRecipients = state.currentScenario.recipients + filtered
-            state.copy(currentScenario = state.currentScenario.copy(recipients = updatedRecipients))
-        }
-        autoSave()
-    }
-
     fun onRemoveRecipient(recipient: Recipient) {
         undoStack.addLast(_uiState.value.currentScenario.copy())
         _uiState.update { state ->
@@ -850,6 +837,22 @@ class MainViewModel(
             )
         }
         startMonitoring()
+    }
+
+    // --- Block Phrases ---
+
+    fun addBlockPhrase(phrase: String) {
+        val trimmed = phrase.trim()
+        if (trimmed.isBlank()) return
+        viewModelScope.launch {
+            app.database.blockPhraseDao().insert(BlockPhrase(phrase = trimmed.lowercase()))
+        }
+    }
+
+    fun deleteBlockPhrase(blockPhrase: BlockPhrase) {
+        viewModelScope.launch {
+            app.database.blockPhraseDao().delete(blockPhrase)
+        }
     }
 
     // --- Settings & Debugging ---

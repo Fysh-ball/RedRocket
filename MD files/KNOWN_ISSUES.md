@@ -10,14 +10,17 @@ Tracks known bugs, edge cases, and unresolved issues.
 - Regional wording differences (Canada alerts) — partial fix via FalseAlarmDetector French phrases
 - Bilingual alerts (EN/FR parsing) — partial fix, pre-normalized French phrases in FalseAlarmDetector
 - Device restrictions (background limitations) — no warning shown yet if SMS restricted while locked
-- `reorderable:0.9.6` library abandoned (2022) — will break on future Compose BOM updates; replace with official foundation drag APIs
-- `kapt` in maintenance mode — migrate to KSP when Room fully supports project's Kotlin version
-- stale `app/src/myapplication/` template directory — should be deleted; ExampleInstrumentedTest and ExampleUnitTest are stubs
-- `onAddRecipients()` legacy flat-recipients path in MainViewModel — never called from UI, modifies deprecated field; mark `@Deprecated` or remove
 
 ---
 
 ## FIXED ISSUES (pending stable confirmation)
+
+- **[CRITICAL] EmergencyPackageDetector.kt — partial runtime detection bypassed static package list** → `isEmergencyAlertPackage()` now always checks `ALL_KNOWN_PACKAGES || detectedPackages`; partial detection (e.g. one safety app found but WEA package missed) can no longer exclude a known EAS package
+- **[HIGH] EmergencyNotificationListener.kt — `hadKeywordMatch` caused non-triggering notifications to appear in Alert History** → removed `hadKeywordMatch` flag entirely; non-EAS entries only logged when `triggeredCount > 0` (i.e. a scenario actually fired)
+- **[HIGH] EmergencyNotificationListener.kt — `looksLikeEASContent()` missing "EMERGENCY ALERT" phrase** → added `EMERGENCY_ALERT` to content-based EAS fallback check
+- **[CODE QUALITY] `reorderable:0.9.6` abandoned library** → replaced with `sh.calvin.reorderable:reorderable:2.4.0`; both `GroupsSection.kt` and `ScenarioDropdown.kt` updated to new API (`draggableHandle` + `rememberReorderableLazyListState(lazyListState)`)
+- **[CODE QUALITY] `kapt` annotation processor in maintenance mode** → migrated to KSP (`2.0.21-1.0.25`); `app/build.gradle.kts` and `gradle/libs.versions.toml` updated; schema location arg moved to top-level `ksp {}` block
+- **[CODE QUALITY] `onAddRecipients()` in MainViewModel — dead code** → removed; function modified deprecated flat `Scenario.recipients` field and was never called from UI (only `onAddRecipientsToGroup` is used)
 
 - **[CRITICAL] RateLimiter.kt — race condition on `lastSendTimestamp`** → replaced plain `Long` with `AtomicLong` + CAS loop; two concurrent coroutines can no longer both pass the rate check simultaneously
 - **[CRITICAL] AdaptiveSendController.kt — `@Volatile` counters not atomic** → replaced `consecutiveFailures`, `consecutiveSuccesses`, `lazarusPassCount` with `AtomicInteger`; read-modify-write ops are now atomic

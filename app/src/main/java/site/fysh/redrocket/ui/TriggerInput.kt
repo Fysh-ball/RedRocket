@@ -12,6 +12,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import site.fysh.redrocket.model.BlockPhrase
 
 /** Preset trigger word categories with optional emoji icon. */
 data class TriggerPreset(
@@ -87,6 +89,9 @@ private val TRIGGER_PRESETS = listOf(
 fun TriggerInput(
     keywordsString: String,
     onKeywordsChange: (String) -> Unit,
+    blockPhrases: List<BlockPhrase> = emptyList(),
+    onAddBlockPhrase: (String) -> Unit = {},
+    onDeleteBlockPhrase: (BlockPhrase) -> Unit = {},
     onSheetDismissed: () -> Unit = {}
 ) {
     val keywords = remember(keywordsString) {
@@ -94,15 +99,19 @@ fun TriggerInput(
     }
     var showPresetPicker by remember { mutableStateOf(false) }
     var showKeywordSheet by remember { mutableStateOf(false) }
+    var showBlockPhraseSheet by remember { mutableStateOf(false) }
+    var showBlockPhraseInfo by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
-    Column(modifier = Modifier.fillMaxWidth()) {
+    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+
+        // ── Activation Keywords sub-section ───────────────────────────────────
+        SubSectionLabel("Activation Keywords")
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Tappable chip area — always opens the keyword add sheet on tap
             Surface(
                 modifier = Modifier
                     .weight(1f)
@@ -140,7 +149,6 @@ fun TriggerInput(
                 }
             }
 
-            // Preset picker button — always visible, same size as other action buttons (56dp)
             Button(
                 onClick = { showPresetPicker = true },
                 modifier = Modifier.size(56.dp),
@@ -155,11 +163,70 @@ fun TriggerInput(
                 )
             }
         }
+
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+        // ── Block Phrases sub-section ──────────────────────────────────────────
+        SubSectionLabel("Block Phrases")
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Surface(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(vertical = 4.dp)
+                    .clickable { showBlockPhraseSheet = true },
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+            ) {
+                InputBoxContainer(modifier = Modifier.padding(8.dp)) {
+                    if (blockPhrases.isEmpty()) {
+                        Text(
+                            "Tap to add block phrases...",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp)
+                        )
+                    } else {
+                        FlowRow(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 6.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            blockPhrases.forEach { bp ->
+                                BlockPhraseChip(bp.phrase) { onDeleteBlockPhrase(bp) }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Button(
+                onClick = { showBlockPhraseInfo = true },
+                modifier = Modifier.size(56.dp),
+                shape = RoundedCornerShape(12.dp),
+                contentPadding = PaddingValues(0.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+            ) {
+                Icon(
+                    Icons.Default.Info,
+                    contentDescription = "What are block phrases?",
+                    modifier = Modifier.size(26.dp)
+                )
+            }
+        }
     }
 
-    // Keyword add sheet — ModalBottomSheet (same system as message input per AGENTS.md)
+    // Keyword add sheet
     if (showKeywordSheet) {
         KeywordAddSheet(
+            title = "Add Keyword",
+            placeholder = "e.g. earthquake warning",
             onAdd = { word ->
                 if (word.isNotBlank()) {
                     val combined = (keywords + listOf(word.trim())).distinct().joinToString(",")
@@ -173,6 +240,40 @@ fun TriggerInput(
         )
     }
 
+    // Block phrase add sheet
+    if (showBlockPhraseSheet) {
+        KeywordAddSheet(
+            title = "Add Block Phrase",
+            placeholder = "e.g. this is a test",
+            onAdd = { phrase ->
+                if (phrase.isNotBlank()) onAddBlockPhrase(phrase.trim())
+            },
+            onDismiss = { showBlockPhraseSheet = false }
+        )
+    }
+
+    // Block phrase info dialog
+    if (showBlockPhraseInfo) {
+        AlertDialog(
+            onDismissRequest = { showBlockPhraseInfo = false },
+            icon = { Icon(Icons.Default.Info, contentDescription = null) },
+            title = { Text("Block Phrases", fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    "Block phrases are words or phrases that tell Red Rocket an alert is a test or false alarm.\n\nIf an incoming alert contains any of your block phrases, it will be ignored — even if it also matches your activation keywords.\n\nYou can add phrases in any language. Tap a chip to remove it.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    lineHeight = 20.sp
+                )
+            },
+            confirmButton = {
+                Button(onClick = { showBlockPhraseInfo = false }, shape = RoundedCornerShape(12.dp)) {
+                    Text("Got it")
+                }
+            },
+            shape = RoundedCornerShape(16.dp)
+        )
+    }
+
     // Preset picker dialog
     if (showPresetPicker) {
         PresetPickerDialog(
@@ -183,7 +284,6 @@ fun TriggerInput(
             },
             onDismiss = {
                 showPresetPicker = false
-                // Delay so the user sees the keyword chips before the tutorial spotlight moves
                 scope.launch {
                     delay(600)
                     onSheetDismissed()
@@ -193,9 +293,22 @@ fun TriggerInput(
     }
 }
 
+@Composable
+private fun SubSectionLabel(text: String) {
+    Text(
+        text,
+        style = MaterialTheme.typography.labelSmall,
+        fontWeight = FontWeight.Bold,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        letterSpacing = 0.5.sp
+    )
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun KeywordAddSheet(
+    title: String,
+    placeholder: String,
     onAdd: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -218,7 +331,7 @@ private fun KeywordAddSheet(
                 .padding(bottom = 16.dp)
         ) {
             Text(
-                "Add Keyword",
+                title,
                 fontWeight = FontWeight.Bold,
                 fontSize = 17.sp,
                 modifier = Modifier.padding(bottom = 12.dp)
@@ -241,7 +354,7 @@ private fun KeywordAddSheet(
                     .focusRequester(focusRequester),
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp),
-                placeholder = { Text("e.g. earthquake warning") },
+                placeholder = { Text(placeholder) },
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = {
                     val word = textFieldValue.text.trim()
@@ -263,10 +376,10 @@ private fun KeywordAddSheet(
                 TextButton(onClick = onDismiss) { Text("Cancel") }
                 Spacer(Modifier.width(8.dp))
                 Button(
-                    onClick = { 
+                    onClick = {
                         val word = textFieldValue.text.trim()
                         if (word.isNotBlank()) onAdd(word)
-                        onDismiss() 
+                        onDismiss()
                     },
                     shape = RoundedCornerShape(12.dp)
                 ) {
@@ -375,6 +488,37 @@ fun KeywordChip(keyword: String, onRemove: () -> Unit) {
                     .clickable { onRemove() }
                     .padding(2.dp),
                 tint = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+        }
+    }
+}
+
+@Composable
+private fun BlockPhraseChip(phrase: String, onRemove: () -> Unit) {
+    Surface(
+        color = MaterialTheme.colorScheme.errorContainer,
+        shape = RoundedCornerShape(16.dp),
+        modifier = Modifier.height(32.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 12.dp)
+        ) {
+            Text(
+                text = phrase,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onErrorContainer
+            )
+            Spacer(Modifier.width(6.dp))
+            Icon(
+                Icons.Default.Close,
+                contentDescription = "Remove",
+                modifier = Modifier
+                    .size(16.dp)
+                    .clip(CircleShape)
+                    .clickable { onRemove() }
+                    .padding(2.dp),
+                tint = MaterialTheme.colorScheme.onErrorContainer
             )
         }
     }

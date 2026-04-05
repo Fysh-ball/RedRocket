@@ -69,13 +69,13 @@ fun RecipientsInput(
     var showAddSheet by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val chipScrollState = rememberScrollState()
-    val blockParent = remember {
+    val blockParent = remember(chipScrollState) {
         object : NestedScrollConnection {
             override fun onPostScroll(
                 consumed: Offset,
                 available: Offset,
                 source: NestedScrollSource
-            ): Offset = available
+            ): Offset = if (chipScrollState.maxValue > 0) available else Offset.Zero
         }
     }
 

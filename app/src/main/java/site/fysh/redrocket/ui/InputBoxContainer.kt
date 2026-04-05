@@ -39,14 +39,15 @@ fun InputBoxContainer(
     scrollState: ScrollState = rememberScrollState(),
     content: @Composable () -> Unit
 ) {
-    // Consumes any scroll not used by the inner scroll — outer page stays still.
-    val blockParent = remember {
+    // Consumes scroll only when content overflows — if the box doesn't need scrolling,
+    // events pass through to the parent so the page can scroll normally.
+    val blockParent = remember(scrollState) {
         object : NestedScrollConnection {
             override fun onPostScroll(
                 consumed: Offset,
                 available: Offset,
                 source: NestedScrollSource
-            ): Offset = available // claim remaining delta; parent gets zero
+            ): Offset = if (scrollState.maxValue > 0) available else Offset.Zero
         }
     }
 

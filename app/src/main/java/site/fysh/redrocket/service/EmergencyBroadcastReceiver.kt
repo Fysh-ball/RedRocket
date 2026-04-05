@@ -98,6 +98,9 @@ class EmergencyBroadcastReceiver : BroadcastReceiver() {
                 val sensitivityStr = app.settings.alertSensitivity.first()
                 val sensitivity = try { AlertSensitivity.valueOf(sensitivityStr) } catch (_: Exception) { AlertSensitivity.MEDIUM }
 
+                // Load user-defined block phrases (any language)
+                val userBlockPhrases = app.database.blockPhraseDao().getAllOnce().map { it.phrase }
+
                 // Log every cell broadcast BEFORE evaluation (resilience: record even if eval crashes).
                 // The row ID is kept so we can back-fill triggered scenario names after the loop.
                 val alertRowId = app.database.pastAlertDao().insertAlertAndGetId(
@@ -146,7 +149,7 @@ class EmergencyBroadcastReceiver : BroadcastReceiver() {
 
                     val shouldTrigger = when {
                         !keywordMatches -> false
-                        FalseAlarmDetector.isBlockedDespiteKeywordMatch(messageBody) -> false
+                        FalseAlarmDetector.isBlockedDespiteKeywordMatch(messageBody, userBlockPhrases) -> false
                         keywords.isNotEmpty() -> true  // keyword matched + not blocked = trigger
                         else -> FalseAlarmDetector.shouldTrigger(  // no-keyword: use sensitivity
                             messageBody, emptyList(), isTrustedSource = true, sensitivity = sensitivity
