@@ -274,14 +274,17 @@ fun MainScreen(viewModel: MainViewModel) {
                 // key() forces full recomposition of input sections when scenario switches,
                 // clearing any stale local draft state (typed-but-not-committed text, open dialogs).
                 key(uiState.currentScenario.id) {
-                    // Trigger Section
+                    // Alert Filters Section
                     SectionCard(
-                        title = "Trigger",
+                        title = "Alert Filters",
                         modifier = Modifier.onGloballyPositioned { triggerBoundsRect = it.boundsInRoot() }
                     ) {
                         TriggerInput(
                             keywordsString = uiState.currentScenario.description,
                             onKeywordsChange = { viewModel.onKeywordsChange(it) },
+                            blockPhrases = viewModel.blockPhrases.collectAsState().value,
+                            onAddBlockPhrase = { viewModel.addBlockPhrase(it) },
+                            onDeleteBlockPhrase = { viewModel.deleteBlockPhrase(it) },
                             onSheetDismissed = {
                                 if (uiState.showTutorial && uiState.tutorialStep == 2 &&
                                     uiState.currentScenario.description.isNotBlank()) {

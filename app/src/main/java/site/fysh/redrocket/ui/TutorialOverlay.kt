@@ -46,7 +46,7 @@ fun TutorialSpotlightOverlay(
     val title = when (stepIndex) {
         0 -> "1 / 6: Scenarios"
         1 -> "2 / 6: Rename It"
-        2 -> "3 / 6: Trigger Keywords"
+        2 -> "3 / 6: Alert Filters"
         3 -> "4 / 6: Contact Groups"
         4 -> "5 / 6: Your Message"
         else -> "6 / 6: Dashboard"
@@ -54,7 +54,7 @@ fun TutorialSpotlightOverlay(
     val body = when (stepIndex) {
         0 -> "Tap this bar to open the scenario list. Switch to a different scenario, or tap '+ Add New Scenario' at the bottom to create one."
         1 -> "Long-press this bar (not the list) to rename the current scenario. Give it a name like 'Family' or 'Work Team'."
-        2 -> "Tap + to add keywords. Red Rocket auto-sends when these words appear in an emergency alert notification."
+        2 -> "Activation Keywords: tap + to add words that trigger sending when they appear in an alert. Block Phrases: tap the box to add phrases (in any language) that mark an alert as a test or false alarm."
         3 -> "Long-press the group pill to rename it from 'Default'. Each group can have its own message and recipients."
         4 -> "Type your emergency message here. It's sent to all contacts in this group when the trigger fires."
         else -> "Tap Dashboard below to see delivery status and replies. Contacts reply 1 (Safe), 2 (Updates), or 3 (Urgent)."

@@ -2,6 +2,35 @@
 
 ---
 
+## Session: 2026-04-04 (Block Phrases UI + Alert History Fixes + Dependency Modernisation)
+
+### Block Phrases — moved into Alert Filters section, same card as Activation Keywords
+- **Files:** `ui/TriggerInput.kt`, `ui/MainScreen.kt`, `ui/SettingsDialog.kt`, `ui/TutorialOverlay.kt`
+- Block Phrases UI promoted from Settings into the same `SectionCard` as Activation Keywords, as a clearly labelled sub-section.
+- Section card renamed: `"Trigger"` → `"Alert Filters"`.
+- Keyword sub-section renamed: `"Alert Keywords"` → `"Activation Keywords"`.
+- Block Phrase chips use `errorContainer`/`onErrorContainer` colors to distinguish visually from green keyword chips.
+- Info button (`Icons.Default.Info`, secondary color) opens an `AlertDialog` explaining what block phrases do. Box size unchanged.
+- `KeywordAddSheet` parameterised with `title` and `placeholder` — reused for both keyword and block phrase input.
+- Tutorial step 2 updated: title `"3 / 6: Alert Filters"`, body covers both Activation Keywords and Block Phrases.
+- SettingsDialog: Block Phrases section removed; User Manual updated to describe "Alert Filters" (Activation Keywords + Block Phrases).
+
+### Alert History — fixed two bugs introduced in prior sessions
+- **File:** `service/EmergencyNotificationListener.kt`
+- **Bug 1 (phantom entries):** `hadKeywordMatch` variable caused non-EAS notifications to be logged whenever keywords matched, even if the scenario was locked/invalid and never fired. Removed `hadKeywordMatch` entirely; non-EAS entries now only written when `triggeredCount > 0`.
+- **Bug 2 (WEA not logged):** `isEmergencyAlertPackage()` gated on `detectionSucceeded` — partial detection (e.g. Personal Safety app found, WEA package missed) set `detectionSucceeded = true` but left the WEA package absent from `detectedPackages`, silently excluding it. Fixed: `isEmergencyAlertPackage()` now always returns `packageName in ALL_KNOWN_PACKAGES || packageName in detectedPackages`.
+- Added `"EMERGENCY ALERT"` to `looksLikeEASContent()` content-based fallback.
+
+### Dependency modernisation
+- **kapt → KSP** (`gradle/libs.versions.toml`, `app/build.gradle.kts`): replaced `id("kotlin-kapt")` with `alias(libs.plugins.ksp)`, `kapt(room.compiler)` with `ksp(room.compiler)`, and `javaCompileOptions { annotationProcessorOptions { ... } }` with top-level `ksp { arg(...) }`. KSP version `2.0.21-1.0.25` added to version catalog.
+- **`reorderable:0.9.6` → `sh.calvin.reorderable:2.4.0`** (`GroupsSection.kt`, `ScenarioDropdown.kt`): migrated to maintained fork. API changes: `Modifier.reorderable()` removed (not needed in 2.x); `detectReorder()` replaced with `.draggableHandle(onDragStopped = {...})`; explicit `lazyListState` passed to `rememberReorderableLazyListState`.
+
+### Dead code removal
+- **File:** `ui/MainViewModel.kt`
+- Removed `onAddRecipients()` — was modifying the deprecated flat `Scenario.recipients` field and was never called from any UI composable.
+
+---
+
 ## Session: 2026-03-30 (Alert History — keyword-gated logging + input box polish)
 
 ### Alert History — correct logging rules per source
@@ -182,7 +211,6 @@
 
 ## Known Open Items
 
-- `reorderable:0.9.6` is an abandoned library — replace with official Compose drag-and-drop APIs
-- `kapt` is in maintenance mode — migrate to KSP
-- Stale `app/src/myapplication/` template directory — delete
-- `onAddRecipients()` in `MainViewModel` is never called from UI and modifies a deprecated field — mark `@Deprecated` or remove
+- Regional wording differences (Canada alerts) — partial fix via FalseAlarmDetector French phrases
+- Bilingual alerts (EN/FR parsing) — partial fix, pre-normalized French phrases in FalseAlarmDetector
+- Device restrictions (background limitations) — no warning shown yet if SMS restricted while locked

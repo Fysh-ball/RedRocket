@@ -35,7 +35,7 @@ All sending happens through the device's native SMS system. No cloud service, no
 1. Receive alert content
 2. Filter system noise (audio routing, own notifications)
 3. Determine trust level via `EmergencyPackageDetector`
-4. Run through `FalseAlarmDetector` (7-step pipeline)
+4. Run through `FalseAlarmDetector` (8-step pipeline)
 5. If triggered: enqueue all valid groups from matching scenarios
 
 **Key behavior:**
@@ -51,7 +51,8 @@ Full rules: see DETECTION_RULES.md
 
 A Scenario is the top-level unit. Each scenario has:
 - **Name**: user-defined label
-- **Trigger keywords**: comma-separated phrases that FalseAlarmDetector uses for keyword matching
+- **Activation Keywords**: comma-separated phrases that trigger the scenario when matched in alert content
+- **Block Phrases**: words or phrases in any language that suppress triggering even when keywords match (e.g. "this is a test")
 - **Groups**: one or more groups, each with its own recipients and message
 - **isLocked**: true after triggering — must be manually reset
 - **isFavorite**: protected from deletion
@@ -167,8 +168,8 @@ After sending, `SmsResponseReceiver` listens for replies within a configurable w
 - Visible in Dashboard → Logs section (collapsible, default collapsed)
 
 #### Alert History (PastAlert)
-- Every system emergency alert regardless of trigger outcome
-- Source: "cell_broadcast", "notification", or "manual"
+- Every system emergency alert regardless of trigger outcome; non-EAS notifications only when they caused a trigger
+- Source: `"cell_broadcast"` (WEA/CMAS), `"alert"` (EAS companion notification), `"notification"` (keyword-triggered), `"manual"` (force send)
 - Stores triggered scenario names
 - Visible in Dashboard → Alert History (collapsible, default collapsed)
 
@@ -189,6 +190,7 @@ Stored in DataStore (`AppSettings`):
 | FORCE_SEQUENTIAL | false | Lock to sequential sending |
 | LAST_SCENARIO_ID | "" | Restore last selected scenario |
 | PRESETS_OFFERED | false | Whether preset dialog has been shown |
+| ALERT_SENSITIVITY | MEDIUM | FalseAlarmDetector threshold for wildcard scenarios (HIGH/MEDIUM/LOW) |
 
 ---
 
@@ -214,7 +216,7 @@ Top to bottom:
 3. Debug mode banner (non-production, when enabled)
 4. Abuse warning banner (when points ≥ 25)
 5. Notification permission warning (if not granted)
-6. Trigger section (keyword chips + add button → preset picker → keyword sheet)
+6. Alert Filters section (Activation Keywords sub-section: keyword chips + preset picker button; Block Phrases sub-section: phrase chips + info button)
 7. Groups section (group selector + recipients + message per group)
 8. Scenario locked banner (when locked, with Reset button)
 9. Cooldown timer (60s between sends)

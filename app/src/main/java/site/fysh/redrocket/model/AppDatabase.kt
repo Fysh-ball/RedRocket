@@ -9,8 +9,8 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
-    entities = [Scenario::class, ResponseRecord::class, PastAlert::class, ContactSendHistory::class, LogEntry::class],
-    version = 9,
+    entities = [Scenario::class, ResponseRecord::class, PastAlert::class, ContactSendHistory::class, LogEntry::class, BlockPhrase::class],
+    version = 10,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -20,6 +20,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun pastAlertDao(): PastAlertDao
     abstract fun contactSendHistoryDao(): ContactSendHistoryDao
     abstract fun logEntryDao(): LogEntryDao
+    abstract fun blockPhraseDao(): BlockPhraseDao
 
     companion object {
         @Volatile
@@ -59,6 +60,32 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // Creates block_phrases table and seeds it with the built-in English test phrases
+        // so existing users retain their protection without any manual setup.
+        private val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `block_phrases` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `phrase` TEXT NOT NULL
+                    )"""
+                )
+                // Pre-populate with the hardcoded English test phrases
+                listOf(
+                    "this is a test",
+                    "this is only a test",
+                    "this is just a test",
+                    "this is a drill",
+                    "this is only a drill",
+                    "this is just a drill",
+                    "test of the alert system",
+                    "test of the emergency"
+                ).forEach { phrase ->
+                    database.execSQL("INSERT INTO block_phrases (phrase) VALUES ('$phrase')")
+                }
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -66,7 +93,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "emergency_app_database"
                 )
-                .addMigrations(MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
+                .addMigrations(MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
                 .fallbackToDestructiveMigrationFrom(1, 2, 3, 4, 5)
                 .build()
                 INSTANCE = instance

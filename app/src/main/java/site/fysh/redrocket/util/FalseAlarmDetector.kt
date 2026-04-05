@@ -160,21 +160,28 @@ object FalseAlarmDetector {
      *
      * Only two blocks are applied — everything else is intentionally bypassed because
      * the user's keyword is authoritative:
-     *  • Amber Block — child safety alerts never auto-trigger regardless of keywords.
-     *  • Hard Block  — explicit test phrase ("this is a test") blocks triggering,
-     *                  unless an Override phrase ("this is not a drill") is also present.
+     *  • Amber Block        — child safety alerts never auto-trigger regardless of keywords.
+     *  • Hard Block         — built-in test phrases ("this is a test") block triggering,
+     *                         unless an Override phrase ("this is not a drill") is also present.
+     *  • User Block Phrases — user-defined phrases (any language) checked the same way as
+     *                         the built-in Hard Block. Override phrases still cancel them.
      */
-    fun isBlockedDespiteKeywordMatch(rawContent: String): Boolean {
+    fun isBlockedDespiteKeywordMatch(
+        rawContent: String,
+        userBlockPhrases: List<String> = emptyList()
+    ): Boolean {
         val content = normalize(rawContent)
         if (AMBER_BLOCK_PHRASES.any { content.contains(it) }) {
             Log.i(TAG, "KEYWORD MATCH SUPPRESSED: Amber Block (child safety alert)")
             return true
         }
+        val normalizedUserPhrases = userBlockPhrases.map { normalize(it) }
         val hasHardTest = HARD_TEST_PHRASES.any { content.contains(it) }
+                       || normalizedUserPhrases.any { it.isNotBlank() && content.contains(it) }
         if (!hasHardTest) return false
         val hasOverride = OVERRIDE_PHRASES.any { content.contains(it) }
         if (!hasOverride) {
-            Log.i(TAG, "KEYWORD MATCH SUPPRESSED: Hard Block (explicit test phrase)")
+            Log.i(TAG, "KEYWORD MATCH SUPPRESSED: Hard Block (explicit test/block phrase)")
             return true
         }
         return false

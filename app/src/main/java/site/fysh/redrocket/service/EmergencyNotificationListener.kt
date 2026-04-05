@@ -89,9 +89,9 @@ class EmergencyNotificationListener : NotificationListenerService() {
     }
 
     /**
-     * Content-based EAS fallback: catches alerts from custom/carrier/OEM packages that
-     * are not in EmergencyPackageDetector's known list. WEA message titles follow
-     * FCC-mandated category names, so matching them here is high-confidence.
+     * Content-based EAS fallback: catches WEA/EAS from OEM packages not in the
+     * static known-package list. Matches FCC-mandated WEA category names and the
+     * generic "Emergency Alert" notification title used across many OEM builds.
      */
     private fun looksLikeEASContent(content: String): Boolean {
         val upper = content.uppercase()
@@ -101,13 +101,14 @@ class EmergencyNotificationListener : NotificationListenerService() {
                upper.contains("SEVERE ALERT") ||
                upper.contains("AMBER ALERT") ||
                upper.contains("CIVIL EMERGENCY") ||
-               upper.contains("NATIONAL EMERGENCY")
+               upper.contains("NATIONAL EMERGENCY") ||
+               upper.contains("EMERGENCY ALERT")
     }
 
     private suspend fun processNotification(packageName: String, content: String) {
         // Two-path EAS detection: known package OR FCC-mandated content phrases.
-        // The content fallback catches alerts from custom OEM/carrier builds whose
-        // package names are not in our detection list.
+        // isEmergencyAlertPackage always checks the full static list first so partial
+        // runtime detection can never cause a known WEA package to be missed.
         val isSystemEmergencyAlert = EmergencyPackageDetector.isEmergencyAlertPackage(packageName)
             || looksLikeEASContent(content)
 
@@ -115,8 +116,12 @@ class EmergencyNotificationListener : NotificationListenerService() {
         val sensitivityStr = app.settings.alertSensitivity.first()
         val sensitivity = try { AlertSensitivity.valueOf(sensitivityStr) } catch (_: Exception) { AlertSensitivity.MEDIUM }
 
-        // SPEC: ALL EAS/WEA notifications logged BEFORE any filtering — unconditionally.
-        // Row ID is retained so triggered scenario names can be back-filled after the loop.
+        // Load user-defined block phrases (any language)
+        val userBlockPhrases = app.database.blockPhraseDao().getAllOnce().map { it.phrase }
+
+        // EAS/WEA notifications are logged unconditionally before any filtering so
+        // they always appear in Alert History regardless of scenario configuration.
+        // Row ID is kept so triggered scenario names can be back-filled after the loop.
         val easAlertRowId: Long = if (isSystemEmergencyAlert) {
             app.database.pastAlertDao().insertAlertAndGetId(
                 PastAlert(
@@ -136,10 +141,6 @@ class EmergencyNotificationListener : NotificationListenerService() {
         val contentLower = content.lowercase()
         var triggeredCount = 0
         val triggeredNames = mutableListOf<String>()
-        // True if ANY scenario's keywords matched the content — used to decide whether
-        // to log the notification even when blocked (test phrase / Amber). Mirrors the
-        // EAS path which logs unconditionally so users can always see what came in.
-        var hadKeywordMatch = false
 
         for (scenario in allScenarios) {
             val keywords = scenario.description
@@ -148,8 +149,6 @@ class EmergencyNotificationListener : NotificationListenerService() {
                 .filter { it.isNotEmpty() }
 
             // TRIGGER DECISION
-            //
-            // Amber Block and Hard Block always apply regardless of keyword configuration.
             //
             // - Has keywords: user's keyword is authoritative. Match + not blocked = trigger.
             //   FalseAlarmDetector scoring is bypassed; keywords define exactly what matters.
@@ -161,9 +160,8 @@ class EmergencyNotificationListener : NotificationListenerService() {
                     content, emptyList(), isTrustedSource = true, sensitivity = sensitivity
                 )
             } else {
-                val hasKeywordMatch = keywords.any { kw -> FalseAlarmDetector.keywordMatchesContent(kw, contentLower) }
-                if (hasKeywordMatch) hadKeywordMatch = true
-                hasKeywordMatch && !FalseAlarmDetector.isBlockedDespiteKeywordMatch(content)
+                keywords.any { kw -> FalseAlarmDetector.keywordMatchesContent(kw, contentLower) }
+                    && !FalseAlarmDetector.isBlockedDespiteKeywordMatch(content, userBlockPhrases)
             }
 
             if (!isMatched) continue
@@ -207,10 +205,9 @@ class EmergencyNotificationListener : NotificationListenerService() {
             )
         }
 
-        // Log non-EAS notifications to Alert History when keywords matched — regardless of
-        // whether a trigger fired. This mirrors the EAS path (logs unconditionally) so users
-        // can always see what the system evaluated, including blocked test alerts.
-        if (!isSystemEmergencyAlert && (triggeredCount > 0 || hadKeywordMatch)) {
+        // Non-EAS notifications only appear in Alert History when they actually caused
+        // a trigger. Keyword matches that were blocked or didn't fire are not logged.
+        if (!isSystemEmergencyAlert && triggeredCount > 0) {
             app.database.pastAlertDao().insertAlert(
                 PastAlert(
                     messageContent = content.take(500),
