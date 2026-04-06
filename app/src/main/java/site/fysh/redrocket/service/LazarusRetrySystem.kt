@@ -10,7 +10,7 @@ import kotlinx.coroutines.delay
  * Manages the Lazarus retry logic for failed messages per PROJECT_SPEC.md:
  *
  *  - Pass 1+: retry at 200ms intervals (enforced by RateLimiter inside send())
- *  - Failures go to END of retry queue — no retry-count limit
+ *  - Failures go to END of retry queue - no retry-count limit
  *  - After each complete pass: if isKeepTrying=ON, wait 5 s and loop again
  *  - If isKeepTrying=OFF, stop after the first complete pass
  *  - Messages are NEVER permanently dropped by Lazarus
@@ -35,7 +35,7 @@ class LazarusRetrySystem(
                 // Between passes: check keep-trying and wait 5 s
                 if (!isFirstPass) {
                     if (!adaptiveController.isKeepTrying()) {
-                        Log.i(TAG, "Lazarus: Keep Trying is OFF — stopping after first pass.")
+                        Log.i(TAG, "Lazarus: Keep Trying is OFF - stopping after first pass.")
                         break
                     }
                     Log.d(TAG, "Lazarus: waiting 5 s before next pass.")
@@ -63,7 +63,7 @@ class LazarusRetrySystem(
                         )
                         Log.d(TAG, "Lazarus: delivered to ${task.recipient.phoneNumber}")
                     } else {
-                        // Cycle failed message to end of queue — no limit
+                        // Cycle failed message to end of queue - no limit
                         queueManager.requeueForLazarus(task)
                         queueManager.updateCurrentMessageStatus(
                             MessageStatus(task.recipient.phoneNumber, "Failed ✗")

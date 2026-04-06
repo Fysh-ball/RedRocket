@@ -18,6 +18,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Monitors notifications for emergency triggers.
@@ -33,7 +34,7 @@ class EmergencyNotificationListener : NotificationListenerService() {
         Log.e(TAG, "Uncaught exception in notification listener scope", throwable)
     }
 
-    // Var so it can be recreated on rebind — Android may call onListenerConnected()
+    // Var so it can be recreated on rebind - Android may call onListenerConnected()
     // without calling onCreate() again, leaving a cancelled scope from a prior bind.
     private var serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO + exceptionHandler)
 
@@ -43,7 +44,7 @@ class EmergencyNotificationListener : NotificationListenerService() {
         super.onListenerConnected()
         if (!serviceScope.isActive) {
             serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO + exceptionHandler)
-            Log.i(TAG, "Notification Listener reconnected — scope recreated.")
+            Log.i(TAG, "Notification Listener reconnected - scope recreated.")
         } else {
             Log.i(TAG, "Notification Listener connected and active.")
         }
@@ -72,7 +73,7 @@ class EmergencyNotificationListener : NotificationListenerService() {
 
             Log.d(TAG, "Received notification from: $packageName | Content: $fullContent")
 
-            // Skip system audio routing notifications — these are not emergency alerts and must
+            // Skip system audio routing notifications - these are not emergency alerts and must
             // never appear in Alert History or trigger detection logic.
             if (fullContent.contains("you're hearing another device", ignoreCase = true) ||
                 fullContent.contains("hearing another device", ignoreCase = true)) {
@@ -112,12 +113,15 @@ class EmergencyNotificationListener : NotificationListenerService() {
         val isSystemEmergencyAlert = EmergencyPackageDetector.isEmergencyAlertPackage(packageName)
             || looksLikeEASContent(content)
 
-        // Read sensitivity — fail safely to MEDIUM
+        // Read sensitivity - fail safely to MEDIUM
         val sensitivityStr = app.settings.alertSensitivity.first()
         val sensitivity = try { AlertSensitivity.valueOf(sensitivityStr) } catch (_: Exception) { AlertSensitivity.MEDIUM }
 
-        // Load user-defined block phrases (any language)
-        val userBlockPhrases = app.database.blockPhraseDao().getAllOnce().map { it.phrase }
+        // Load user-defined block phrases (any language).
+        // Timeout guards against a slow DB stalling the notification processing coroutine.
+        val userBlockPhrases = withTimeoutOrNull(5_000L) {
+            app.database.blockPhraseDao().getAllOnce().map { it.phrase }
+        } ?: emptyList()
 
         // EAS/WEA notifications are logged unconditionally before any filtering so
         // they always appear in Alert History regardless of scenario configuration.
@@ -125,7 +129,7 @@ class EmergencyNotificationListener : NotificationListenerService() {
         val easAlertRowId: Long = if (isSystemEmergencyAlert) {
             app.database.pastAlertDao().insertAlertAndGetId(
                 PastAlert(
-                    messageContent = content.ifBlank { "[EAS alert — no text retrieved]" }.take(500),
+                    messageContent = content.ifBlank { "[EAS alert - no text retrieved]" }.take(500),
                     source = "alert",
                     scenariosTriggered = ""
                 )
@@ -134,7 +138,7 @@ class EmergencyNotificationListener : NotificationListenerService() {
             -1L
         }
 
-        // Load ALL scenarios — every scenario actively listens for its trigger words
+        // Load ALL scenarios - every scenario actively listens for its trigger words
         val allScenarios = app.database.scenarioDao().getAllScenariosOnce()
         Log.i(TAG, "Evaluating ${allScenarios.size} scenario(s) against notification from $packageName")
 
@@ -152,7 +156,7 @@ class EmergencyNotificationListener : NotificationListenerService() {
             //
             // - Has keywords: user's keyword is authoritative. Match + not blocked = trigger.
             //   FalseAlarmDetector scoring is bypassed; keywords define exactly what matters.
-            // - No keywords: wildcard scenario — only fires on confirmed EAS source, and
+            // - No keywords: wildcard scenario - only fires on confirmed EAS source, and
             //   content quality is evaluated by FalseAlarmDetector so the sensitivity setting
             //   controls the threshold (HIGH = broad, LOW = life-threatening only).
             val isMatched = if (keywords.isEmpty()) {
@@ -168,18 +172,18 @@ class EmergencyNotificationListener : NotificationListenerService() {
 
             // Skip invalid scenarios (no message or no recipients)
             if (!scenario.isValid()) {
-                Log.d(TAG, "Scenario '${scenario.name}' skipped — invalid (missing message or recipients)")
+                Log.d(TAG, "Scenario '${scenario.name}' skipped - invalid (missing message or recipients)")
                 continue
             }
 
             // Skip locked scenarios
             if (scenario.isLocked) {
-                Log.i(TAG, "Scenario '${scenario.name}' is LOCKED — trigger silently ignored.")
+                Log.i(TAG, "Scenario '${scenario.name}' is LOCKED - trigger silently ignored.")
                 continue
             }
 
-            // ── Trigger this scenario ──────────────────────────────────────
-            Log.i(TAG, "TRIGGERED scenario '${scenario.name}' — enqueuing ${scenario.allRecipients().size} recipient(s)")
+            // Trigger this scenario
+            Log.i(TAG, "TRIGGERED scenario '${scenario.name}' - enqueuing ${scenario.allRecipients().size} recipient(s)")
             AppLogger.log(app.database, app.appScope, "scenario_triggered",
                 "Scenario '${scenario.name}' triggered by notification from $packageName")
 
@@ -187,7 +191,7 @@ class EmergencyNotificationListener : NotificationListenerService() {
                 if (group.recipients.isNotEmpty() && group.message.isNotBlank()) {
                     app.queueManager.enqueueScenario(group.recipients, group.message, scenario.id)
                     AppLogger.log(app.database, app.appScope, "group_processed",
-                        "Group '${group.name}' — ${group.recipients.size} contact(s) queued")
+                        "Group '${group.name}' - ${group.recipients.size} contact(s) queued")
                 }
             }
 
@@ -220,7 +224,7 @@ class EmergencyNotificationListener : NotificationListenerService() {
         if (triggeredCount > 0) {
             AppLogger.log(app.database, app.appScope, "emergency_detected",
                 "Notification from $packageName matched triggers")
-            Log.i(TAG, "$triggeredCount scenario(s) triggered — starting response listener and sending service")
+            Log.i(TAG, "$triggeredCount scenario(s) triggered - starting response listener and sending service")
             SmsResponseReceiver.startListening()
             EmergencySendingService.startService(this@EmergencyNotificationListener)
         } else {

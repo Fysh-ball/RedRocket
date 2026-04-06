@@ -100,7 +100,7 @@ fun TutorialSpotlightOverlay(
         val screenHeightDp = maxHeight
         val screenWidthDp  = maxWidth
 
-        // Touch-blocking modifier (no visual — only used for pointer interception)
+        // Touch-blocking modifier (no visual - only used for pointer interception)
         val touchBlock = Modifier.pointerInput(Unit) {
             awaitEachGesture {
                 awaitFirstDown(requireUnconsumed = false).consume()
@@ -109,8 +109,7 @@ fun TutorialSpotlightOverlay(
         }
 
         if (targetBounds != null) {
-            // Step 4 (message section): expand the spotlight so the full MessageInput row —
-            // including the Surface's vertical padding and the upload button — is shown
+            // Step 4 (message section): expand the spotlight so the full MessageInput row - // including the Surface's vertical padding and the upload button - is shown
             // without clipping. Other steps use exact element bounds.
             val expandPx = with(density) {
                 if (stepIndex == 4) 10.dp.toPx() else 0f
@@ -144,7 +143,7 @@ fun TutorialSpotlightOverlay(
                 )
             }
 
-            // Touch blockers — invisible, 5-region layout so the spotlight gap has no
+            // Touch blockers - invisible, 5-region layout so the spotlight gap has no
             // composable on top of it and touches fall through to the Scaffold below.
             Column(modifier = Modifier.fillMaxSize()) {
                 if (topDp > 0.dp) {
@@ -170,7 +169,7 @@ fun TutorialSpotlightOverlay(
             )
         }
 
-        // ── Tutorial card — float close to spotlight ──────────────────────────
+        // Tutorial card - float close to spotlight
         if (targetBounds != null) {
             val spotlightBottomDp = with(density) { targetBounds.bottom.toDp() }
             val spotlightTopDp    = with(density) { targetBounds.top.toDp() }
@@ -357,7 +356,7 @@ fun TutorialCompleteOverlay(onDismiss: () -> Unit) {
             }
         }
 
-        // Dim background — absorbs taps outside the card
+        // Dim background - absorbs taps outside the card
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -370,7 +369,7 @@ fun TutorialCompleteOverlay(onDismiss: () -> Unit) {
                 }
         )
 
-        // Congratulations card — above dim background
+        // Congratulations card - above dim background
         Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
@@ -414,7 +413,7 @@ fun TutorialCompleteOverlay(onDismiss: () -> Unit) {
             }
         }
 
-        // Confetti drawn on top of everything — Canvas has no pointer input so the
+        // Confetti drawn on top of everything - Canvas has no pointer input so the
         // card's button remains fully clickable.
         val currentParticles = particles
         Canvas(modifier = Modifier.fillMaxSize()) {

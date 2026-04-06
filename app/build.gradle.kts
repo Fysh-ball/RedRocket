@@ -36,6 +36,19 @@ android {
             buildConfigField("Long", "SEQUENTIAL_DELAY_MS", "200L")
         }
     }
+    flavorDimensions += "environment"
+    productFlavors {
+        create("dev") {
+            dimension = "environment"
+            applicationIdSuffix = ".dev"
+            versionNameSuffix = "-dev"
+            buildConfigField("Boolean", "IS_PRODUCTION", "false")
+        }
+        create("production") {
+            dimension = "environment"
+            buildConfigField("Boolean", "IS_PRODUCTION", "true")
+        }
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_21
         targetCompatibility = JavaVersion.VERSION_21

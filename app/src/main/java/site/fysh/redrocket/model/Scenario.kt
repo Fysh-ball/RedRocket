@@ -14,8 +14,8 @@ data class Scenario(
     val id: String = UUID.randomUUID().toString(),
     val name: String,
     val description: String = "", // Comma-separated trigger keywords
-    val message: String = "",     // Legacy — kept for DB compat; use groups instead
-    val recipients: List<Recipient> = emptyList(), // Legacy — kept for DB compat; use groups instead
+    val message: String = "",     // Legacy - kept for DB compat; use groups instead
+    val recipients: List<Recipient> = emptyList(), // Legacy - kept for DB compat; use groups instead
     val groups: List<Group> = emptyList(),
     val isLocked: Boolean = false,
     val isFavorite: Boolean = false,

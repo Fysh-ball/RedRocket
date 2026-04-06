@@ -25,7 +25,7 @@ import kotlin.coroutines.resume
 
 /**
  * Sends real SMS messages via Android SmsManager.
- * Only called when debug mode is OFF — routing is handled by EmergencyApp.getActiveSmsProvider().
+ * Only called when debug mode is OFF - routing is handled by EmergencyApp.getActiveSmsProvider().
  */
 class SmsSender(
     private val context: Context,
@@ -39,17 +39,17 @@ class SmsSender(
     private val requestCounter = AtomicInteger(1000)
 
     override suspend fun send(task: MessageTask): Boolean = withContext(Dispatchers.IO) {
-        // Runtime permission check — SEND_SMS must be granted before each attempt.
+        // Runtime permission check - SEND_SMS must be granted before each attempt.
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.SEND_SMS)
             != PackageManager.PERMISSION_GRANTED
         ) {
-            Log.e(TAG, "[PERMISSION DENIED] SEND_SMS not granted — skipping ${task.recipient.phoneNumber}")
+            Log.e(TAG, "[PERMISSION DENIED] SEND_SMS not granted - skipping ${task.recipient.phoneNumber}")
             adaptiveController.reportResult(false)
             return@withContext false
         }
 
         val sm = smsManager ?: run {
-            Log.e(TAG, "[ERROR] SmsManager is null — cannot send to ${task.recipient.phoneNumber}")
+            Log.e(TAG, "[ERROR] SmsManager is null - cannot send to ${task.recipient.phoneNumber}")
             adaptiveController.reportResult(false)
             return@withContext false
         }
@@ -91,7 +91,7 @@ class SmsSender(
     /**
      * Calls sendTextMessage/sendMultipartTextMessage and suspends until the SMS_SENT
      * PendingIntent fires (max 10 seconds). Returns true if RESULT_OK, false on any error.
-     * Timeout with no error is treated as success (no bad result = radio accepted it).
+     * Timeout after 10 s is treated as failure - triggers Lazarus retry.
      */
     private suspend fun sendWithConfirmation(
         sm: SmsManager,
@@ -137,7 +137,7 @@ class SmsSender(
                         } else {
                             sm.sendTextMessage(phone, null, message, sentIntent, null)
                         }
-                        Log.d(TAG, "sendTextMessage() called for $phone — awaiting SMS_SENT broadcast")
+                        Log.d(TAG, "sendTextMessage() called for $phone - awaiting SMS_SENT broadcast")
                     } catch (e: Exception) {
                         Log.e(TAG, "sendTextMessage() threw for $phone: ${e.message}")
                         SmsDeliveryReceiver.pendingSent.remove(callbackId)
@@ -146,8 +146,8 @@ class SmsSender(
                 }
             }
         } catch (e: TimeoutCancellationException) {
-            // 10s elapsed with no confirmation — treat as failure so Lazarus can retry
-            Log.w(TAG, "SMS_SENT timeout for $phone — treating as failure for retry")
+            // 10s elapsed with no confirmation - treat as failure so Lazarus can retry
+            Log.w(TAG, "SMS_SENT timeout for $phone - treating as failure for retry")
             SmsDeliveryReceiver.pendingSent.remove(callbackId)
             false
         }

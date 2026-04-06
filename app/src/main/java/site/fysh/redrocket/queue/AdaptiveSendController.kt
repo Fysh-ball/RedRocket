@@ -108,7 +108,7 @@ class AdaptiveSendController {
 
     /**
      * Required inter-message delay for the current mode.
-     * MULTI_THREADED returns 0 — RateLimiter enforces a 150ms safety floor.
+     * MULTI_THREADED returns 0 - RateLimiter enforces a 150ms safety floor.
      * SEQUENTIAL and LAZARUS return 200ms.
      */
     fun getRequiredDelayMs(): Long = when (_currentState.value) {

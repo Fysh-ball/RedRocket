@@ -7,7 +7,7 @@ import androidx.room.PrimaryKey
 /**
  * Stores a response from a contact for a specific scenario.
  * The unique index on (scenarioId, phoneNumber) ensures only the latest
- * response per contact per scenario is kept — preventing duplicates.
+ * response per contact per scenario is kept - preventing duplicates.
  */
 @Entity(
     tableName = "response_records",

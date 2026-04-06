@@ -12,7 +12,7 @@ import java.util.Queue
 
 /**
  * Internal data class representing a single message task.
- * Fully immutable — prevents data races when SmsSender holds a reference
+ * Fully immutable - prevents data races when SmsSender holds a reference
  * while handleFailure/requeueForLazarus create updated copies inside the mutex.
  */
 data class MessageTask(
@@ -64,11 +64,11 @@ class MessageQueueManager {
     private var totalEnqueued = 0
     private var inFlightCount = 0
 
-    // ── Live queue status StateFlow ────────────────────────────────────────────
+    // Live queue status StateFlow
     private val _queueStatus = MutableStateFlow(QueueStatus(0, 0, 0, 0, 0, 0, 0))
     val queueStatusFlow: StateFlow<QueueStatus> = _queueStatus.asStateFlow()
 
-    /** Snapshot current state into the flow — must be called inside mutex. */
+    /** Snapshot current state into the flow - must be called inside mutex. */
     private fun emitStatus() {
         _queueStatus.value = QueueStatus(
             primaryQueue.size, retryQueue.size, failedQueue.size,
@@ -76,7 +76,7 @@ class MessageQueueManager {
         )
     }
 
-    // ── Live per-message status ────────────────────────────────────────────────
+    // Live per-message status
     private val _currentMessageStatus = MutableStateFlow<MessageStatus?>(null)
     val currentMessageStatus: StateFlow<MessageStatus?> = _currentMessageStatus.asStateFlow()
 
@@ -85,8 +85,7 @@ class MessageQueueManager {
         _currentMessageStatus.value = status
     }
 
-    // ── Queue operations ───────────────────────────────────────────────────────
-
+    // Queue operations
     suspend fun enqueueScenario(recipients: List<Recipient>, message: String, scenarioId: String) {
         mutex.withLock {
             if (recipients.isEmpty()) {

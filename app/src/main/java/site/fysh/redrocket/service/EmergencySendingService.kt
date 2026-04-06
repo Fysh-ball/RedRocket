@@ -43,7 +43,7 @@ class EmergencySendingService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // Must call startForeground on ALL code paths before any branching — Android 12+ requirement.
+        // Must call startForeground on ALL code paths before any branching - Android 12+ requirement.
         // A RemoteServiceException crash occurs if startForeground is not called promptly.
         val notification = createNotification("Emergency Message System Active", null, null)
         startForeground(NOTIFICATION_ID, notification)
@@ -64,7 +64,7 @@ class EmergencySendingService : Service() {
         // Log queue state asynchronously to avoid blocking the main thread
         serviceScope.launch {
             val queueSize = app.queueManager.getDetailedStatus()
-            Log.i(TAG, "onStartCommand: queue on start — primary=${queueSize.primarySize} retry=${queueSize.retrySize} total=${queueSize.totalEnqueued}")
+            Log.i(TAG, "onStartCommand: queue on start - primary=${queueSize.primarySize} retry=${queueSize.retrySize} total=${queueSize.totalEnqueued}")
         }
 
         if (notificationJob?.isActive != true) {
@@ -110,9 +110,9 @@ class EmergencySendingService : Service() {
             waitMs += 100
         }
         val initStatus = app.queueManager.getDetailedStatus()
-        Log.i(TAG, "processQueue starting — primary=${initStatus.primarySize} retry=${initStatus.retrySize} total=${initStatus.totalEnqueued} (waited ${waitMs}ms)")
+        Log.i(TAG, "processQueue starting - primary=${initStatus.primarySize} retry=${initStatus.retrySize} total=${initStatus.totalEnqueued} (waited ${waitMs}ms)")
         if (initStatus.primarySize == 0 && initStatus.retrySize == 0 && initStatus.totalEnqueued == 0) {
-            Log.w(TAG, "Queue is empty after 2s wait — stopping service")
+            Log.w(TAG, "Queue is empty after 2s wait - stopping service")
             stopSelf()
             return
         }
@@ -179,7 +179,7 @@ class EmergencySendingService : Service() {
                         .setContentIntent(openPi)
                         .build()
                     getSystemService(NotificationManager::class.java)
-                        .notify(NOTIFICATION_ID + 1, completionNotif)
+                        ?.notify(NOTIFICATION_ID + 1, completionNotif)
 
                     stopSelf()
                     break
@@ -239,7 +239,7 @@ class EmergencySendingService : Service() {
             }
 
             val text = when {
-                isDone -> "Complete — ${status.successCount} sent, ${status.failedCount} failed"
+                isDone -> "Complete - ${status.successCount} sent, ${status.failedCount} failed"
                 total == 0 -> "Preparing messages…"
                 else -> "$completed / $total  •  Mode: $stateName"
             }
@@ -259,8 +259,7 @@ class EmergencySendingService : Service() {
 
     private fun updateNotification(content: String, status: QueueStatus?, sendState: SendState?) {
         val notification = createNotification(content, status, sendState)
-        val notificationManager = getSystemService(NotificationManager::class.java)
-        notificationManager.notify(NOTIFICATION_ID, notification)
+        getSystemService(NotificationManager::class.java)?.notify(NOTIFICATION_ID, notification)
     }
 
     private fun createNotificationChannel() {
@@ -274,8 +273,7 @@ class EmergencySendingService : Service() {
             enableVibration(true)
             lockscreenVisibility = Notification.VISIBILITY_PUBLIC
         }
-        val manager = getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(channel)
+        getSystemService(NotificationManager::class.java)?.createNotificationChannel(channel)
     }
 
     override fun onBind(intent: Intent?): IBinder? = null

@@ -22,7 +22,7 @@ There are three ways the system receives an alert:
 - Extracts: title, text, subText, ticker from notification extras
 - Skips own package notifications (loop prevention)
 - Skips system audio routing notifications ("hearing another device")
-- Respects wideSpreadEnabled setting — if OFF, only processes system emergency packages
+- Respects wideSpreadEnabled setting - if OFF, only processes system emergency packages
 - File: `service/EmergencyNotificationListener.kt`
 
 ### 3. ManualSendGuard (user-initiated)
@@ -39,22 +39,27 @@ There are three ways the system receives an alert:
 - Detects which OEM emergency alert packages are installed on the device
 - Layered detection: direct package lookup + broadcast receiver query
 - Fallback: if detection finds nothing, trusts ALL known packages
-- `isEmergencyAlertPackage()` ALWAYS checks `ALL_KNOWN_PACKAGES` first — partial runtime detection can never cause a known EAS package to be rejected
+- `isEmergencyAlertPackage()` ALWAYS checks `ALL_KNOWN_PACKAGES` first - partial runtime detection can never cause a known EAS package to be rejected
 - Determines isTrustedSource flag passed to FalseAlarmDetector
 - File: `util/EmergencyPackageDetector.kt`
 
-### FalseAlarmDetector (8-step engine)
+### FalseAlarmDetector (7-step engine, full multilingual)
 Every alert passes through all steps in order. First decisive step wins.
 
-- Step 0: AMBER_BLOCK — "amber alert", "child abduction" → NEVER trigger
-- Step 1: HARD_OVERRIDE — trusted source + extreme danger phrase → ALWAYS trigger
-- Step 2: OVERRIDE_PHRASES — "this is not a test" → ALWAYS trigger
-- Step 3: HARD_TEST_PHRASES — "this is a test", "only a test", "drill" → NEVER trigger
-- Step 4: RED_PHRASES — life-threatening condition (e.g. "take shelter", "missile") → ALWAYS trigger (bypasses sensitivity)
+- Step 1: HARD_OVERRIDE - trusted source + extreme danger phrase (20 languages) → ALWAYS trigger
+- Step 2: OVERRIDE_PHRASES - "this is not a test" equivalents (20 languages) → ALWAYS trigger
+- Step 3: HARD_TEST_PHRASES - explicit test/drill phrases (20 languages) → NEVER trigger
+- Step 4: RED_PHRASES - life-threatening compound phrases (20 languages, bypasses sensitivity) → ALWAYS trigger
 - Step 5: SCORE ACCUMULATION (+5 trusted, +4 strong action, +2 moderate, +2 danger, +3 context boost, +1 CAPS, +1 repetition, +2 keyword match, −2 soft test)
-- Step 6: THRESHOLD — score ≥ 6 → trigger
-- Step 7: STRUCTURAL FAIL-SAFE — trusted source + urgent structure → trigger
+- Step 6: THRESHOLD - score ≥ threshold (HIGH=4, MEDIUM=6, LOW=9) → trigger
+- Step 7: STRUCTURAL FAIL-SAFE - trusted source + urgent structure → trigger
+  - Urgent structure: ALL CAPS, ≥2 exclamation marks, OR case-free script (CJK/Arabic/Hebrew - scripts with no uppercase concept)
 - DEFAULT: no trigger
+
+**normalize()**: NFD → strip U+0300–U+036F (Latin diacritics only) → NFC recompose → strip non-letter/non-combining-mark (`\p{M}`)/non-number chars.
+`\p{M}` preservation is required for Devanagari and Bengali vowel marks. Non-Latin scripts (CJK, Cyrillic, Arabic, Korean, Indic, etc.) pass through intact.
+User keywords are also normalized via `normalize()` before matching (not just lowercased) - accented keywords match stripped content correctly.
+Languages: English, French, Spanish, Portuguese, German, Italian, Dutch, Russian, Japanese, Korean, Chinese (Simplified + Traditional), Arabic, Turkish, Polish, Ukrainian, Swedish, Norwegian, Danish, Indonesian, Hindi, Bengali.
 
 Full scoring rules documented in DETECTION_RULES.md
 File: `util/FalseAlarmDetector.kt`
@@ -121,7 +126,7 @@ Transitions:
 - Runtime SEND_SMS permission check before each send
 - Splits long messages into multipart SMS automatically
 - Appends: "Reply: 1=Safe, 2=Safe+updates, 3=EMERGENCY"
-- 10-second PendingIntent timeout — timeout = treated as failure (Lazarus will retry)
+- 10-second PendingIntent timeout - timeout = treated as failure (Lazarus will retry)
 - Reports results to AdaptiveSendController
 - File: `service/SmsSender.kt`
 
@@ -140,7 +145,7 @@ Transitions:
 
 ### LazarusRetrySystem
 - Activated when primary queue exhausted but retry queue has failures
-- No retry limit — re-queues failed messages to end of retry queue indefinitely
+- No retry limit - re-queues failed messages to end of retry queue indefinitely
 - 5-second wait between passes (if Keep Trying = ON)
 - Exits when retry queue empty AND (Keep Trying = OFF OR no new failures in last pass)
 - File: `service/LazarusRetrySystem.kt`
@@ -168,7 +173,7 @@ Transitions:
 
 ### ResponseRecord
 - scenarioId, phoneNumber, recipientName, responseCode (1/2/3), receivedAt
-- Unique constraint on (scenarioId, phoneNumber) — one record per contact per scenario
+- Unique constraint on (scenarioId, phoneNumber) - one record per contact per scenario
 - File: `model/ResponseRecord.kt`
 
 ---
@@ -236,15 +241,29 @@ File: `utils/ForceSendAbuseTracker.kt`
 - Any language supported
 - File: `model/BlockPhrase.kt`
 
+### BlockPhrasePresets
+- 35 region presets (ISO 3166-1 alpha-2), each with a list of normalized test/drill phrases in the local language(s)
+- Used by BlockPhrasePresetPicker to offer one-tap "add all" or per-phrase add
+- Phrases stored pre-normalized: Latin lowercase with diacritics stripped; non-Latin in NFC Unicode form
+- File: `ui/BlockPhrasePresets.kt`
+
+### RegionalTriggerPresets
+- 22 language groups, each with 14 WEA/EAS scenario categories in alphabetical order
+- Categories: AMBER Alert, Chemical/Hazmat, Earthquake, Flood, General Emergency, Hurricane/Cyclone, Nuclear/Radiological, Nuclear Missile Strike, Severe Thunderstorm, Tornado, Tsunami, Volcano, Wildfire, Winter Storm
+- "Hurricane" becomes "Typhoon" for JP/KR/CN/TW/ID and "Cyclone" for IN (Hindi)
+- Used by the trigger preset picker in TriggerInput; region resolved via localizedTriggerPresets(regionCode)
+- File: `ui/RegionalTriggerPresets.kt`
+
 ---
 
 ## PERSISTENCE LAYER
 
 ### AppDatabase (Room)
 - Entities: Scenario, ResponseRecord, PastAlert, ContactSendHistory, LogEntry, BlockPhrase
-- Version: 8
-- Migrations: v6→v7 (groups column), v7→v8 (app_logs table)
-- No destructive migration fallback — explicit migrations only; schema exported to `app/schemas/`
+- Version: 10
+- Migrations: v6→v7 (groups column), v7→v8 (app_logs table), v8→v9 (block_phrases table), v9→v10 (seed block phrases)
+- `fallbackToDestructiveMigrationFrom(1, 2, 3, 4, 5)` - pre-beta versions only; v6+ users always migrate safely
+- Schema exported to `app/schemas/`; build fails if schema changes without a migration
 - File: `model/AppDatabase.kt`
 
 ### AppSettings (DataStore)
@@ -257,7 +276,7 @@ File: `utils/ForceSendAbuseTracker.kt`
 - THEME: String ("SYSTEM"/"LIGHT"/"GRAY"/"NIGHT")
 - REPLY_LISTEN_HOURS: Int (default 1, range 1–24)
 - PRESETS_OFFERED: Boolean (default false)
-- ALERT_SENSITIVITY: String ("HIGH"/"MEDIUM"/"LOW", default "MEDIUM") — controls FalseAlarmDetector threshold for wildcard scenarios
+- ALERT_SENSITIVITY: String ("HIGH"/"MEDIUM"/"LOW", default "MEDIUM") - controls FalseAlarmDetector threshold for wildcard scenarios
 - File: `utils/AppSettings.kt`
 
 ---
@@ -279,11 +298,24 @@ File: `utils/ForceSendAbuseTracker.kt`
 - File: `ui/MainViewModel.kt`
 
 ### MainScreen
-- Tab 0 (Alert System): scenario dropdown, trigger input, groups section, force send slider
+- Tab 0 (Alert System): scenario dropdown, Alert Filters section (TriggerInput), groups section, force send slider
 - Tab 1 (Dashboard): ResponseDashboard inline
 - Bottom: BrowserTabBar with tab weights animated via animateFloatAsState
 - Undo popup (bottom-center, slides up)
 - File: `ui/MainScreen.kt`
+
+### TriggerInput (Alert Filters section)
+- Region selector: 48dp Surface matching ScenarioDropdown style; opens RegionPickerDialog (AlertDialog with full region list)
+- Activation Keywords sub-section: keyword chips (primaryContainer) + preset picker button opening TriggerPresetPickerDialog
+- Block Phrases sub-section: block phrase chips (errorContainer) + info button + preset picker button opening BlockPhrasePresetPicker
+- Chip style: bodyMedium text, 20dp corners, 8dp vertical padding, 24dp Close icon, weight(1f, fill=false) on text so the X is always visible
+- File: `ui/TriggerInput.kt`
+
+### BlockPhrasePresetPicker
+- ModalBottomSheet showing block phrase presets for a given region code
+- Each phrase row has an Add button; already-added phrases show a check icon and are non-interactive
+- "Add All" adds every phrase not yet in the user's block list
+- File: `ui/BlockPhrasePresetPicker.kt`
 
 ### ResponseDashboard
 - Shows: stat cards (Safe/Updates/Urgent), progress bar, per-recipient rows
@@ -342,12 +374,12 @@ AppLogger + PastAlert (always logged, always visible)
 
 ## ARCHITECTURE RULES
 
-- NEVER duplicate logic — reuse existing systems
-- Logging BEFORE filtering — always
+- NEVER duplicate logic - reuse existing systems
+- Logging BEFORE filtering - always
 - Detection must evaluate ALL scenarios independently (not just current)
 - Scenario locking is permanent until manual reset
-- UI must reflect actual system state — no fake states
-- Soft failures everywhere — no crash under any input
+- UI must reflect actual system state - no fake states
+- Soft failures everywhere - no crash under any input
 - Both entry points (broadcast + notification) share the same detection + queue path
 
 ---

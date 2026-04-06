@@ -8,7 +8,7 @@ Defines how to test Red Rocket. Every system must be verified before any release
 ## TESTING RULES
 
 1. NEVER skip tests after making changes
-2. Test on a REAL DEVICE — not emulator only
+2. Test on a REAL DEVICE - not emulator only
 3. Test with device LOCKED and UNLOCKED
 4. Test BOTH triggered and non-triggered paths
 5. If ANY crash occurs → fix before continuing
@@ -63,28 +63,24 @@ Test every invalid input path:
 
 Test each FalseAlarmDetector step:
 
-**Step 0 — Amber Block:**
-- "AMBER ALERT: Child abduction in your area" → NOT trigger, log as ORANGE
-- "Alerte Amber: enfant disparu" → NOT trigger, log as ORANGE
-
-**Step 1 — Hard Override (trusted source + extreme danger):**
+**Step 1 - Hard Override (trusted source + extreme danger):**
 - Simulated cell broadcast: "Ballistic missile inbound. Seek immediate shelter." → TRIGGER
 - Simulated cell broadcast: "Nuclear threat detected. Evacuate immediately." → TRIGGER
 
-**Step 2 — Override Phrase:**
+**Step 2 - Override Phrase:**
 - "This is not a test. Take shelter." → TRIGGER regardless of source
 
-**Step 3 — Hard Block:**
+**Step 3 - Hard Block:**
 - "This is a test of the emergency alert system" → NOT trigger, log as GREEN
 - "This is only a test" → NOT trigger
 - "Drill in progress" → NOT trigger
 
-**Step 4–5 — Score:**
+**Step 4–5 - Score:**
 - "Take shelter now. Destructive winds approaching. EMERGENCY." → TRIGGER (score ≥ 6)
 - "Weather advisory: some gusty winds possible" → NOT trigger (score < 6)
 - User keyword present + moderate action phrase → TRIGGER
 
-**Step 6 — Structural Fail-Safe:**
+**Step 6 - Structural Fail-Safe:**
 - Trusted source + short message with "emergency" and location → TRIGGER
 
 ---
@@ -92,7 +88,7 @@ Test each FalseAlarmDetector step:
 ## 3. FALSE ALARM PREVENTION
 
 - EAS test broadcasts → logged as GREEN, never trigger
-- Amber alerts → logged as ORANGE, never trigger
+- AMBER alerts → pass through the pipeline like any other alert; a scenario with "amber alert" as a keyword will trigger on them
 - "This is not a test" in same message as "this is a test" → TRIGGER (Step 2 wins)
 - Weather watch/advisory without action language → NOT trigger
 - System audio routing notification ("You're hearing another device") → silently ignored, not logged
@@ -276,7 +272,7 @@ Test each FalseAlarmDetector step:
 - [ ] No crashes on any tested input
 - [ ] All alerts logged regardless of trigger outcome
 - [ ] Test alerts (GREEN) never trigger
-- [ ] Amber alerts (ORANGE) never trigger
+- [ ] AMBER alerts trigger when a matching keyword is configured
 - [ ] "This is not a test" always triggers
 - [ ] Lazarus retries indefinitely with Keep Trying ON
 - [ ] Adaptive state transitions work correctly
@@ -298,4 +294,4 @@ If ANY test fails:
 → Fix immediately
 → Re-test ALL related systems
 
-If it fails under stress, it fails the user. Test like it matters — because it does.
+If it fails under stress, it fails the user. Test like it matters - because it does.

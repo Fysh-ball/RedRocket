@@ -2,7 +2,7 @@ package site.fysh.redrocket.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// ── Discord-inspired Dark palette ─────────────────────────────────────────────
+// Discord-inspired Dark palette
 val DiscordBackground     = Color(0xFF313338)
 val DiscordSurface        = Color(0xFF2B2D31)
 val DiscordSurfaceVariant = Color(0xFF1E1F22)
@@ -17,7 +17,7 @@ val DiscordRedDark        = Color(0xFFA02F32)
 val DiscordOutline        = Color(0xFF3F4147)
 val DiscordWhite          = Color(0xFFFFFFFF)
 
-// ── Amazon-inspired Light palette ─────────────────────────────────────────────
+// Amazon-inspired Light palette
 val AmazonBackground      = Color(0xFFFFFFFF)
 val AmazonSurface         = Color(0xFFF3F3F3)
 val AmazonSurfaceVariant  = Color(0xFFE7E7E7)
@@ -30,7 +30,7 @@ val AmazonTextMuted       = Color(0xFF565959)
 val AmazonRed             = Color(0xFFCC0C39)
 val AmazonOutline         = Color(0xFFDDDDDD)
 
-// ── Gray (system-following) Dark palette ──────────────────────────────────────
+// Gray (system-following) Dark palette
 val GrayBackground        = Color(0xFF1C1C1E)  // iOS-like neutral dark
 val GraySurface           = Color(0xFF2C2C2E)
 val GraySurfaceVariant    = Color(0xFF3A3A3C)

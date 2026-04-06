@@ -58,7 +58,7 @@ private val TrueDarkColorScheme = darkColorScheme(
     inversePrimary      = TrueDarkPrimaryContainer
 )
 
-/** Neutral Gray dark scheme — follows system dark mode, more muted than Discord */
+/** Neutral Gray dark scheme - follows system dark mode, more muted than Discord */
 private val GrayColorScheme = darkColorScheme(
     primary             = GrayPrimary,
     primaryContainer    = GrayPrimaryContainer,
@@ -112,7 +112,7 @@ private val LightColorScheme = lightColorScheme(
 
 /**
  * Theme auto-switches based on system dark-mode setting.
- * Colors are fully hardcoded here — nothing is read from DataStore.
+ * Colors are fully hardcoded here - nothing is read from DataStore.
  */
 @Composable
 fun EmergencyAppTheme(

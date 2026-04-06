@@ -81,11 +81,31 @@ abstract class AppDatabase : RoomDatabase() {
                     "test of the alert system",
                     "test of the emergency"
                 ).forEach { phrase ->
-                    database.execSQL("INSERT INTO block_phrases (phrase) VALUES ('$phrase')")
+                    database.execSQL("INSERT INTO block_phrases (phrase) VALUES (?)", arrayOf(phrase))
                 }
             }
         }
 
+        /**
+         * ╔══════════════════════════════════════════════════════════════╗
+         * ║  MIGRATION CONTRACT - READ BEFORE BUMPING THE SCHEMA VERSION ║
+         * ╠══════════════════════════════════════════════════════════════╣
+         * ║  Every schema version bump REQUIRES:                         ║
+         * ║    1. Increment `version` in @Database above.                ║
+         * ║    2. Add a MIGRATION_N_M object (N = old, M = new).         ║
+         * ║    3. Add the new migration to addMigrations() below.        ║
+         * ║    4. Build once so Room generates a schema JSON under        ║
+         * ║       app/schemas/ - commit that file to version control.    ║
+         * ║                                                               ║
+         * ║  DO NOT call fallbackToDestructiveMigration() without        ║
+         * ║  explicitly listing the version numbers you intend to wipe.  ║
+         * ║  Existing users on v6+ WILL lose all data if a migration     ║
+         * ║  is missing - scenarios, contacts, history, everything.      ║
+         * ║                                                               ║
+         * ║  fallbackToDestructiveMigrationFrom(1..5): pre-beta versions ║
+         * ║  never distributed publicly. Safe to destroy.                ║
+         * ╚══════════════════════════════════════════════════════════════╝
+         */
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(

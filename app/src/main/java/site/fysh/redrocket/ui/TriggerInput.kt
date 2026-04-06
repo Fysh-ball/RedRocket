@@ -12,7 +12,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -37,53 +37,6 @@ data class TriggerPreset(
     val icon: String = ""
 )
 
-private val TRIGGER_PRESETS = listOf(
-    TriggerPreset("Tornado", listOf(
-        "tornado warning", "tornado emergency", "confirmed tornado",
-        "tornado detected", "radar indicated tornado"
-    ), "🌪️"),
-    TriggerPreset("Volcano", listOf(
-        "volcanic eruption", "volcano warning", "lava flow",
-        "volcanic ash", "eruption warning"
-    ), "🌋"),
-    TriggerPreset("Nuclear", listOf(
-        "nuclear", "missile", "ballistic missile", "nuclear threat",
-        "fallout", "radiation warning"
-    ), "☢️"),
-    TriggerPreset("Tsunami", listOf(
-        "tsunami", "tsunami warning", "tidal wave", "coastal flood",
-        "ocean surge"
-    ), "🌊"),
-    TriggerPreset("Flood", listOf(
-        "flood warning", "flash flood", "flood emergency",
-        "flooding", "rising water"
-    ), "💧"),
-    TriggerPreset("Hurricane", listOf(
-        "hurricane warning", "hurricane emergency", "tropical storm",
-        "cyclone", "storm surge"
-    ), "🌀"),
-    TriggerPreset("Ballistic Missile", listOf(
-        "ballistic missile", "missile threat", "missile warning",
-        "missile inbound", "impact warning"
-    ), "🚀"),
-    TriggerPreset("Wildfire", listOf(
-        "wildfire", "fire warning", "evacuate fire",
-        "forest fire", "brush fire"
-    ), "🔥"),
-    TriggerPreset("Earthquake", listOf(
-        "earthquake", "earthquake warning", "seismic activity",
-        "tremor", "aftershock"
-    ), "⚡"),
-    TriggerPreset("Chemical / Hazmat", listOf(
-        "hazmat", "chemical spill", "toxic release",
-        "biohazard", "chemical emergency"
-    ), "⚠️"),
-    TriggerPreset("General Emergency", listOf(
-        "emergency", "alert", "disaster", "evacuation",
-        "shelter in place", "take cover"
-    ), "🆘")
-)
-
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun TriggerInput(
@@ -92,20 +45,75 @@ fun TriggerInput(
     blockPhrases: List<BlockPhrase> = emptyList(),
     onAddBlockPhrase: (String) -> Unit = {},
     onDeleteBlockPhrase: (BlockPhrase) -> Unit = {},
-    onSheetDismissed: () -> Unit = {}
+    onSheetDismissed: () -> Unit = {},
+    userRegion: String = "",
+    detectedRegion: String = "US",
+    onSetRegion: (String) -> Unit = {}
 ) {
     val keywords = remember(keywordsString) {
         keywordsString.split(",").filter { it.isNotBlank() }.map { it.trim() }
     }
+    val currentPhraseTexts = remember(blockPhrases) { blockPhrases.map { it.phrase } }
+    val effectiveRegion = userRegion.ifEmpty { detectedRegion }
+    val regionPreset = remember(effectiveRegion) { regionPresetFor(effectiveRegion) }
     var showPresetPicker by remember { mutableStateOf(false) }
     var showKeywordSheet by remember { mutableStateOf(false) }
     var showBlockPhraseSheet by remember { mutableStateOf(false) }
-    var showBlockPhraseInfo by remember { mutableStateOf(false) }
+    var showBlockPhrasePresetPicker by remember { mutableStateOf(false) }
+    var showRegionPicker by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
 
-        // ── Activation Keywords sub-section ───────────────────────────────────
+        // Region selector
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp),
+            shape = RoundedCornerShape(8.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant,
+            onClick = { showRegionPicker = true }
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(regionPreset.flag, fontSize = 16.sp)
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    regionPreset.displayName,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f)
+                )
+                if (userRegion.isEmpty()) {
+                    Text(
+                        "auto",
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(end = 8.dp)
+                    )
+                }
+                Text(
+                    regionPreset.dialCode,
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                    modifier = Modifier.padding(end = 4.dp)
+                )
+                Icon(
+                    Icons.Default.ArrowDropDown,
+                    contentDescription = "Change region",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
+
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+        // Activation Keywords sub-section
         SubSectionLabel("Activation Keywords")
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -166,7 +174,7 @@ fun TriggerInput(
 
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
-        // ── Block Phrases sub-section ──────────────────────────────────────────
+        // Block Phrases sub-section
         SubSectionLabel("Block Phrases")
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -207,16 +215,16 @@ fun TriggerInput(
             }
 
             Button(
-                onClick = { showBlockPhraseInfo = true },
+                onClick = { showBlockPhrasePresetPicker = true },
                 modifier = Modifier.size(56.dp),
                 shape = RoundedCornerShape(12.dp),
                 contentPadding = PaddingValues(0.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {
                 Icon(
-                    Icons.Default.Info,
-                    contentDescription = "What are block phrases?",
-                    modifier = Modifier.size(26.dp)
+                    Icons.Default.Add,
+                    contentDescription = "Add block phrase presets",
+                    modifier = Modifier.size(28.dp)
                 )
             }
         }
@@ -252,34 +260,41 @@ fun TriggerInput(
         )
     }
 
-    // Block phrase info dialog
-    if (showBlockPhraseInfo) {
-        AlertDialog(
-            onDismissRequest = { showBlockPhraseInfo = false },
-            icon = { Icon(Icons.Default.Info, contentDescription = null) },
-            title = { Text("Block Phrases", fontWeight = FontWeight.Bold) },
-            text = {
-                Text(
-                    "Block phrases are words or phrases that tell Red Rocket an alert is a test or false alarm.\n\nIf an incoming alert contains any of your block phrases, it will be ignored — even if it also matches your activation keywords.\n\nYou can add phrases in any language. Tap a chip to remove it.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    lineHeight = 20.sp
-                )
-            },
-            confirmButton = {
-                Button(onClick = { showBlockPhraseInfo = false }, shape = RoundedCornerShape(12.dp)) {
-                    Text("Got it")
-                }
-            },
-            shape = RoundedCornerShape(16.dp)
+    // Block phrase preset picker
+    if (showBlockPhrasePresetPicker) {
+        BlockPhrasePresetPicker(
+            regionCode = effectiveRegion,
+            currentPhrases = currentPhraseTexts,
+            onAddPhrase = { onAddBlockPhrase(it) },
+            onRemovePhrase = { phrase -> blockPhrases.find { it.phrase == phrase }?.let { onDeleteBlockPhrase(it) } },
+            onDismiss = { showBlockPhrasePresetPicker = false }
         )
     }
 
-    // Preset picker dialog
+    // Region picker dialog
+    if (showRegionPicker) {
+        RegionPickerDialog(
+            currentCode = effectiveRegion,
+            detectedCode = detectedRegion,
+            onSelect = { region ->
+                onSetRegion(region.countryCode)
+                showRegionPicker = false
+            },
+            onDismiss = { showRegionPicker = false }
+        )
+    }
+
+    // Keyword preset picker dialog
     if (showPresetPicker) {
         PresetPickerDialog(
             currentKeywords = keywords,
+            regionCode = effectiveRegion,
             onAddPreset = { preset ->
                 val combined = (keywords + preset.keywords).distinct().joinToString(",")
+                onKeywordsChange(combined)
+            },
+            onRemovePreset = { preset ->
+                val combined = keywords.filter { it !in preset.keywords }.joinToString(",")
                 onKeywordsChange(combined)
             },
             onDismiss = {
@@ -339,12 +354,17 @@ private fun KeywordAddSheet(
             OutlinedTextField(
                 value = textFieldValue,
                 onValueChange = { newValue ->
-                    if (newValue.text.endsWith(",")) {
-                        val word = newValue.text.removeSuffix(",").trim()
-                        if (word.isNotBlank()) {
-                            onAdd(word)
+                    if (newValue.text.contains(",")) {
+                        val parts = newValue.text.split(",").map { it.trim() }.filter { it.isNotBlank() }
+                        val endsWithComma = newValue.text.endsWith(",")
+                        if (parts.isEmpty()) {
+                            textFieldValue = TextFieldValue("", TextRange(0))
+                        } else {
+                            val toAdd = if (endsWithComma) parts else parts.dropLast(1)
+                            toAdd.forEach { onAdd(it) }
+                            val remaining = if (endsWithComma) "" else parts.last()
+                            textFieldValue = TextFieldValue(remaining, TextRange(remaining.length))
                         }
-                        textFieldValue = TextFieldValue("", TextRange(0))
                     } else {
                         textFieldValue = newValue
                     }
@@ -398,9 +418,12 @@ private fun KeywordAddSheet(
 @Composable
 private fun PresetPickerDialog(
     currentKeywords: List<String>,
+    regionCode: String,
     onAddPreset: (TriggerPreset) -> Unit,
+    onRemovePreset: (TriggerPreset) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val presets = remember(regionCode) { localizedTriggerPresets(regionCode) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Trigger Presets", fontWeight = FontWeight.Bold) },
@@ -409,14 +432,14 @@ private fun PresetPickerDialog(
                 verticalArrangement = Arrangement.spacedBy(6.dp),
                 modifier = Modifier.heightIn(max = 400.dp)
             ) {
-                items(TRIGGER_PRESETS) { preset ->
+                items(presets, key = { it.name }) { preset ->
                     val alreadyAdded = preset.keywords.all { it in currentKeywords }
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(10.dp),
                         color = if (alreadyAdded) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                                 else MaterialTheme.colorScheme.surfaceVariant,
-                        onClick = { if (!alreadyAdded) onAddPreset(preset) }
+                        onClick = { if (alreadyAdded) onRemovePreset(preset) else onAddPreset(preset) }
                     ) {
                         Row(
                             modifier = Modifier.padding(12.dp),
@@ -441,11 +464,11 @@ private fun PresetPickerDialog(
                                 )
                             }
                             if (alreadyAdded) {
-                                Text(
-                                    "Added",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = "Remove ${preset.name}",
+                                    tint = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.size(18.dp)
                                 )
                             }
                         }
@@ -463,30 +486,125 @@ private fun PresetPickerDialog(
 }
 
 @Composable
+private fun RegionPickerDialog(
+    currentCode: String,
+    detectedCode: String,
+    onSelect: (RegionPreset) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var query by remember { mutableStateOf("") }
+    val filteredRegions = remember(query) {
+        if (query.isBlank()) REGION_PRESETS
+        else REGION_PRESETS.filter {
+            it.displayName.contains(query, ignoreCase = true) ||
+            it.countryCode.contains(query, ignoreCase = true)
+        }
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Select Region", fontWeight = FontWeight.Bold) },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("Search regions...") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(10.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                        focusedContainerColor = MaterialTheme.colorScheme.surface
+                    )
+                )
+                Spacer(Modifier.height(8.dp))
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.heightIn(max = 360.dp)
+                ) {
+                    items(filteredRegions, key = { it.countryCode }) { region ->
+                        val isSelected = region.countryCode == currentCode
+                        val isDetected = region.countryCode == detectedCode
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (isSelected)
+                                MaterialTheme.colorScheme.primaryContainer
+                            else
+                                MaterialTheme.colorScheme.surfaceVariant,
+                            onClick = { onSelect(region) }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Text(region.flag, fontSize = 18.sp)
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        region.displayName,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                        fontSize = 13.sp,
+                                        color = if (isSelected)
+                                            MaterialTheme.colorScheme.onPrimaryContainer
+                                        else
+                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    if (isDetected) {
+                                        Text(
+                                            "Auto-detected",
+                                            fontSize = 10.sp,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
+                                }
+                                Text(
+                                    region.dialCode,
+                                    fontSize = 12.sp,
+                                    color = if (isSelected)
+                                        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                    else
+                                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        },
+        shape = RoundedCornerShape(16.dp)
+    )
+}
+
+@Composable
 fun KeywordChip(keyword: String, onRemove: () -> Unit) {
     Surface(
         color = MaterialTheme.colorScheme.primaryContainer,
-        shape = RoundedCornerShape(16.dp),
-        modifier = Modifier.height(32.dp)
+        shape = RoundedCornerShape(20.dp),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(horizontal = 12.dp)
+            modifier = Modifier.padding(start = 12.dp, end = 6.dp, top = 8.dp, bottom = 8.dp)
         ) {
             Text(
                 text = keyword,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.weight(1f, fill = false)
             )
-            Spacer(Modifier.width(6.dp))
+            Spacer(Modifier.width(4.dp))
             Icon(
                 Icons.Default.Close,
-                contentDescription = "Remove",
+                contentDescription = "Remove $keyword",
                 modifier = Modifier
-                    .size(16.dp)
+                    .size(40.dp)
                     .clip(CircleShape)
                     .clickable { onRemove() }
-                    .padding(2.dp),
+                    .padding(8.dp),
                 tint = MaterialTheme.colorScheme.onPrimaryContainer
             )
         }
@@ -497,27 +615,27 @@ fun KeywordChip(keyword: String, onRemove: () -> Unit) {
 private fun BlockPhraseChip(phrase: String, onRemove: () -> Unit) {
     Surface(
         color = MaterialTheme.colorScheme.errorContainer,
-        shape = RoundedCornerShape(16.dp),
-        modifier = Modifier.height(32.dp)
+        shape = RoundedCornerShape(20.dp),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(horizontal = 12.dp)
+            modifier = Modifier.padding(start = 12.dp, end = 6.dp, top = 8.dp, bottom = 8.dp)
         ) {
             Text(
                 text = phrase,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onErrorContainer
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+                modifier = Modifier.weight(1f, fill = false)
             )
-            Spacer(Modifier.width(6.dp))
+            Spacer(Modifier.width(4.dp))
             Icon(
                 Icons.Default.Close,
-                contentDescription = "Remove",
+                contentDescription = "Remove $phrase",
                 modifier = Modifier
-                    .size(16.dp)
+                    .size(40.dp)
                     .clip(CircleShape)
                     .clickable { onRemove() }
-                    .padding(2.dp),
+                    .padding(8.dp),
                 tint = MaterialTheme.colorScheme.onErrorContainer
             )
         }

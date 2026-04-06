@@ -93,8 +93,7 @@ fun FirstLaunchScreen(viewModel: MainViewModel) {
     }
 }
 
-// ── Page 1: Welcome ──────────────────────────────────────────────────────────
-
+// Page 1: Welcome
 @Composable
 fun WelcomePage(onNext: () -> Unit) {
     var showDialog by remember { mutableStateOf<String?>(null) }
@@ -214,8 +213,7 @@ The developers of Red Rocket accept no liability for any misuse of this applicat
     }
 }
 
-// ── Page 2: Permissions ───────────────────────────────────────────────────────
-
+// Page 2: Permissions
 @Composable
 fun PermissionsPage(onComplete: () -> Unit) {
     val context = LocalContext.current
@@ -429,8 +427,7 @@ private fun PermissionCard(
     }
 }
 
-// ── Page 3: Ready ─────────────────────────────────────────────────────────────
-
+// Page 3: Ready
 @Composable
 fun ReadyPage(onLaunch: () -> Unit, onStartTutorial: () -> Unit = {}) {
     Column(

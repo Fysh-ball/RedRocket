@@ -12,6 +12,7 @@ import site.fysh.redrocket.utils.AppLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Receives system emergency broadcasts (Cell Broadcasts / WEA / CMAS / ETWS).
@@ -21,7 +22,7 @@ import kotlinx.coroutines.launch
  * sent simultaneously. Scenarios that do not match are unaffected.
  *
  * Uses goAsync() so Android keeps the process alive for the full duration of the
- * coroutine — prevents premature process death for manifest-registered receivers.
+ * coroutine - prevents premature process death for manifest-registered receivers.
  */
 class EmergencyBroadcastReceiver : BroadcastReceiver() {
     private val TAG = "EmergencyReceiver"
@@ -94,18 +95,21 @@ class EmergencyBroadcastReceiver : BroadcastReceiver() {
                         "Cell broadcast: ${messageBody.take(120)}")
                 }
 
-                // Read sensitivity — fail safely to MEDIUM
+                // Read sensitivity - fail safely to MEDIUM
                 val sensitivityStr = app.settings.alertSensitivity.first()
                 val sensitivity = try { AlertSensitivity.valueOf(sensitivityStr) } catch (_: Exception) { AlertSensitivity.MEDIUM }
 
-                // Load user-defined block phrases (any language)
-                val userBlockPhrases = app.database.blockPhraseDao().getAllOnce().map { it.phrase }
+                // Load user-defined block phrases (any language).
+                // Timeout guards against a slow DB stalling the goAsync() 10s window.
+                val userBlockPhrases = withTimeoutOrNull(5_000L) {
+                    app.database.blockPhraseDao().getAllOnce().map { it.phrase }
+                } ?: emptyList()
 
                 // Log every cell broadcast BEFORE evaluation (resilience: record even if eval crashes).
                 // The row ID is kept so we can back-fill triggered scenario names after the loop.
                 val alertRowId = app.database.pastAlertDao().insertAlertAndGetId(
                     PastAlert(
-                        messageContent = messageBody.ifBlank { "[Cell broadcast — no text body]" },
+                        messageContent = messageBody.ifBlank { "[Cell broadcast - no text body]" },
                         source = "cell_broadcast",
                         scenariosTriggered = ""
                     )
@@ -118,13 +122,13 @@ class EmergencyBroadcastReceiver : BroadcastReceiver() {
                 for (scenario in allScenarios) {
                     // Skip invalid scenarios (no message or no recipients)
                     if (!scenario.isValid()) {
-                        Log.d(TAG, "Scenario '${scenario.name}' skipped — invalid (missing message or recipients)")
+                        Log.d(TAG, "Scenario '${scenario.name}' skipped - invalid (missing message or recipients)")
                         continue
                     }
 
                     // Skip locked scenarios
                     if (scenario.isLocked) {
-                        Log.i(TAG, "Scenario '${scenario.name}' is LOCKED — trigger silently ignored.")
+                        Log.i(TAG, "Scenario '${scenario.name}' is LOCKED - trigger silently ignored.")
                         continue
                     }
 
@@ -135,15 +139,15 @@ class EmergencyBroadcastReceiver : BroadcastReceiver() {
 
                     // TRIGGER DECISION
                     //
-                    // Amber Block and Hard Block ("this is a test / drill") always apply,
+                    // The Hard Block ("this is a test / drill") always applies,
                     // regardless of whether keywords are configured.
                     //
-                    // - Has keywords: user's keyword is authoritative — if it matches and the
-                    //   content isn't a test/Amber, trigger.
+                    // - Has keywords: user's keyword is authoritative - if it matches and the
+                    //   content is not blocked by a test phrase, trigger.
                     // - No keywords: scenario fires on any real cell broadcast, but content
                     //   quality is checked with FalseAlarmDetector so sensitivity controls
                     //   how broadly it fires (HIGH catches watches/advisories, LOW only
-                    //   life-threatening events). Amber and test blocks still apply here.
+                    //   life-threatening events). Test blocks still apply here.
                     val keywordMatches = keywords.isEmpty() ||
                         keywords.any { kw -> FalseAlarmDetector.keywordMatchesContent(kw, bodyLower) }
 
@@ -157,12 +161,12 @@ class EmergencyBroadcastReceiver : BroadcastReceiver() {
                     }
 
                     if (!shouldTrigger) {
-                        Log.i(TAG, "Scenario '${scenario.name}' suppressed — blocked or below sensitivity threshold")
+                        Log.i(TAG, "Scenario '${scenario.name}' suppressed - blocked or below sensitivity threshold")
                         continue
                     }
 
-                    // ── Trigger this scenario ──────────────────────────────────
-                    Log.i(TAG, "TRIGGERED scenario '${scenario.name}' — enqueuing ${scenario.allRecipients().size} recipient(s)")
+                    // Trigger this scenario
+                    Log.i(TAG, "TRIGGERED scenario '${scenario.name}' - enqueuing ${scenario.allRecipients().size} recipient(s)")
                     AppLogger.log(app.database, app.appScope, "scenario_triggered",
                         "Scenario '${scenario.name}' triggered by cell broadcast")
 
@@ -170,7 +174,7 @@ class EmergencyBroadcastReceiver : BroadcastReceiver() {
                         if (group.recipients.isNotEmpty() && group.message.isNotBlank()) {
                             app.queueManager.enqueueScenario(group.recipients, group.message, scenario.id)
                             AppLogger.log(app.database, app.appScope, "group_processed",
-                                "Group '${group.name}' — ${group.recipients.size} contact(s) queued")
+                                "Group '${group.name}' - ${group.recipients.size} contact(s) queued")
                         }
                     }
 
@@ -186,7 +190,7 @@ class EmergencyBroadcastReceiver : BroadcastReceiver() {
                     app.database.pastAlertDao().updateScenariosTriggered(
                         alertRowId, triggeredNames.joinToString(",")
                     )
-                    Log.i(TAG, "$triggeredCount scenario(s) triggered — starting response listener and sending service")
+                    Log.i(TAG, "$triggeredCount scenario(s) triggered - starting response listener and sending service")
                     SmsResponseReceiver.startListening()
                     EmergencySendingService.startService(context)
                 } else {

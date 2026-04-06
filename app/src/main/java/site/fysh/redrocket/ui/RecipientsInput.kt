@@ -13,7 +13,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Box
@@ -482,36 +481,34 @@ fun RecipientChip(recipient: Recipient, onRemove: () -> Unit) {
     val context = LocalContext.current
     Surface(
         color = MaterialTheme.colorScheme.secondaryContainer,
-        shape = RoundedCornerShape(16.dp),
-        modifier = Modifier
-            .height(32.dp)
-            .clickable {
-                // Deep-link into default SMS app with number pre-filled
-                val intent = Intent(Intent.ACTION_SENDTO).apply {
-                    data = Uri.parse("smsto:${recipient.phoneNumber}")
-                }
-                context.startActivity(intent)
+        shape = RoundedCornerShape(20.dp),
+        modifier = Modifier.clickable {
+            // Deep-link into default SMS app with number pre-filled
+            val intent = Intent(Intent.ACTION_SENDTO).apply {
+                data = Uri.parse("smsto:${recipient.phoneNumber}")
             }
+            context.startActivity(intent)
+        }
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(horizontal = 12.dp)
+            modifier = Modifier.padding(start = 12.dp, end = 6.dp, top = 8.dp, bottom = 8.dp)
         ) {
             Text(
                 text = recipient.name.ifEmpty { recipient.phoneNumber },
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSecondaryContainer
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                modifier = Modifier.weight(1f, fill = false)
             )
-            Spacer(Modifier.width(6.dp))
+            Spacer(Modifier.width(4.dp))
             Icon(
                 Icons.Default.Close,
-                contentDescription = "Remove",
+                contentDescription = "Remove ${recipient.name.ifEmpty { recipient.phoneNumber }}",
                 modifier = Modifier
-                    .size(16.dp)
+                    .size(40.dp)
                     .clip(CircleShape)
                     .clickable { onRemove() }
-                    .background(MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.1f), CircleShape)
-                    .padding(2.dp),
+                    .padding(8.dp),
                 tint = MaterialTheme.colorScheme.onSecondaryContainer
             )
         }

@@ -57,7 +57,7 @@ fun GroupsSection(
 ) {
     val groups = scenario.groups
 
-    // Selected group ID — defaults to first group
+    // Selected group ID - defaults to first group
     var selectedGroupId by remember(scenario.id) {
         mutableStateOf(groups.firstOrNull()?.id ?: "")
     }
@@ -87,7 +87,7 @@ fun GroupsSection(
 
     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
 
-        // ── Group selector header ────────────────────────────────────────
+        // Group selector header
         Surface(
             shape = RoundedCornerShape(8.dp),
             color = MaterialTheme.colorScheme.surfaceVariant,
@@ -114,7 +114,7 @@ fun GroupsSection(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = selectedGroup?.name ?: "—",
+                    text = selectedGroup?.name ?: " - ",
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1
@@ -123,7 +123,7 @@ fun GroupsSection(
             }
         }
 
-        // ── Selected group content ───────────────────────────────────────
+        // Selected group content
         if (selectedGroup != null) {
             key(selectedGroup.id) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -158,7 +158,7 @@ fun GroupsSection(
         }
     }
 
-    // ── Group picker dialog — matches ScenarioDropdown dialog exactly ────
+    // Group picker dialog - matches ScenarioDropdown dialog exactly
     if (showDialog) {
         // Pre-populated with current groups so the first frame is never blank
         val localGroups = remember { mutableStateListOf<Group>().also { it.addAll(groups) } }
@@ -328,7 +328,7 @@ fun GroupsSection(
                                         }
                                     }
 
-                                    // Star button always visible (right side) — starred groups cannot be deleted
+                                    // Star button always visible (right side) - starred groups cannot be deleted
                                     if (!multiSelectMode) {
                                         IconButton(onClick = { onToggleGroupFavorite(group.id) }) {
                                             Icon(

@@ -60,11 +60,10 @@ class ForceSendAbuseTracker(context: Context) {
     private var overrideUsed: Boolean = prefs.getBoolean(KEY_OVERRIDE_USED, false)
     private var isInExtendedSlowDecay: Boolean = prefs.getBoolean(KEY_EXTENDED_SLOW_DECAY, false)
 
-    /** Last time the decay timer ran — persisted so decay is accurate after process death. */
+    /** Last time the decay timer ran - persisted so decay is accurate after process death. */
     private var lastDecayTime: Long = prefs.getLong(KEY_LAST_DECAY, System.currentTimeMillis())
 
-    // ── Public API ─────────────────────────────────────────────────────────
-
+    // Public API
     /**
      * Call this when the user successfully passes captcha / confirms a force send.
      * Returns the resulting lockout tier.
@@ -130,15 +129,14 @@ class ForceSendAbuseTracker(context: Context) {
         overrideUsed = true
         lockoutEndTime = 0L  // Reset lockout timer
         persistState()
-        Log.i(TAG, "Override activated — lockout cleared.")
+        Log.i(TAG, "Override activated - lockout cleared.")
         return true
     }
 
     /** True if the one-time override button should be shown during the current lockout. */
     fun overrideAvailable(): Boolean = isLocked() && !overrideUsed && lockoutCount <= 1
 
-    // ── Private helpers ───────────────────────────────────────────────────
-
+    // Private helpers
     /**
      * Applies passive point decay since the last time this was called.
      */
@@ -162,7 +160,7 @@ class ForceSendAbuseTracker(context: Context) {
             if (isInExtendedSlowDecay && points == 0) {
                 isInExtendedSlowDecay = false
                 overrideUsed = false  // Reset override availability
-                Log.i(TAG, "Extended slow decay complete — normal status restored.")
+                Log.i(TAG, "Extended slow decay complete - normal status restored.")
             }
             persistState()
         }
@@ -241,7 +239,7 @@ class ForceSendAbuseTracker(context: Context) {
 
 /** Current abuse level controlling what UI restrictions apply. */
 enum class AbuseLevel {
-    /** No restrictions — accidental send timer still shows. */
+    /** No restrictions - accidental send timer still shows. */
     NONE,
 
     /** Captcha required before send. */
@@ -253,6 +251,6 @@ enum class AbuseLevel {
     /** Captcha + timer + stronger warning about group messaging misuse. */
     HIGH_WARNING,
 
-    /** Hard lockout — send blocked for a timed duration. */
+    /** Hard lockout - send blocked for a timed duration. */
     HARD_LOCKOUT
 }
