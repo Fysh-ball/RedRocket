@@ -1,5 +1,8 @@
 package site.fysh.redrocket.ui
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -12,14 +15,18 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Warning
 import site.fysh.redrocket.util.AlertSensitivity
@@ -46,6 +53,9 @@ fun SettingsDialog(
     onThemeChange: (AppTheme) -> Unit,
     onReplyListenHoursChange: (Int) -> Unit,
     onAlertSensitivityChange: (AlertSensitivity) -> Unit,
+    onExportScenarios: (android.net.Uri) -> Unit = {},
+    onImportScenarios: (android.net.Uri) -> Unit = {},
+    onSendTestMessage: (String) -> Unit = {},
     onReplayTutorial: () -> Unit = {},
     onDismiss: () -> Unit
 ) {
@@ -56,12 +66,22 @@ fun SettingsDialog(
     var listenHoursInput by remember(uiState.replyListenHours) {
         mutableStateOf(TextFieldValue(uiState.replyListenHours.toString()))
     }
+    var showTestSendDialog by remember { mutableStateOf(false) }
+    var testPhoneInput by remember { mutableStateOf(TextFieldValue("")) }
+
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json")
+    ) { uri -> uri?.let { onExportScenarios(it) } }
+
+    val importLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri -> uri?.let { onImportScenarios(it) } }
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             shape = RoundedCornerShape(24.dp),
             color = MaterialTheme.colorScheme.surface,
-            modifier = Modifier.fillMaxWidth().heightIn(max = 650.dp),
+            modifier = Modifier.fillMaxWidth().fillMaxHeight(0.87f),
             tonalElevation = 8.dp
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
@@ -103,7 +123,7 @@ fun SettingsDialog(
                         .padding(horizontal = 20.dp, vertical = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // ── Appearance section ──────────────────────────────────────────────
+                    // Appearance section
                     SettingsSection(title = "Appearance", icon = Icons.Default.Palette) {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -131,7 +151,7 @@ fun SettingsDialog(
                         }
                     }
 
-                    // ── Detection section ────────────────────────────────────────
+                    // Detection section
                     SettingsSection(title = "Detection", icon = Icons.Default.Notifications) {
                         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                             // Sensitivity
@@ -188,7 +208,7 @@ fun SettingsDialog(
                         }
                     }
 
-                    // ── Timeline section ───────────────────────────────────────
+                    // Timeline section
                     SettingsSection(title = "Timeline", icon = Icons.Default.Timer) {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -250,63 +270,132 @@ fun SettingsDialog(
                         }
                     }
 
-                    // ── Debug section ────────
-                    SettingsSection(title = "Debug Mode", icon = Icons.Default.BugReport, color = MaterialTheme.colorScheme.error) {
-                            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.BugReport, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp))
-                                    Spacer(Modifier.width(12.dp))
-                                    Text("Developer Debug Tools", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                                    Switch(checked = uiState.isDebugEnabled, onCheckedChange = onToggleDebug, colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.error, checkedTrackColor = MaterialTheme.colorScheme.errorContainer))
+                    // Data management section
+                    SettingsSection(title = "Data", icon = Icons.Default.Storage) {
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Text(
+                                "Back up or restore all scenarios and block phrases.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                OutlinedButton(
+                                    onClick = {
+                                        exportLauncher.launch("redrocket-backup.json")
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Icon(Icons.Default.Archive, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.width(6.dp))
+                                    Text("Export")
                                 }
+                                Button(
+                                    onClick = {
+                                        importLauncher.launch(arrayOf("application/json", "application/octet-stream", "*/*"))
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Icon(Icons.Default.FileOpen, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.width(6.dp))
+                                    Text("Import")
+                                }
+                            }
+                            Surface(
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    "Import merges with existing data. Scenarios with matching IDs are updated.",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(10.dp)
+                                )
+                            }
+                        }
+                    }
 
-                                if (uiState.isDebugEnabled) {
-                                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Text("Force Sequential Sending", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                                            Switch(checked = uiState.isForceSequential, onCheckedChange = onForceSequentialChange)
-                                        }
-                                        OutlinedTextField(
-                                            value = simCount,
-                                            onValueChange = { simCount = it.copy(text = it.text.filter { it.isDigit() }) },
-                                            label = { Text("Simulation Batch Size") },
-                                            modifier = Modifier.fillMaxWidth(),
-                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                            shape = RoundedCornerShape(12.dp)
-                                        )
-                                        OutlinedTextField(
-                                            value = simFailureRatePercent,
-                                            onValueChange = { newValue ->
-                                                val numeric = newValue.text.filter { it.isDigit() }
-                                                val clamped = numeric.toIntOrNull()?.coerceIn(0, 100)?.toString() ?: ""
-                                                simFailureRatePercent = newValue.copy(text = clamped)
-                                                onFailureRateChange((clamped.toDoubleOrNull() ?: 0.0) / 100.0)
-                                            },
-                                            label = { Text("Simulated Network Failure") },
-                                            suffix = { Text("%") },
-                                            modifier = Modifier.fillMaxWidth(),
-                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                            shape = RoundedCornerShape(12.dp)
-                                        )
-                                        Button(
-                                            onClick = {
-                                                val count = simCount.text.toIntOrNull() ?: 10
-                                                val rate = (simFailureRatePercent.text.toDoubleOrNull() ?: 0.0) / 100.0
-                                                onRunSimulation(count, rate)
-                                            },
-                                            modifier = Modifier.fillMaxWidth(),
-                                            shape = RoundedCornerShape(12.dp),
-                                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                                        ) {
-                                            Text("Run Mock Sending Test")
-                                        }
+                    // Test send section
+                    SettingsSection(title = "Test Send", icon = Icons.AutoMirrored.Filled.Send) {
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Text(
+                                "Send a real test SMS to verify your messaging pipeline is working.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Button(
+                                onClick = { showTestSendDialog = true },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text("Send Test Message")
+                            }
+                        }
+                    }
+
+                    // Debug section
+                    SettingsSection(title = "Debug Mode", icon = Icons.Default.BugReport, color = MaterialTheme.colorScheme.error) {
+                        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.BugReport, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp))
+                                Spacer(Modifier.width(12.dp))
+                                Text("Developer Debug Tools", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                                Switch(checked = uiState.isDebugEnabled, onCheckedChange = onToggleDebug, colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.error, checkedTrackColor = MaterialTheme.colorScheme.errorContainer))
+                            }
+                            if (uiState.isDebugEnabled) {
+                                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text("Force Sequential Sending", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                                        Switch(checked = uiState.isForceSequential, onCheckedChange = onForceSequentialChange)
+                                    }
+                                    OutlinedTextField(
+                                        value = simCount,
+                                        onValueChange = { simCount = it.copy(text = it.text.filter { it.isDigit() }) },
+                                        label = { Text("Simulation Batch Size") },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                        shape = RoundedCornerShape(12.dp)
+                                    )
+                                    OutlinedTextField(
+                                        value = simFailureRatePercent,
+                                        onValueChange = { newValue ->
+                                            val numeric = newValue.text.filter { it.isDigit() }
+                                            val clamped = numeric.toIntOrNull()?.coerceIn(0, 100)?.toString() ?: ""
+                                            simFailureRatePercent = newValue.copy(text = clamped)
+                                            onFailureRateChange((clamped.toDoubleOrNull() ?: 0.0) / 100.0)
+                                        },
+                                        label = { Text("Simulated Network Failure") },
+                                        suffix = { Text("%") },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                        shape = RoundedCornerShape(12.dp)
+                                    )
+                                    Button(
+                                        onClick = {
+                                            val count = simCount.text.toIntOrNull() ?: 10
+                                            val rate = (simFailureRatePercent.text.toDoubleOrNull() ?: 0.0) / 100.0
+                                            onRunSimulation(count, rate)
+                                        },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                                    ) {
+                                        Text("Run Mock Sending Test")
                                     }
                                 }
                             }
                         }
+                    }
 
-                    // ── Help section ─────
-                    SettingsSection(title = "Help \u0026 Resources", icon = Icons.Default.MenuBook) {
+                    // Help section
+                    SettingsSection(title = "Help \u0026 Resources", icon = Icons.AutoMirrored.Filled.MenuBook) {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             var manualExpanded by remember { mutableStateOf(false) }
                             OutlinedButton(
@@ -314,7 +403,7 @@ fun SettingsDialog(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(12.dp)
                             ) {
-                                Icon(Icons.Default.MenuBook, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.width(12.dp))
                                 Text("User Manual", modifier = Modifier.weight(1f))
                                 Icon(if (manualExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown, contentDescription = null)
@@ -343,6 +432,53 @@ fun SettingsDialog(
                 }
             }
         }
+    if (showTestSendDialog) {
+        AlertDialog(
+            onDismissRequest = { showTestSendDialog = false; testPhoneInput = TextFieldValue("") },
+            title = { Text("Send Test Message", fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        "A real SMS will be sent to this number with a [TEST] prefix. Use your own number to confirm delivery.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedTextField(
+                        value = testPhoneInput,
+                        onValueChange = { testPhoneInput = it },
+                        label = { Text("Phone number") },
+                        placeholder = { Text("+1 555 000 0000") },
+                        modifier = Modifier.fillMaxWidth(),
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Phone
+                        ),
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val phone = testPhoneInput.text.trim()
+                        if (phone.isNotBlank()) {
+                            onSendTestMessage(phone)
+                            showTestSendDialog = false
+                            testPhoneInput = TextFieldValue("")
+                        }
+                    },
+                    enabled = testPhoneInput.text.trim().isNotBlank()
+                ) {
+                    Text("Send")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showTestSendDialog = false; testPhoneInput = TextFieldValue("") }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
     }
 }
 
@@ -466,7 +602,7 @@ private fun UserManualSection(onReplayTutorial: () -> Unit) {
     val sections = listOf(
         "Quick Start" to "1. Create a scenario and add your activation keywords.\n2. Add the contacts you want to reach and write your message.\n3. That's it. Red Rocket runs in the background and listens for alerts.\n4. When a match hits, your message goes out to everyone on the list.",
         "Scenarios" to "A scenario is your plan for a specific situation. Each one has its own keywords, contacts, and message. You can have as many as you want: one for family, one for coworkers, one for your building. They each run independently.",
-        "Alert Filters" to "Activation Keywords are the words Red Rocket looks for in incoming alerts. Hit the ⚡ button to pick from common disaster presets, or type in your own. Block Phrases are words or phrases (in any language) that mark an alert as a test or false alarm — matching ones will never trigger sending.",
+        "Alert Filters" to "Activation Keywords are the words Red Rocket looks for in incoming alerts. Hit the ⚡ button to pick from common disaster presets, or type in your own. Block Phrases are words or phrases (in any language) that mark an alert as a test or false alarm - matching ones will never trigger sending.",
         "Response Dashboard" to "Once messages go out, head to the Dashboard tab to see who's replied. Contacts can text back 1 (Safe), 2 (Need Updates), or 3 (Urgent). The list updates as replies come in.",
         "Listening for Replies" to "After a send, Red Rocket waits for replies for however long you've set (1 to 24 hours). You'll see the timer at the top of the Dashboard. Hit Stop if you want to end it early.",
         "FAQ" to "Q: Are you gonna steal my data?\nA: All data is stored locally. I do not want your data.\n\nQ: Will my messages be automatically sent?\nA: When a filter matches an alert, the app will first assess if it's a false alarm and if not, it'll send the message.\n\nQ: What's Global Keyword Detection?\nA: While it's not needed or recommended, you can enable the app to listen to every other notification for keywords.\n\nQ: Will this work when My phone is off?\nA: It should work even when your phone's locked, but to be safe check the app dashboard to see if it's listening for responses."

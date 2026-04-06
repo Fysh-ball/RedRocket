@@ -3,6 +3,7 @@ package site.fysh.redrocket
 import android.app.Application
 import android.telephony.SmsManager
 import android.util.Log
+import site.fysh.redrocket.BuildConfig
 import site.fysh.redrocket.model.AppDatabase
 import site.fysh.redrocket.queue.AdaptiveSendController
 import site.fysh.redrocket.queue.MessageQueueManager
@@ -16,6 +17,7 @@ import site.fysh.redrocket.utils.DebugSimulator
 import site.fysh.redrocket.utils.ForceSendAbuseTracker
 import site.fysh.redrocket.utils.MockSmsSender
 import site.fysh.redrocket.util.EmergencyPackageDetector
+import site.fysh.redrocket.util.RegionSettings
 import site.fysh.redrocket.utils.NotificationHelper
 import site.fysh.redrocket.utils.RateLimiter
 import kotlinx.coroutines.CoroutineExceptionHandler
@@ -54,6 +56,7 @@ class EmergencyApp : Application() {
         settings = AppSettings(this)
         abuseTracker = ForceSendAbuseTracker(this)
         SmsResponseReceiver.init(this)
+        RegionSettings.init(this)
         
         queueManager = MessageQueueManager()
         adaptiveController = AdaptiveSendController()
@@ -77,7 +80,7 @@ class EmergencyApp : Application() {
 
         debugSimulator = DebugSimulator(this, queueManager, mockSender)
         
-        // Collect debug mode asynchronously — defaults to false (safe: real SMS mode)
+        // Collect debug mode asynchronously - defaults to false (safe: real SMS mode)
         // until the preference is loaded. This avoids blocking the main thread.
         appScope.launch(Dispatchers.Main) {
             settings.debugEnabled.collect { enabled ->
@@ -99,6 +102,8 @@ class EmergencyApp : Application() {
      * In production builds always returns the real sender regardless of debug flag.
      */
     fun getActiveSmsProvider(): SmsProvider {
-        return if (isDebugModeEnabled) mockSender else smsSender
+        // Production builds always use the real sender regardless of the debug toggle.
+        // This prevents mock sends in a production APK if debug mode was left on.
+        return if (!BuildConfig.IS_PRODUCTION && isDebugModeEnabled) mockSender else smsSender
     }
 }

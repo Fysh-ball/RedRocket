@@ -8,8 +8,8 @@ Rules for any AI agent modifying Red Rocket. This app is safety-critical. Stabil
 ## SESSION RULES
 
 Before starting ANY task:
-1. Read every relevant file — do not guess about existing code
-2. Reuse existing systems — never duplicate logic
+1. Read every relevant file - do not guess about existing code
+2. Reuse existing systems - never duplicate logic
 3. Only implement what is explicitly requested
 4. Prefer soft failures over crashes everywhere
 
@@ -24,7 +24,7 @@ During work:
 
 ### 1. NEVER REMOVE EXISTING FUNCTIONALITY
 - Do not delete or replace working systems unless explicitly instructed
-- Fix incrementally — smallest change that solves the problem
+- Fix incrementally - smallest change that solves the problem
 - If removing a feature is required, confirm with user first
 
 ### 2. NEVER CAUSE CRASHES
@@ -43,12 +43,12 @@ During work:
 - All action buttons: same size (56dp), same shape (RoundedCornerShape 12dp), same icon size (28dp)
 - All text inputs: ModalBottomSheet with imePadding() + 200ms focus delay
 - All tabs: smooth animated weight transition, blue highlight on selected (primary.copy(alpha=0.15f))
-- No inline text fields — all editing through modal sheets
+- No inline text fields - all editing through modal sheets
 
 ### 5. DO NOT HIDE DATA
 - Logs and Alert History must always be in the layout
-- Collapsible is fine — removed is not
-- Default collapsed is fine — conditionally hidden by listening state is not
+- Collapsible is fine - removed is not
+- Default collapsed is fine - conditionally hidden by listening state is not
 
 ### 6. NO UNREQUESTED FEATURES
 - Only implement what the user explicitly asked for
@@ -62,40 +62,40 @@ During work:
 
 ### Detection System
 - FalseAlarmDetector is the ONLY place detection decisions are made
-- Step order (0→7) must never change — steps are deterministic and ordered
+- Step order (0→7) must never change - steps are deterministic and ordered
 - AMBER_BLOCK (Step 0) must always run FIRST, before everything else
 - HARD_OVERRIDE (Step 1) must always run BEFORE scoring
 - Adding new phrases: add to the correct step's list only
 - Never add logic outside FalseAlarmDetector for trigger decisions
 
 ### Scenario System
-- ALL scenarios are evaluated independently on every alert — never just the "current" scenario
-- Scenario locking is permanent until manual user reset — do not auto-unlock
+- ALL scenarios are evaluated independently on every alert - never just the "current" scenario
+- Scenario locking is permanent until manual user reset - do not auto-unlock
 - isValid() must always require at least one group with recipients AND a message
-- Scenario IDs are stable — do not regenerate them
+- Scenario IDs are stable - do not regenerate them
 
 ### Messaging Pipeline
-- MessageQueueManager is the only queue — never enqueue directly to SmsSender
-- AdaptiveSendController state transitions are defined — do not add new states
-- LazarusRetrySystem has no retry limit — do not add one
+- MessageQueueManager is the only queue - never enqueue directly to SmsSender
+- AdaptiveSendController state transitions are defined - do not add new states
+- LazarusRetrySystem has no retry limit - do not add one
 - RateLimiter 150ms floor must not be removed (carrier compliance)
-- MockSmsSender must ONLY be used in debug mode — check BuildConfig.IS_PRODUCTION
+- MockSmsSender must ONLY be used in debug mode - check BuildConfig.IS_PRODUCTION
 
 ### Force Send System
 - ManualSendGuard captcha is required for every manual send
 - The 5-second countdown must always be present
-- ForceSendAbuseTracker must be called on every force send — do not bypass
-- The one-time override only works on the 1st lockout — do not expand this
+- ForceSendAbuseTracker must be called on every force send - do not bypass
+- The one-time override only works on the 1st lockout - do not expand this
 
 ### Response Tracking
 - Priority rule: code 3 cannot be downgraded by a later code 2 or 1
-- Per-contact 1-minute window is intentional — do not extend
+- Per-contact 1-minute window is intentional - do not extend
 - Responses from numbers not in recipients list must be ignored silently
 - "help", "sos", "urgent" → always map to 3
 
 ### Logging
-- AppLogger is fire-and-forget — never await it on the send path
-- 500-entry prune limit exists — do not increase without user instruction
+- AppLogger is fire-and-forget - never await it on the send path
+- 500-entry prune limit exists - do not increase without user instruction
 - Log BEFORE the trigger decision, not after
 
 ---
@@ -107,8 +107,8 @@ Priority: RED > ORANGE > GREEN
 | Class | Keywords | Behavior |
 |---|---|---|
 | RED | "take shelter", "missile", "tornado", "imminent threat", "destructive winds" | Can trigger system |
-| ORANGE | "amber alert", "child abduction" | Log only — NEVER trigger |
-| GREEN | "this is a test", "drill" | Log only — NEVER trigger |
+| ORANGE | "amber alert", "child abduction" | Log only - NEVER trigger |
+| GREEN | "this is a test", "drill" | Log only - NEVER trigger |
 
 Override: "this is not a test" → always RED regardless of other content.
 
@@ -132,7 +132,7 @@ Invalid inputs (4, 999, random text) → ignored silently, no crash.
 - All action buttons: 56dp × 56dp, RoundedCornerShape(12dp), contentPadding = PaddingValues(0dp)
 - Icon size inside 56dp button: 28dp
 - Includes: Recipients "+", Trigger "+", Message upload button
-- No emojis — vector icons only (Icons.Default.*)
+- No emojis - vector icons only (Icons.Default.*)
 
 ### Text Inputs
 - All multi-line or freeform inputs use ModalBottomSheet
@@ -144,7 +144,7 @@ Invalid inputs (4, 999, random text) → ignored silently, no crash.
 - BrowserTabBar: animated weight (1.4f selected, 0.8f unselected) via animateFloatAsState
 - Selected tab: primary.copy(alpha=0.15f) background
 - Unselected: Color.Transparent background
-- No flash — background change is gradual via weight animation
+- No flash - background change is gradual via weight animation
 
 ### Dashboard Sections
 - Logs: collapsible, default COLLAPSED, user-controlled
@@ -159,8 +159,8 @@ Invalid inputs (4, 999, random text) → ignored silently, no crash.
 
 ## WHAT TO AVOID
 
-- Mocking the database in any tests — integration tests hit real DB
-- Adding `AnimatedVisibility` with `expandVertically` inside LazyColumn (causes scroll jump — use fadeIn/fadeOut only)
+- Mocking the database in any tests - integration tests hit real DB
+- Adding `AnimatedVisibility` with `expandVertically` inside LazyColumn (causes scroll jump - use fadeIn/fadeOut only)
 - Inline text fields for message or keyword input
 - AlertDialog for any input that needs a keyboard
 - Hardcoded strings that duplicate detection phrases

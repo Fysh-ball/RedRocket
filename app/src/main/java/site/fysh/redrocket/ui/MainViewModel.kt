@@ -1,25 +1,31 @@
 package site.fysh.redrocket.ui
 
+import android.net.Uri
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.runtime.Stable
 import androidx.lifecycle.ViewModel
+import com.google.gson.Gson
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import site.fysh.redrocket.EmergencyApp
 import site.fysh.redrocket.model.*
 import site.fysh.redrocket.util.AlertSensitivity
+import site.fysh.redrocket.util.RegionSettings
 import site.fysh.redrocket.util.normalizePhone
 import site.fysh.redrocket.utils.AppLogger
 import java.util.UUID
 import site.fysh.redrocket.queue.*
 import site.fysh.redrocket.service.*
 import site.fysh.redrocket.utils.*
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.ArrayDeque
 
 enum class AppTheme { SYSTEM, LIGHT, GRAY, NIGHT }
@@ -71,6 +77,12 @@ class MainViewModel(
 
     private val _blockPhrases = MutableStateFlow<List<BlockPhrase>>(emptyList())
     val blockPhrases: StateFlow<List<BlockPhrase>> = _blockPhrases.asStateFlow()
+
+    /** ISO 3166-1 alpha-2 code auto-detected from SIM/network/locale. Never empty. */
+    val detectedRegion: StateFlow<String> = RegionSettings.detectedRegionFlow
+
+    /** User-chosen region override. Empty string = use detectedRegion. */
+    val userRegion: StateFlow<String> = RegionSettings.userRegionFlow
 
     private val _logs = MutableStateFlow<List<LogEntry>>(emptyList())
     val logs: StateFlow<List<LogEntry>> = _logs.asStateFlow()
@@ -189,7 +201,7 @@ class MainViewModel(
         }
 
         // Check for Notification Listener Permission (cancelled when ViewModel is cleared).
-        // Polls at 2s until granted, then backs off to 60s — permission changes are rare once set.
+        // Polls at 2s until granted, then backs off to 60s - permission changes are rare once set.
         viewModelScope.launch {
             while (currentCoroutineContext().isActive) {
                 val isEnabled = PermissionUtils.isNotificationServiceEnabled(app)
@@ -502,21 +514,22 @@ class MainViewModel(
 
     fun onAddRecipientsToGroup(groupId: String, recipients: List<Recipient>) {
         val current = _uiState.value.currentScenario
+        val region = RegionSettings.effectiveRegion
         val currentGroupPhones = current.groups.find { it.id == groupId }
-            ?.recipients?.map { normalizePhone(it.phoneNumber) }?.toSet() ?: emptySet()
+            ?.recipients?.map { normalizePhone(it.phoneNumber, region) }?.toSet() ?: emptySet()
 
         var firstDuplicate: DuplicateContactInfo? = null
 
         val valid = recipients.filter { r ->
-            val norm = normalizePhone(r.phoneNumber)
+            val norm = normalizePhone(r.phoneNumber, region)
 
-            // Already in this group — silently skip
+            // Already in this group - silently skip
             if (norm in currentGroupPhones) return@filter false
 
             // Check same scenario's other groups
             val sameScenarioConflict = current.groups
                 .filter { it.id != groupId }
-                .firstOrNull { g -> g.recipients.any { normalizePhone(it.phoneNumber) == norm } }
+                .firstOrNull { g -> g.recipients.any { normalizePhone(it.phoneNumber, region) == norm } }
             if (sameScenarioConflict != null) {
                 if (firstDuplicate == null) {
                     firstDuplicate = DuplicateContactInfo(
@@ -531,10 +544,10 @@ class MainViewModel(
             // Check other scenarios
             val otherScenario = _uiState.value.scenarios
                 .filter { it.id != current.id }
-                .firstOrNull { s -> s.allRecipients().any { normalizePhone(it.phoneNumber) == norm } }
+                .firstOrNull { s -> s.allRecipients().any { normalizePhone(it.phoneNumber, region) == norm } }
             if (otherScenario != null) {
                 val conflictGroup = otherScenario.groups
-                    .firstOrNull { g -> g.recipients.any { normalizePhone(it.phoneNumber) == norm } }
+                    .firstOrNull { g -> g.recipients.any { normalizePhone(it.phoneNumber, region) == norm } }
                 if (firstDuplicate == null) {
                     firstDuplicate = DuplicateContactInfo(
                         contactName = r.name.ifBlank { r.phoneNumber },
@@ -655,7 +668,7 @@ class MainViewModel(
         // Check if there are ANY valid, unlocked scenarios to send
         val validScenarios = _uiState.value.scenarios.filter { it.isValid() && !it.isLocked }
         if (validScenarios.isEmpty()) {
-            Log.i(TAG, "[LOCKOUT] Manual send blocked — no valid unlocked scenarios available.")
+            Log.i(TAG, "[LOCKOUT] Manual send blocked - no valid unlocked scenarios available.")
             return
         }
         // Cooldown is bypassed in debug mode (messages aren't actually sent)
@@ -664,10 +677,10 @@ class MainViewModel(
             val cooldownMs = 60_000L
             val timeSinceLast = System.currentTimeMillis() - _uiState.value.lastSendCompletedAt
             if (_uiState.value.lastSendCompletedAt > 0 && timeSinceLast < cooldownMs) {
-                return // Cooldown shown in swipe bar — no error message needed
+                return // Cooldown shown in swipe bar - no error message needed
             }
 
-            // Check abuse tracker — read current level without recording yet.
+            // Check abuse tracker - read current level without recording yet.
             // Recording only happens after captcha is verified (see onManualSendConfirmed)
             // so stress-tapping the button cannot accrue points without passing captcha.
             val abuseLevel = app.abuseTracker.currentAbuseLevel()
@@ -686,7 +699,7 @@ class MainViewModel(
             }
             _uiState.update { it.copy(abuseLevel = abuseLevel) }
         }
-        // First ever force send: skip captcha entirely — countdown starts immediately
+        // First ever force send: skip captcha entirely - countdown starts immediately
         if (!_uiState.value.forceSendUsed) {
             viewModelScope.launch {
                 settings.setForceSendUsed(true)
@@ -701,7 +714,7 @@ class MainViewModel(
         _uiState.update { it.copy(currentCaptcha = captcha, showManualSendDialog = true, errorMessage = null) }
     }
 
-    /** Core send execution — shared by captcha-verified and first-use (captcha-free) paths. */
+    /** Core send execution - shared by captcha-verified and first-use (captcha-free) paths. */
     private suspend fun executeSend() {
         _uiState.update { it.copy(isManualCountdownActive = true, errorMessage = null, showManualSendDialog = false) }
 
@@ -735,7 +748,7 @@ class MainViewModel(
                         abuseLevel = newAbuseLevel
                     ) }
                     AppLogger.log(app.database, viewModelScope, "manual_send",
-                        "${validScenarios.size} scenario(s) triggered manually — $totalRecipients contact(s)")
+                        "${validScenarios.size} scenario(s) triggered manually - $totalRecipients contact(s)")
                     for (scenario in validScenarios) {
                         val locked = scenario.copy(isLocked = true)
                         scenarioDao.insertScenario(locked)
@@ -746,9 +759,10 @@ class MainViewModel(
                     }
                     viewModelScope.launch {
                         val historyDao = app.database.contactSendHistoryDao()
+                        val region = RegionSettings.effectiveRegion
                         for (scenario in validScenarios) {
                             for (r in scenario.allRecipients()) {
-                                val norm = normalizePhone(r.phoneNumber)
+                                val norm = normalizePhone(r.phoneNumber, region)
                                 historyDao.recordSend(norm)
                             }
                         }
@@ -790,7 +804,7 @@ class MainViewModel(
             val scenario = scenarioDao.getScenarioById(scenarioId)
             scenario?.let {
                 if (it.isLocked) {
-                    // Immediate unlock — no countdown delay
+                    // Immediate unlock - no countdown delay
                     val unlocked = it.copy(isLocked = false)
                     scenarioDao.insertScenario(unlocked)
                     Log.i(TAG, "[LOCKOUT] Scenario '${it.name}' UNLOCKED by user.")
@@ -853,6 +867,15 @@ class MainViewModel(
         viewModelScope.launch {
             app.database.blockPhraseDao().delete(blockPhrase)
         }
+    }
+
+    /**
+     * Persists the user's chosen region (ISO 3166-1 alpha-2).
+     * Pass an empty string to revert to auto-detection.
+     * Affects phone number normalization and block phrase preset selection immediately.
+     */
+    fun setUserRegion(code: String) {
+        RegionSettings.setUserRegion(app, code)
     }
 
     // --- Settings & Debugging ---
@@ -934,12 +957,13 @@ class MainViewModel(
     fun resendToRecipients(recipients: List<site.fysh.redrocket.model.Recipient>, scenarioId: String) {
         viewModelScope.launch {
             val scenario = scenarioDao.getScenarioById(scenarioId) ?: _uiState.value.currentScenario
-            // Use group.message per group — scenario.message is a legacy flat field (blank for all
+            // Use group.message per group - scenario.message is a legacy flat field (blank for all
             // multi-group scenarios). Match each resend recipient to their owning group.
-            val recipientPhones = recipients.map { normalizePhone(it.phoneNumber) }.toSet()
+            val region = RegionSettings.effectiveRegion
+            val recipientPhones = recipients.map { normalizePhone(it.phoneNumber, region) }.toSet()
             var enqueued = 0
             for (group in scenario.groups) {
-                val groupRecipients = group.recipients.filter { normalizePhone(it.phoneNumber) in recipientPhones }
+                val groupRecipients = group.recipients.filter { normalizePhone(it.phoneNumber, region) in recipientPhones }
                 if (groupRecipients.isNotEmpty() && group.message.isNotBlank()) {
                     queueManager.enqueueScenario(groupRecipients, group.message, scenarioId)
                     enqueued += groupRecipients.size
@@ -994,7 +1018,7 @@ class MainViewModel(
     // --- Tutorial ---
 
     fun startTutorial() {
-        // Build cleared scenario synchronously — avoids race where the coroutine's
+        // Build cleared scenario synchronously - avoids race where the coroutine's
         // _uiState.update fires AFTER the user has already added keywords in step 2.
         val scenario = _uiState.value.currentScenario
         val initialName = scenario.name
@@ -1008,7 +1032,7 @@ class MainViewModel(
             tutorialInitialScenarioName = initialName,
             currentScenario = cleared
         ) }
-        // Persist to DB in the background — UI already reflects the cleared state above.
+        // Persist to DB in the background - UI already reflects the cleared state above.
         viewModelScope.launch { scenarioDao.insertScenario(cleared) }
     }
 
@@ -1031,6 +1055,66 @@ class MainViewModel(
     fun completeTutorial() {
         _uiState.update { it.copy(showTutorialComplete = false, tutorialStep = 0) }
         viewModelScope.launch { settings.setTutorialShown(true) }
+    }
+
+    // -- Data management --
+
+    fun exportScenarios(uri: Uri) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val scenarios = app.database.scenarioDao().getAllScenariosOnce()
+                val blockPhrases = app.database.blockPhraseDao().getAllOnce().map { it.phrase }
+                val backup = ScenarioBackup(scenarios = scenarios, blockPhrases = blockPhrases)
+                val json = Gson().toJson(backup)
+                app.contentResolver.openOutputStream(uri)?.use { stream ->
+                    stream.write(json.toByteArray())
+                }
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(app, "Exported ${scenarios.size} scenario(s)", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Export failed", e)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(app, "Export failed", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+
+    fun importScenarios(uri: Uri) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val json = app.contentResolver.openInputStream(uri)?.use { stream ->
+                    stream.readBytes().toString(Charsets.UTF_8)
+                } ?: return@launch
+                val backup = Gson().fromJson(json, ScenarioBackup::class.java)
+                // Scenarios: REPLACE on ID conflict so existing data is updated correctly
+                app.database.scenarioDao().insertScenarios(backup.scenarios)
+                // Block phrases: IGNORE conflict is on id (auto-generated), so check by phrase text
+                val existingPhrases = app.database.blockPhraseDao().getAllOnce().map { it.phrase }.toSet()
+                backup.blockPhrases
+                    .filter { it !in existingPhrases }
+                    .forEach { phrase -> app.database.blockPhraseDao().insert(BlockPhrase(phrase = phrase)) }
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(app, "Imported ${backup.scenarios.size} scenario(s)", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Import failed", e)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(app, "Import failed - check file format", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+
+    fun sendTestMessage(phoneNumber: String) {
+        viewModelScope.launch {
+            val recipient = Recipient(name = "Test Recipient", phoneNumber = phoneNumber)
+            val message = "[TEST] Red Rocket is active on this device. Emergency messaging is configured and ready."
+            app.queueManager.enqueueScenario(listOf(recipient), message, "test-send-${UUID.randomUUID()}")
+            EmergencySendingService.startService(app)
+            AppLogger.log(app.database, app.appScope, "test_send", "Test message sent to $phoneNumber")
+        }
     }
 
     // --- Preset offering ---

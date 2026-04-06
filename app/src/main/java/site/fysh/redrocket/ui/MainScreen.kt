@@ -1,6 +1,9 @@
 package site.fysh.redrocket.ui
 
 import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.os.PowerManager
 import android.provider.Settings
 import androidx.compose.animation.*
 import androidx.compose.animation.core.RepeatMode
@@ -22,6 +25,7 @@ import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.NotificationsPaused
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -64,7 +68,11 @@ fun MainScreen(viewModel: MainViewModel) {
     var lastSeenDashboardAt by remember { mutableLongStateOf(0L) }
     val hasUnreadResponses = responses.any { it.receivedAt > lastSeenDashboardAt }
 
-    // Tutorial position tracking — store Rect directly (computed at layout time via boundsInRoot()
+    // Hoisted so the tutorial step-4 LaunchedEffect can programmatically scroll to the message field.
+    // verticalScroll(enabled=false) blocks gestures but animateScrollTo() still works.
+    val scrollState = rememberScrollState()
+
+    // Tutorial position tracking - store Rect directly (computed at layout time via boundsInRoot()
     // inside the onGloballyPositioned callback) so we never read a stale LayoutCoordinates
     // reference on a subsequent composition pass.
     var scenarioBoundsRect   by remember { mutableStateOf<ComposeRect?>(null) }
@@ -72,6 +80,16 @@ fun MainScreen(viewModel: MainViewModel) {
     var groupHeaderBoundsRect by remember { mutableStateOf<ComposeRect?>(null) }
     var messageBoundsRect    by remember { mutableStateOf<ComposeRect?>(null) }
     var dashboardTabBoundsRect by remember { mutableStateOf<ComposeRect?>(null) }
+
+    // Auto-scroll to the message field when tutorial reaches step 4 (5/6: Your Message).
+    // The main column scroll is disabled during the tutorial so the user can't scroll away from
+    // spotlights, but animateScrollTo() bypasses the gesture lock and works programmatically.
+    LaunchedEffect(uiState.tutorialStep) {
+        if (uiState.tutorialStep == 4 && uiState.showTutorial) {
+            delay(150) // allow layout to report updated messageBoundsRect
+            scrollState.animateScrollTo(scrollState.maxValue)
+        }
+    }
 
     // Auto-advance tutorial step 0 when the user CLOSES the scenario dropdown
     var tutorialDropdownClosed by remember { mutableStateOf(false) }
@@ -137,7 +155,6 @@ fun MainScreen(viewModel: MainViewModel) {
                 )
             } else {
             // Tab 0: Alert System
-            val scrollState = rememberScrollState()
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -156,7 +173,7 @@ fun MainScreen(viewModel: MainViewModel) {
                     HorizontalDivider(modifier = Modifier.padding(top = 6.dp))
                 }
 
-                // Scenario selector — placed directly under the title
+                // Scenario selector - placed directly under the title
                 ScenarioDropdown(
                     scenarios = uiState.scenarios,
                     selectedScenario = uiState.currentScenario,
@@ -170,7 +187,7 @@ fun MainScreen(viewModel: MainViewModel) {
                     onPositioned = { scenarioBoundsRect = it.boundsInRoot() }
                 )
 
-                // Debug mode warning banner (hidden in production builds) — pulsing red
+                // Debug mode warning banner (hidden in production builds) - pulsing red
                 if (uiState.isDebugEnabled) {
                     val infiniteTransition = rememberInfiniteTransition(label = "debugPulse")
                     val pulseAlpha by infiniteTransition.animateFloat(
@@ -271,6 +288,84 @@ fun MainScreen(viewModel: MainViewModel) {
                     }
                 }
 
+                // Battery optimization warning - shown if still active (can prevent background sending)
+                val powerManager = remember { context.getSystemService(PowerManager::class.java) }
+                var batteryOptDisabled by remember {
+                    mutableStateOf(powerManager?.isIgnoringBatteryOptimizations(context.packageName) == true)
+                }
+                LaunchedEffect(Unit) {
+                    while (true) {
+                        batteryOptDisabled = powerManager?.isIgnoringBatteryOptimizations(context.packageName) == true
+                        delay(5000L)
+                    }
+                }
+                if (!batteryOptDisabled) {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer,
+                            contentColor = MaterialTheme.colorScheme.onErrorContainer
+                        ),
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = {
+                            try {
+                                val intent = android.content.Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                                intent.data = Uri.parse("package:${context.packageName}")
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                context.startActivity(android.content.Intent(Settings.ACTION_BATTERY_SAVER_SETTINGS))
+                            }
+                        }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            Icon(Icons.Default.NotificationsPaused, contentDescription = null)
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Battery Optimization Active", fontWeight = FontWeight.Bold)
+                                Text(
+                                    "Messages may not send when the phone is locked. Tap to disable.",
+                                    fontSize = 12.sp
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // OEM background restriction warning for manufacturers known to aggressively
+                // kill background apps beyond the standard battery optimization setting.
+                val oemName = remember { Build.MANUFACTURER.lowercase() }
+                val isRestrictiveOem = remember {
+                    oemName.contains("xiaomi") || oemName.contains("huawei") ||
+                    oemName.contains("honor") || oemName.contains("oppo") ||
+                    oemName.contains("vivo") || oemName.contains("realme")
+                }
+                if (isRestrictiveOem && !batteryOptDisabled) {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.7f),
+                            contentColor = MaterialTheme.colorScheme.onErrorContainer
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            Icon(Icons.Default.Warning, contentDescription = null)
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("${Build.MANUFACTURER} Detected", fontWeight = FontWeight.Bold)
+                                Text(
+                                    "This device may also restrict background apps via AutoStart or Power Center settings. Enable AutoStart for Red Rocket in your device's battery settings.",
+                                    fontSize = 12.sp
+                                )
+                            }
+                        }
+                    }
+                }
+
                 // key() forces full recomposition of input sections when scenario switches,
                 // clearing any stale local draft state (typed-but-not-committed text, open dialogs).
                 key(uiState.currentScenario.id) {
@@ -290,7 +385,10 @@ fun MainScreen(viewModel: MainViewModel) {
                                     uiState.currentScenario.description.isNotBlank()) {
                                     viewModel.advanceTutorialStep(6)
                                 }
-                            }
+                            },
+                            userRegion = viewModel.userRegion.collectAsState().value,
+                            detectedRegion = viewModel.detectedRegion.collectAsState().value,
+                            onSetRegion = { viewModel.setUserRegion(it) }
                         )
                     }
 
@@ -374,7 +472,7 @@ fun MainScreen(viewModel: MainViewModel) {
                 } else 0L
                 val isInCooldown = cooldownSecondsRemaining > 0 && !isLocked
 
-                // Swipe to Force Send — hidden entirely when scenario is locked
+                // Swipe to Force Send - hidden entirely when scenario is locked
                 if (!isLocked) {
                     if (isInCooldown) {
                         val mins = cooldownSecondsRemaining / 60
@@ -486,6 +584,9 @@ fun MainScreen(viewModel: MainViewModel) {
                     onThemeChange = { viewModel.setTheme(it) },
                     onReplyListenHoursChange = { viewModel.setReplyListenHours(it) },
                     onAlertSensitivityChange = { viewModel.setAlertSensitivity(it) },
+                    onExportScenarios = { uri -> viewModel.exportScenarios(uri) },
+                    onImportScenarios = { uri -> viewModel.importScenarios(uri) },
+                    onSendTestMessage = { phone -> viewModel.sendTestMessage(phone) },
                     onReplayTutorial = {
                         showSettings = false
                         viewModel.resetTutorial()

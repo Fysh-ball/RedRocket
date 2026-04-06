@@ -50,7 +50,7 @@ fun StatusPopup(
             verticalArrangement = Arrangement.spacedBy(0.dp)
         ) {
 
-            // ── COUNTDOWN VIEW ──────────────────────────────────────────────
+            // COUNTDOWN VIEW
             if (countdownSeconds != null && countdownSeconds > 0) {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
@@ -81,7 +81,7 @@ fun StatusPopup(
                 return@Column
             }
 
-            // ── HEADER: title + single active indicator ─────────────────────
+            // HEADER: title + single active indicator
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -101,7 +101,7 @@ fun StatusPopup(
                 }
             }
 
-            // Mode label — visible only while actively sending
+            // Mode label - visible only while actively sending
             if (isActive) {
                 val engineText = when (sendState) {
                     SendState.MULTI_THREADED -> "Multi-threaded – Quick Sending"
@@ -118,9 +118,9 @@ fun StatusPopup(
 
             Spacer(Modifier.height(16.dp))
 
-            // ── COMPLETION SUMMARY or IN-PROGRESS VIEW ─────────────────────
+            // COMPLETION SUMMARY or IN-PROGRESS VIEW
             if (isDone && completionStats != null) {
-                // ── COMPLETION: 4-stat summary ──────────────────────────────
+                // COMPLETION: 4-stat summary
                 val totalSent = completionStats.sentSuccessfully + completionStats.requiredRetries
                 // Total successful sends count
                 Surface(
@@ -172,7 +172,7 @@ fun StatusPopup(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             } else {
-                // ── IN-PROGRESS view ────────────────────────────────────────
+                // IN-PROGRESS view
                 val progress = if (total > 0) processed.toFloat() / total else 0f
                 LinearProgressIndicator(
                     progress = { progress },
@@ -209,7 +209,7 @@ fun StatusPopup(
                     )
                 }
 
-                // ── Per-message live status ──────────────────────────────────
+                // Per-message live status
                 if (currentMessageStatus != null && isActive) {
                     Spacer(Modifier.height(10.dp))
                     Surface(
@@ -250,7 +250,7 @@ fun StatusPopup(
                 }
             }
 
-            // Keep Trying toggle — only shown while active
+            // Keep Trying toggle - only shown while active
             if (isActive) {
                 Spacer(Modifier.height(16.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -265,7 +265,7 @@ fun StatusPopup(
 
             Spacer(Modifier.height(20.dp))
 
-            // Action button — contextual
+            // Action button - contextual
             if (isActive) {
                 OutlinedButton(
                     onClick = onCancel,

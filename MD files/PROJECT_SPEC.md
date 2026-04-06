@@ -1,7 +1,7 @@
 # PROJECT_SPEC.md
 
 ## Project Name
-Red Rocket — Emergency Auto-Messaging System
+Red Rocket - Emergency Auto-Messaging System
 
 ---
 
@@ -15,11 +15,11 @@ All sending happens through the device's native SMS system. No cloud service, no
 
 ## CORE GOALS
 
-1. Send emergency messages fast — minimal user action required during a crisis
-2. Avoid false triggers — never fire on test alerts or amber alerts
-3. Retry until delivered — Lazarus mode ensures delivery even under network stress
-4. Track responses — know who is safe, who needs updates, who is in danger
-5. Full transparency — every alert logged, every action visible
+1. Send emergency messages fast - minimal user action required during a crisis
+2. Avoid false triggers - never fire on test alerts or amber alerts
+3. Retry until delivered - Lazarus mode ensures delivery even under network stress
+4. Track responses - know who is safe, who needs updates, who is in danger
+5. Full transparency - every alert logged, every action visible
 
 ---
 
@@ -28,8 +28,8 @@ All sending happens through the device's native SMS system. No cloud service, no
 ### 1. DETECTION SYSTEM
 
 **Entry points:**
-- `EmergencyBroadcastReceiver` — cell broadcast (WEA/CMAS/ETWS)
-- `EmergencyNotificationListener` — all system notifications (wide spread optional)
+- `EmergencyBroadcastReceiver` - cell broadcast (WEA/CMAS/ETWS)
+- `EmergencyNotificationListener` - all system notifications (wide spread optional)
 
 **Pipeline:**
 1. Receive alert content
@@ -54,7 +54,7 @@ A Scenario is the top-level unit. Each scenario has:
 - **Activation Keywords**: comma-separated phrases that trigger the scenario when matched in alert content
 - **Block Phrases**: words or phrases in any language that suppress triggering even when keywords match (e.g. "this is a test")
 - **Groups**: one or more groups, each with its own recipients and message
-- **isLocked**: true after triggering — must be manually reset
+- **isLocked**: true after triggering - must be manually reset
 - **isFavorite**: protected from deletion
 
 Multiple scenarios can exist. All valid, unlocked scenarios fire simultaneously when a matching alert arrives.
@@ -93,7 +93,7 @@ Transitions: 5 consecutive failures → SEQUENTIAL. 5 consecutive successes → 
 
 #### Lazarus retry system
 - Activates when primary queue exhausted but failures remain
-- Infinite retry — no cap
+- Infinite retry - no cap
 - 5-second pause between retry passes
 - Exits when retry queue empty AND Keep Trying = OFF
 
@@ -149,7 +149,7 @@ After sending, `SmsResponseReceiver` listens for replies within a configurable w
 - "urgent", "help", "sos" → 3
 - "keep me updated" → 2
 
-**Priority rule:** 3 overrides 2 overrides 1 — once urgent, always urgent.
+**Priority rule:** 3 overrides 2 overrides 1 - once urgent, always urgent.
 
 **Windows:**
 - Global: starts at first send, lasts replyListenHours setting (1–24h)
@@ -196,7 +196,7 @@ Stored in DataStore (`AppSettings`):
 
 ### 9. ONBOARDING SYSTEM
 
-`FirstLaunchScreen` — shown on first launch (isFirstLaunch = true):
+`FirstLaunchScreen` - shown on first launch (isFirstLaunch = true):
 - Page 1: Welcome + About/FAQ/Disclaimer + Skip option
 - Page 2: 6 permission cards (SMS, Contacts, Notifications, Notification Access, Battery Opt, Receive SMS) + Skip option
 - Page 3: Confirmation screen
@@ -208,7 +208,7 @@ Tutorial can be replayed via Settings → User Manual → Replay Setup Tutorial 
 
 ## UI STRUCTURE
 
-### Tab 0 — Alert System
+### Tab 0 - Alert System
 
 Top to bottom:
 1. "Alert System" header
@@ -222,7 +222,7 @@ Top to bottom:
 9. Cooldown timer (60s between sends)
 10. Swipe to Force Send (or cooldown indicator)
 
-### Tab 1 — Dashboard
+### Tab 1 - Dashboard
 
 Top to bottom:
 1. "Dashboard" header

@@ -156,7 +156,7 @@ private fun PastAlertCard(alert: PastAlert, dateFormat: SimpleDateFormat) {
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
-            // ── Header row: badge pill | date + chevron ───────────────────
+            // Header row: badge pill | date + chevron
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -193,7 +193,7 @@ private fun PastAlertCard(alert: PastAlert, dateFormat: SimpleDateFormat) {
                 }
             }
 
-            // ── Message content ───────────────────────────────────────────
+            // Message content
             Spacer(Modifier.height(8.dp))
             Text(
                 alert.messageContent,
@@ -203,7 +203,7 @@ private fun PastAlertCard(alert: PastAlert, dateFormat: SimpleDateFormat) {
                 overflow = if (expanded) TextOverflow.Clip else TextOverflow.Ellipsis
             )
 
-            // ── Triggered scenarios (only when at least one fired) ────────
+            // Triggered scenarios (only when at least one fired)
             if (alert.scenariosTriggered.isNotBlank()) {
                 Spacer(Modifier.height(6.dp))
                 Text(

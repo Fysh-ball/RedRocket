@@ -31,7 +31,7 @@ fun MessageInput(
     var showSheet by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
-    // File picker — loads text file directly into message field, no dialog needed
+    // File picker - loads text file directly into message field, no dialog needed
     val filePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
@@ -58,7 +58,7 @@ fun MessageInput(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Tappable display surface — opens the edit sheet on tap
+        // Tappable display surface - opens the edit sheet on tap
         Surface(
             modifier = Modifier
                 .weight(1f)
@@ -87,7 +87,7 @@ fun MessageInput(
             }
         }
 
-        // Upload button — load text from file directly
+        // Upload button - load text from file directly
         Button(
             onClick = { filePicker.launch("text/plain") },
             modifier = Modifier.size(56.dp),
@@ -109,7 +109,7 @@ fun MessageInput(
 }
 
 /**
- * Bottom sheet editor — anchored to the bottom of the screen and floats above the keyboard.
+ * Bottom sheet editor - anchored to the bottom of the screen and floats above the keyboard.
  * The OutlinedTextField is always visible: imePadding() pushes the sheet content up when
  * the soft keyboard appears, matching the Discord/Telegram DM input pattern.
  */
@@ -161,7 +161,8 @@ private fun MessageEditSheet(
                     .focusRequester(focusRequester),
                 minLines = 4,
                 shape = RoundedCornerShape(12.dp),
-                placeholder = { Text("Enter the emergency message to be sent...") },
+                textStyle = MaterialTheme.typography.bodyLarge,
+                placeholder = { Text("Enter the emergency message to be sent...", style = MaterialTheme.typography.bodyLarge) },
                 colors = OutlinedTextFieldDefaults.colors(
                     unfocusedContainerColor = MaterialTheme.colorScheme.surface,
                     focusedContainerColor = MaterialTheme.colorScheme.surface,
@@ -189,7 +190,7 @@ private fun MessageEditSheet(
         }
     }
 
-    // Request focus after the sheet has animated into position — this triggers the keyboard
+    // Request focus after the sheet has animated into position - this triggers the keyboard
     LaunchedEffect(Unit) {
         delay(200)
         focusRequester.requestFocus()

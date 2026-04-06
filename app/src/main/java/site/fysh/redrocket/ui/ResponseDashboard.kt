@@ -55,9 +55,9 @@ private fun timeAgo(millis: Long): String {
 /**
  * Shared dashboard across ALL scenarios.
  * Shows:
- *   Section 1 — Active Response System (responses/status per scenario)
- *   Section 2 — Logs (recent system events)
- *   Section 3 — Alert History (past triggered alerts)
+ *   Section 1 - Active Response System (responses/status per scenario)
+ *   Section 2 - Logs (recent system events)
+ *   Section 3 - Alert History (past triggered alerts)
  */
 @Composable
 fun ResponseDashboard(
@@ -110,8 +110,8 @@ fun ResponseDashboard(
     val primaryColor = MaterialTheme.colorScheme.primary
     val errorColor = MaterialTheme.colorScheme.error
 
-    // ── Listening state ──────────────────────────────────────────────────
-    // Driven by StateFlow — updates immediately on startListening()/stopListening() calls,
+    // Listening state
+    // Driven by StateFlow - updates immediately on startListening()/stopListening() calls,
     // even across process death (listenStartTime is persisted to SharedPreferences).
     val listenStartTime by SmsResponseReceiver.listenStartTimeFlow.collectAsState()
     var isCurrentlyListening by remember { mutableStateOf(SmsResponseReceiver.isListening()) }
@@ -162,14 +162,14 @@ fun ResponseDashboard(
 
     // Logs collapsed by default (user-controlled collapse per AGENTS.md)
     var logsExpanded by remember { mutableStateOf(false) }
-    // Alert History collapsed by default — owned here so it survives inlineMode/dialog switches
+    // Alert History collapsed by default - owned here so it survives inlineMode/dialog switches
     var alertHistoryExpanded by remember { mutableStateOf(false) }
 
     @Composable
     fun DashboardContent() {
         LazyColumn(modifier = Modifier.fillMaxSize()) {
 
-            // ── Drag handle (dialog mode only) ───────────────────────────
+            // Drag handle (dialog mode only)
             if (!inlineMode) {
                 item {
                     Box(
@@ -188,7 +188,7 @@ fun ResponseDashboard(
                 }
             }
 
-            // ── Tab header (inline mode only) ────────────────────────────
+            // Tab header (inline mode only)
             if (inlineMode) {
                 item {
                     Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
@@ -203,7 +203,7 @@ fun ResponseDashboard(
                 }
             }
 
-            // ── Listening timer + Stop button ────────────────────────────
+            // Listening timer + Stop button
             if (isCurrentlyListening) {
                 item {
                     Surface(
@@ -245,7 +245,7 @@ fun ResponseDashboard(
                 }
             }
 
-            // ── Section 1: Active Response System ────────────────────────
+            // Section 1: Active Response System
             when {
                 recipients.isEmpty() -> {
                     item {
@@ -464,7 +464,7 @@ fun ResponseDashboard(
                 }
             }
 
-            // ── Section 2: Logs (user-controlled collapsible per AGENTS.md) ───
+            // Section 2: Logs (user-controlled collapsible per AGENTS.md)
             item {
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp))
                 Row(
@@ -503,7 +503,7 @@ fun ResponseDashboard(
                 }
             }
 
-            // Logs content — fade in/out, no height animation to avoid LazyColumn scroll jump
+            // Logs content - fade in/out, no height animation to avoid LazyColumn scroll jump
             item {
                 AnimatedVisibility(
                     visible = logsExpanded,
@@ -529,7 +529,7 @@ fun ResponseDashboard(
                 }
             }
 
-            // ── Section 3: Alert History (collapsible) ────────────────────
+            // Section 3: Alert History (collapsible)
             item {
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp))
                 Row(
@@ -569,7 +569,7 @@ fun ResponseDashboard(
                 }
             }
 
-            // Alert History content — fade in/out (no height animation to avoid LazyColumn jump)
+            // Alert History content - fade in/out (no height animation to avoid LazyColumn jump)
             item {
                 AnimatedVisibility(
                     visible = alertHistoryExpanded,
@@ -801,7 +801,7 @@ private fun DashboardAlertCard(alert: PastAlert, dateFormat: SimpleDateFormat) {
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
-            // ── Header row: badge pill | date + chevron ───────────────────
+            // Header row: badge pill | date + chevron
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -837,7 +837,7 @@ private fun DashboardAlertCard(alert: PastAlert, dateFormat: SimpleDateFormat) {
                     )
                 }
             }
-            // ── Message content ───────────────────────────────────────────
+            // Message content
             Spacer(Modifier.height(6.dp))
             Text(
                 alert.messageContent,

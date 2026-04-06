@@ -21,7 +21,7 @@ class RateLimiter {
             val last = lastSendTimestamp.get()
             val timeSinceLastSend = currentTime - last
             if (timeSinceLastSend >= requiredDelay) {
-                // CAS: only one coroutine wins the slot — others loop and re-check
+                // CAS: only one coroutine wins the slot - others loop and re-check
                 if (lastSendTimestamp.compareAndSet(last, currentTime)) break
             } else {
                 val sleepTime = requiredDelay - timeSinceLastSend

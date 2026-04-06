@@ -39,7 +39,7 @@ fun InputBoxContainer(
     scrollState: ScrollState = rememberScrollState(),
     content: @Composable () -> Unit
 ) {
-    // Consumes scroll only when content overflows — if the box doesn't need scrolling,
+    // Consumes scroll only when content overflows - if the box doesn't need scrolling,
     // events pass through to the parent so the page can scroll normally.
     val blockParent = remember(scrollState) {
         object : NestedScrollConnection {
@@ -58,7 +58,7 @@ fun InputBoxContainer(
             .nestedScroll(blockParent)
             .drawWithContent {
                 drawContent()
-                // Scrollbar — only rendered when content overflows
+                // Scrollbar - only rendered when content overflows
                 val range = scrollState.maxValue.toFloat()
                 if (range > 0f) {
                     val barH = (size.height * size.height / (size.height + range))

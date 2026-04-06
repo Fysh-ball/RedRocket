@@ -83,7 +83,7 @@ All items must pass:
 
 ---
 
-## RISKY CHANGES — EXTRA TESTING REQUIRED
+## RISKY CHANGES - EXTRA TESTING REQUIRED
 
 If you modify any of these systems, re-test ALL related systems:
 

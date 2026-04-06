@@ -16,6 +16,7 @@ import androidx.core.content.ContextCompat
 import site.fysh.redrocket.BuildConfig
 import site.fysh.redrocket.EmergencyApp
 import site.fysh.redrocket.model.ResponseRecord
+import site.fysh.redrocket.util.RegionSettings
 import site.fysh.redrocket.util.normalizePhone
 import site.fysh.redrocket.utils.AppLogger
 import kotlinx.coroutines.Dispatchers
@@ -44,7 +45,7 @@ class SmsResponseReceiver : BroadcastReceiver() {
         @Volatile
         private var listenStartTime: Long = 0L
 
-        /** Reactive view of listenStartTime — updates on start/stop. */
+        /** Reactive view of listenStartTime - updates on start/stop. */
         private val _listenStartTimeFlow = MutableStateFlow(0L)
         val listenStartTimeFlow: StateFlow<Long> = _listenStartTimeFlow.asStateFlow()
 
@@ -54,12 +55,13 @@ class SmsResponseReceiver : BroadcastReceiver() {
 
         /**
          * Must be called once from EmergencyApp.onCreate() to restore persisted state.
-         * Safe to call multiple times — subsequent calls are no-ops.
+         * Safe to call multiple times - subsequent calls are no-ops.
          */
         fun init(context: Context) {
             if (prefs != null) return
-            prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            val saved = prefs!!.getLong(KEY_LISTEN_START, 0L)
+            val p = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            prefs = p
+            val saved = p.getLong(KEY_LISTEN_START, 0L)
             // Restore only if the saved window is still within the configured listen duration
             if (saved > 0L && System.currentTimeMillis() - saved < globalListenWindowMs) {
                 listenStartTime = saved
@@ -131,7 +133,7 @@ class SmsResponseReceiver : BroadcastReceiver() {
          *
          * Normalization: lowercase → remove punctuation (replace with space) → collapse spaces.
          * Priority (highest wins): EMERGENCY (3) > UPDATES (2) > SAFE (1)
-         * Returns null if no match — caller should ignore the message safely.
+         * Returns null if no match - caller should ignore the message safely.
          */
         fun parseResponseCode(body: String): Int? {
             // Exact single-digit codes checked on the raw trimmed body first
@@ -156,7 +158,7 @@ class SmsResponseReceiver : BroadcastReceiver() {
 
             if (text.isEmpty()) return null
 
-            // Priority 1 — EMERGENCY (3): checked first so it always wins over SAFE/UPDATES
+            // Priority 1 - EMERGENCY (3): checked first so it always wins over SAFE/UPDATES
             val isEmergency =
                 text.contains("emergency") ||
                 text.contains("not safe") ||
@@ -177,7 +179,7 @@ class SmsResponseReceiver : BroadcastReceiver() {
 
             if (isEmergency) return 3
 
-            // Priority 2 — UPDATES (2)
+            // Priority 2 - UPDATES (2)
             val isUpdates =
                 text.contains("keep me updated") ||
                 text.contains("want updates") ||
@@ -195,8 +197,8 @@ class SmsResponseReceiver : BroadcastReceiver() {
 
             if (isUpdates) return 2
 
-            // Priority 3 — SAFE (1)
-            // "ok", "fine", "good" require exact message match — too broad as substrings
+            // Priority 3 - SAFE (1)
+            // "ok", "fine", "good" require exact message match - too broad as substrings
             val isSafe =
                 text.contains("i am safe") ||
                 text.contains("im safe") ||
@@ -219,9 +221,9 @@ class SmsResponseReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         Log.d(TAG, "onReceive: action=${intent.action}")
 
-        // Check global listening window FIRST — fast reject if not listening
+        // Check global listening window FIRST - fast reject if not listening
         if (!isListening()) {
-            Log.d(TAG, "Global listening window inactive — ignoring SMS")
+            Log.d(TAG, "Global listening window inactive - ignoring SMS")
             return
         }
 
@@ -259,18 +261,19 @@ class SmsResponseReceiver : BroadcastReceiver() {
                     return@launch
                 }
 
-                val normalizedSender = normalizePhone(sender)
+                val region = RegionSettings.effectiveRegion
+                val normalizedSender = normalizePhone(sender, region)
                 val db = app.database
 
-                // ── Fast reject: only process SMS from known scenario recipients ──
+                // Fast reject: only process SMS from known scenario recipients
                 val allScenarios = db.scenarioDao().getAllScenariosOnce()
                 val knownPhones = allScenarios
                     .flatMap { it.allRecipients() }
-                    .map { normalizePhone(it.phoneNumber) }
+                    .map { normalizePhone(it.phoneNumber, region) }
                     .toSet()
 
                 if (normalizedSender !in knownPhones) {
-                    Log.d(TAG, "Sender $normalizedSender not in any scenario — ignoring")
+                    Log.d(TAG, "Sender $normalizedSender not in any scenario - ignoring")
                     pending.finish()
                     return@launch
                 }
@@ -286,10 +289,10 @@ class SmsResponseReceiver : BroadcastReceiver() {
 
                 val now = System.currentTimeMillis()
 
-                // ── Per-contact window check ──────────────────────────────────
+                // Per-contact window check
                 // If contact's window is permanently expired, reject immediately
                 if (contactExpired.contains(normalizedSender)) {
-                    Log.d(TAG, "Contact $normalizedSender window permanently expired — ignoring")
+                    Log.d(TAG, "Contact $normalizedSender window permanently expired - ignoring")
                     pending.finish()
                     return@launch
                 }
@@ -298,7 +301,7 @@ class SmsResponseReceiver : BroadcastReceiver() {
                 if (firstTime != null) {
                     val elapsed = now - firstTime
                     if (elapsed > PER_CONTACT_WINDOW_MS) {
-                        // 1-minute window expired — permanently stop listening to this contact
+                        // 1-minute window expired - permanently stop listening to this contact
                         contactExpired.add(normalizedSender)
                         Log.d(TAG, "Contact $normalizedSender 1-minute window expired (${elapsed}ms). Stopped listening.")
                         pending.finish()
@@ -306,9 +309,9 @@ class SmsResponseReceiver : BroadcastReceiver() {
                     }
                     Log.d(TAG, "Contact $normalizedSender updating response within 1-min window (${elapsed}ms)")
                 } else {
-                    // First response from this contact — start their 1-minute window
+                    // First response from this contact - start their 1-minute window
                     contactFirstResponseTime[normalizedSender] = now
-                    Log.i(TAG, "First response from $normalizedSender — 1-minute window started")
+                    Log.i(TAG, "First response from $normalizedSender - 1-minute window started")
                 }
 
                 val responseText = when (responseCode) {
@@ -324,7 +327,7 @@ class SmsResponseReceiver : BroadcastReceiver() {
                 var matched = false
                 for (scenario in allScenarios) {
                     for (recipient in scenario.allRecipients()) {
-                        val normalizedRecipient = normalizePhone(recipient.phoneNumber)
+                        val normalizedRecipient = normalizePhone(recipient.phoneNumber, region)
                         if (normalizedRecipient == normalizedSender) {
                             if (BuildConfig.DEBUG) {
                                 Log.i(TAG, "MATCH: recipient='${recipient.name}' (${recipient.phoneNumber}), scenario='${scenario.name}', code=$responseCode")
@@ -370,7 +373,7 @@ class SmsResponseReceiver : BroadcastReceiver() {
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.SEND_SMS)
             != PackageManager.PERMISSION_GRANTED
         ) {
-            Log.w(TAG, "SEND_SMS permission not granted — auto-reply to $destination skipped")
+            Log.w(TAG, "SEND_SMS permission not granted - auto-reply to $destination skipped")
             return
         }
         try {

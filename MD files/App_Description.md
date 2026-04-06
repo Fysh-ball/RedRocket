@@ -1,43 +1,57 @@
 Red Rocket: Automated Emergency Response
 
-**Red Rocket** is an automated emergency response app designed to help you keep your family and loved ones safe during critical situations.
+Red Rocket is an automated emergency response app that helps you keep your family and loved ones informed during a crisis.
 
-Red Rocket monitors emergency broadcast alerts and matches them to your custom trigger words. When a match is detected, it instantly sends your pre-written message to the contacts you choose so you can act without hesitation when every second counts.
-### 🚨 Notification Monitor
+When an emergency alert hits your device, Red Rocket detects it, matches it against your custom trigger words, and instantly sends your pre-written message to the contacts you chose. No digging for your phone. No remembering who to call. It acts the moment it needs to.
 
-Red Rocket listens for emergency broadcast alerts using Android’s notification listener and detects specific triggers based on your custom keywords.
+---
 
-### 📩 Automated Messaging
+## Automated Alert Detection
 
-Automatically send your pre-written emergency messages to your selected contacts or groups the moment a trigger is detected.
+Red Rocket monitors emergency broadcasts through Android's cell broadcast system and notification listener. You control which alerts trigger a response using custom keywords, so it only acts when it should.
 
-### 🔁 Two-Way Feedback
+---
 
-Receive and track responses from your contacts in a clear dashboard, allowing you to quickly see who is safe and who may need help.
-### 🧠 Adaptive Messaging
+## Scenarios and Groups
 
-Red Rocket's Adaptive messaging  reacts to network conditions by switching between:
+Set up scenarios in advance. Each scenario has keywords that trigger it and one or more groups, each with its own list of contacts and its own message. When an alert matches, all groups send simultaneously.
 
-- Multi-threaded sending for speed
-- Sequential sending for reliability
-- Lazarus mode to persistently retry
+---
 
-This ensures the highest possible chance of message delivery when networks are degraded.
-### ⚠️ False Alarm Protection
+## Alert Filters
 
-Avoid unnecessary panic. Red Rocket includes a system to detect test alerts and lets you adjust sensitivity levels for automatic triggering.
+Each scenario supports Activation Keywords (what the alert must contain to fire) and Block Phrases (phrases that cancel a trigger even when keywords match, like "this is only a test"). Both come with regional presets covering 22 languages and 35 countries.
 
-### 🔒 Privacy & Permissions
+---
 
-Your privacy matters. We're all tired of giving up privacy for convenience so we promise to be different:
+## Adaptive Delivery
 
-- No data collection - EVER
-- No telemetry - We don't want it.
+Messages go out in parallel by default. If sends start failing due to network conditions, the app switches to sequential mode and then into Lazarus retry mode, which keeps retrying until delivery succeeds. You can set it to keep trying indefinitely.
 
-Future updates may include an optional, anonymous alert-sharing feature to help build a real-time emergency map but this will be with your consent.
+---
 
-This app is for leaders, for parents, for guardians. For those who want to keep others safe in times of crisis by automatically sending your life saving instructions to those in need, you can be their light in the time of dark.
-## Our Mission
+## Two-Way Feedback
 
-In emergencies, communication saves lives.  
-Red Rocket gives you the tools to help others when it matters most. You will be the source of clarity in moments of chaos.
+After sending, Red Rocket listens for replies from your contacts. They reply with a simple code: 1 means safe, 2 means safe but wants updates, 3 means emergency. The live dashboard shows who responded and what they said.
+
+---
+
+## False Alarm Protection
+
+The detection system runs every alert through an 8-step pipeline before triggering. It blocks test alerts, blocks AMBER alerts from firing your scenarios, checks the trust level of the alert source, and matches phrases across 22 languages. It does not panic. It does not fire on drills.
+
+---
+
+## Privacy
+
+No accounts. No cloud. No internet required. Everything stays on your device.
+
+No data collection. No telemetry. Ever. We will not be different next year.
+
+A future update may add an optional, anonymous alert-sharing feature to help build a real-time emergency map. That will always be opt-in.
+
+---
+
+This app is for people who plan ahead. For parents, guardians, team leads - anyone who wants the people who depend on them to receive a message the moment something goes wrong.
+
+In emergencies, communication saves lives. Red Rocket gives you the tools to be the person who sends the right message at the right time.

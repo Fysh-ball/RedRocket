@@ -1,56 +1,55 @@
-# RedRocket
-## Red Rocket: A Personal Automated Emergency Response Broadcast System
+# Red Rocket
 
-**Red Rocket** is an automated emergency response app designed to help you keep your family and loved ones safe during critical situations.
+Red Rocket is an automated emergency response app that keeps your contacts informed when it matters most.
 
-Red Rocket monitors emergency broadcast alerts and matches them to your custom trigger words. When a match is detected, it instantly sends your pre-written message to the contacts you choose so you can act without hesitation when every second counts.
-### 🚨 Notification Monitor
+When an emergency alert hits your device, Red Rocket detects it, matches it against your custom scenarios, and automatically sends your pre-written message to the people you chose. No fumbling with your phone. No hoping you remember who to call.
 
-Red Rocket listens for emergency broadcast alerts using Android’s notification listener and detects specific triggers based on your custom keywords.
+---
 
-### 📩 Automated Messaging
+## What it does
 
-Automatically send your pre-written emergency messages to your selected contacts or groups the moment a trigger is detected.
+**Automated alert detection**
+Red Rocket listens for emergency broadcasts through Android's cell broadcast system and notification listener. When an alert comes in, it checks the content against your keywords and decides whether to send.
 
-### 🔁 Two-Way Feedback
+**Scenarios and groups**
+You set up scenarios in advance. Each scenario has keywords that trigger it, and one or more groups of contacts with their own message. A "family" group might get one message, a "coworkers" group gets another. When the scenario fires, all groups send at once.
 
-Receive and track responses from your contacts in a clear dashboard, allowing you to quickly see who is safe and who may need help.
-### 🧠 Adaptive Messaging
+**Alert Filters**
+Each scenario can have Activation Keywords (words that must match for it to fire) and Block Phrases (words that cancel a trigger even if the keywords match, like "this is a test"). Both support regional presets covering 22 languages and 35 countries.
 
-Red Rocket's Adaptive messaging  reacts to network conditions by switching between:
+**Adaptive delivery**
+Messages go out in parallel by default. If the network is struggling and sends start failing, it drops to sequential mode and eventually enters Lazarus retry mode, which keeps retrying until everything goes through. You can set it to keep trying indefinitely.
 
-- Multi-threaded sending for speed
-- Sequential sending for reliability
-- Lazarus mode to persistently retry
+**Two-way responses**
+After sending, Red Rocket listens for replies. Contacts reply with 1 (safe), 2 (safe but wants updates), or 3 (emergency). The dashboard tracks who responded and what they said.
 
-This ensures the highest possible chance of message delivery when networks are degraded.
-### ⚠️ False Alarm Protection
+**False alarm protection**
+The detection engine runs 8 steps before firing, including hard blocks for test alerts and AMBER alerts, multilingual phrase matching across 22 languages, and a trust-level check based on which app the alert came from. It does not fire on test messages.
 
-Avoid unnecessary panic. Red Rocket includes a system to detect test alerts and lets you adjust sensitivity levels for automatic triggering.
+---
 
-### 🔒 Privacy & Permissions
+## Privacy
 
-Your privacy matters. We're all tired of giving up privacy for convenience so we promise to be different:
+No accounts. No servers. No internet required. Your contacts, scenarios, and messages never leave your device.
 
-- No data collection - EVER
-- No telemetry - We don't want it.
+No data collection. No telemetry. No analytics. Full stop.
 
-Future updates may include an optional, anonymous alert-sharing feature to help build a real-time emergency map but this will be with your consent.
+---
 
-This app is for leaders, for parents, for guardians. For those who want to keep others safe in times of crisis by automatically sending your life saving instructions to those in need, you can be their light in the time of dark.
-## Our Mission
+## Setup
 
-In emergencies, communication saves lives.  
-Red Rocket gives you the tools to help others when it matters most. You will be the source of clarity in moments of chaos.
+On first launch, you'll be walked through the permissions the app needs. The two most important are notification access (to read alerts from the system) and battery optimization exemption (so Android does not kill the app in the background).
 
-### Please Note:	
-This app was dreamt up by me and quality assured by me. While I wish I could have coded this myself, current world events made me want to get this out as fast as possible so I was forced to use Claude and Gemini. 
+After setup, create a scenario, add contacts, write a message, and optionally set keywords. The app handles the rest.
 
-Rest assured I spent a lot of time painstakingly going through every part of the app repeatedly, so that there are minimal bugs and that the system works flawlessly. However, I am only human. I probably did miss something. 
+---
 
-I will be using this app myself and thought others may benefit from it as well. Please report any critical bugs that affect functionality and reliability and I'll fix it asap!
+## A note
 
-## Support Red Rocket!
-If this app was of any use to you, consider buying me a cup of rice!
+This app was designed and quality-checked by one person. I built it because I wanted something like it to exist, and current events pushed me to get it done quickly. I use it myself.
+
+It has been tested carefully, but no software is perfect. If you find a bug that affects reliability or sends messages incorrectly, please report it so I can fix it.
+
+If this was useful to you, consider buying me a cup of rice.
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/C0C71L2ELD)

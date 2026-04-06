@@ -7,7 +7,7 @@ import androidx.compose.ui.graphics.Color
  * Used by both PastAlertsDialog and ResponseDashboard to ensure consistent
  * colours and labels across all alert history views.
  *
- * Only the badge pill is coloured — card backgrounds stay neutral.
+ * Only the badge pill is coloured - card backgrounds stay neutral.
  */
 internal data class AlertBadge(
     val label: String,
@@ -19,10 +19,10 @@ internal data class AlertBadge(
  * Derives the correct [AlertBadge] from an alert's source and message content.
  *
  * Sources:
- *  "alert"          — EAS/WEA notification from a known or content-detected package
- *  "cell_broadcast" — direct cell broadcast (CMAS/WEA/ETWS)
- *  "notification"   — non-EAS app notification whose keywords matched a scenario
- *  "manual"         — manual force send (logs only, not shown in Alert History)
+ *  "alert" - EAS/WEA notification from a known or content-detected package
+ *  "cell_broadcast" - direct cell broadcast (CMAS/WEA/ETWS)
+ *  "notification" - non-EAS app notification whose keywords matched a scenario
+ *  "manual" - manual force send (logs only, not shown in Alert History)
  *
  * Content detection (Amber, Test) is applied before source-based grouping so the
  * correct badge appears regardless of which path the alert came from.
@@ -30,7 +30,7 @@ internal data class AlertBadge(
 internal fun resolveAlertBadge(source: String, content: String): AlertBadge {
     val lower = content.lowercase()
 
-    // ── Content: AMBER — highest priority, applies to all sources ────────
+    // Content: AMBER - highest priority, applies to all sources
     if (lower.contains("amber alert") || lower.contains("child abduction")) {
         return AlertBadge(
             label = "AMBER Alert",
@@ -39,7 +39,7 @@ internal fun resolveAlertBadge(source: String, content: String): AlertBadge {
         )
     }
 
-    // ── Content: Test broadcast — applies to all sources ─────────────────
+    // Content: Test broadcast - applies to all sources
     val isTest = lower.contains("this is a test") ||
                  lower.contains("required monthly test") ||
                  lower.contains("required weekly test") ||
@@ -55,7 +55,7 @@ internal fun resolveAlertBadge(source: String, content: String): AlertBadge {
         )
     }
 
-    // ── Source: non-EAS app notification ─────────────────────────────────
+    // Source: non-EAS app notification
     if (source == "notification" || source == "notification_wide") {
         return AlertBadge(
             label = "Notification",
@@ -64,7 +64,7 @@ internal fun resolveAlertBadge(source: String, content: String): AlertBadge {
         )
     }
 
-    // ── Source: EAS / cell broadcast ─────────────────────────────────────
+    // Source: EAS / cell broadcast
     if (source == "alert" || source == "cell_broadcast") {
         return AlertBadge(
             label = "Alert",
@@ -73,7 +73,7 @@ internal fun resolveAlertBadge(source: String, content: String): AlertBadge {
         )
     }
 
-    // ── Source: manual send ───────────────────────────────────────────────
+    // Source: manual send
     if (source == "manual") {
         return AlertBadge(
             label = "Manual Send",

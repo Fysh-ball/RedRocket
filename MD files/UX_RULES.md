@@ -54,7 +54,7 @@ Tab bar (BrowserTabBar):
 - Unselected tab background: `Color.Transparent`
 - Text: Bold + 14sp when selected, Normal + 13sp when unselected
 - Text color: `primary` when selected, `onSurfaceVariant.copy(0.7f)` when unselected
-- NO flash — transitions are smooth via the weight animation
+- NO flash - transitions are smooth via the weight animation
 - Unread dot (red, 8dp circle) appears on Dashboard tab when new responses exist
 
 ---
@@ -90,7 +90,7 @@ Show:
 | Alert History | Collapsed | User toggle |
 
 Rules:
-- Must NEVER disappear — always present in layout tree
+- Must NEVER disappear - always present in layout tree
 - `AnimatedVisibility` with `fadeIn()/fadeOut()` only inside LazyColumn items
 - No `expandVertically` inside LazyColumn (causes scroll jump)
 - Clear button for Logs only visible when expanded AND logs non-empty
@@ -103,7 +103,7 @@ Rules:
 - Tapping opens group picker Dialog
 - Long-press enters multi-select delete mode
 - Long-press on header → rename in-place
-- Drag handle visible — reorder by drag
+- Drag handle visible - reorder by drag
 - Favorite scenarios show star icon, cannot be deleted
 - New scenario auto-selected when added
 

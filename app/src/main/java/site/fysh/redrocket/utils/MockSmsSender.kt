@@ -34,7 +34,7 @@ class MockSmsSender(
         val maxAttempts = if (adaptiveController.currentState.value == site.fysh.redrocket.model.SendState.SEQUENTIAL) 3 else 1
 
         // Only the first attempt outcome is reported to the adaptive controller.
-        // Retry success must not reward the controller — it earned sequential mode.
+        // Retry success must not reward the controller - it earned sequential mode.
         val firstResult = random.nextDouble() >= failureRate
         adaptiveController.reportResult(firstResult)
 

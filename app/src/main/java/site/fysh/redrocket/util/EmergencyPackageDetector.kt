@@ -24,7 +24,7 @@ object EmergencyPackageDetector {
 
     private const val TAG = "EmergencyPkgDetector"
 
-    // ── ALL known cell broadcast / emergency alert package names ──────────────
+    // ALL known cell broadcast / emergency alert package names
     // Organized by OEM / source for maintainability.
 
     /** AOSP / Pixel / stock Android */
@@ -57,7 +57,7 @@ object EmergencyPackageDetector {
         "com.miui.cellbroadcastreceiver",
         "com.miui.emergencyassistant",
         "com.xiaomi.simactivate.service"
-        // com.miui.misound removed — audio routing handler, sends non-emergency notifications
+        // com.miui.misound removed - audio routing handler, sends non-emergency notifications
     )
 
     /** Huawei / EMUI / HarmonyOS */
@@ -145,7 +145,7 @@ object EmergencyPackageDetector {
         "com.alcatel.cellbroadcastreceiver"
     )
 
-    /** Nothing (NothingOS — based on AOSP, may use stock package) */
+    /** Nothing (NothingOS - based on AOSP, may use stock package) */
     private val NOTHING_PACKAGES = listOf(
         "com.nothing.cellbroadcastreceiver"
     )
@@ -161,7 +161,7 @@ object EmergencyPackageDetector {
     private val GOOGLE_SAFETY_PACKAGES = listOf(
         "com.google.android.apps.safetyhub",        // Personal Safety app (Pixel)
         "com.google.android.apps.emergencyinfo"
-        // com.google.android.gms removed — Google Play Services sends constant non-emergency
+        // com.google.android.gms removed - Google Play Services sends constant non-emergency
         // notifications (updates, sync, etc.) that would flood Alert History as false alerts
     )
 
@@ -173,7 +173,7 @@ object EmergencyPackageDetector {
         "com.mediatek.cellbroadcastreceiver",        // MediaTek chipset CB handler
         "com.mediatek.cbr",
         "com.spreadtrum.cellbroadcastreceiver"       // Spreadtrum/Unisoc chipset
-        // com.android.stk removed — SIM Toolkit handles many non-emergency carrier messages
+        // com.android.stk removed - SIM Toolkit handles many non-emergency carrier messages
         // (USSD, carrier menus, balance alerts) that would appear as false EAS alerts
     )
 
@@ -201,7 +201,7 @@ object EmergencyPackageDetector {
         CARRIER_PACKAGES
     ).toSet()
 
-    // ── Broadcast actions used for secondary detection ──────────────────────
+    // Broadcast actions used for secondary detection
     // If a package registers a receiver for any of these, it's an emergency alert app.
 
     private val CB_BROADCAST_ACTIONS = listOf(
@@ -213,8 +213,7 @@ object EmergencyPackageDetector {
         "android.cellbroadcast.action.SMS_CB_RECEIVED"
     )
 
-    // ── Runtime state ────────────────────────────────────────────────────────
-
+    // Runtime state
     /** Packages actually detected on this device. Empty = detection hasn't run yet. */
     @Volatile
     private var detectedPackages: Set<String> = emptySet()
@@ -240,7 +239,7 @@ object EmergencyPackageDetector {
         val pm = context.packageManager
         val found = mutableSetOf<String>()
 
-        // ── Layer 1: Direct package lookup ──
+        // Layer 1: Direct package lookup
         // Use MATCH_DISABLED_COMPONENTS to catch packages that OEMs disable by default
         // but re-enable when a cell broadcast arrives.
         val flags = PackageManager.MATCH_DISABLED_COMPONENTS
@@ -251,13 +250,13 @@ object EmergencyPackageDetector {
                 found.add(pkg)
                 Log.i(TAG, "FOUND emergency package (direct): $pkg")
             } catch (_: PackageManager.NameNotFoundException) {
-                // Not installed — expected for most entries
+                // Not installed - expected for most entries
             } catch (e: Exception) {
                 Log.w(TAG, "Error checking package $pkg", e)
             }
         }
 
-        // ── Layer 2: Broadcast receiver query ──
+        // Layer 2: Broadcast receiver query
         // Some OEMs register cell broadcast receivers under non-standard package names.
         // Query the system for any package that handles CB intents.
         for (action in CB_BROADCAST_ACTIONS) {

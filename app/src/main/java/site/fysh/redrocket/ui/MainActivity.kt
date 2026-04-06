@@ -43,7 +43,7 @@ class MainActivity : ComponentActivity() {
                         ) {}
                     }
                     uiState.isFirstLaunch -> {
-                        // During setup, nothing fires automatically — all actions are user-initiated.
+                        // During setup, nothing fires automatically - all actions are user-initiated.
                         FirstLaunchScreen(viewModel)
                     }
                     else -> {
