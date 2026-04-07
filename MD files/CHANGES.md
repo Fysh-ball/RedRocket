@@ -2,6 +2,39 @@
 
 ---
 
+## Session: 2026-04-06 (v2.0.2 — Full QA audit fixes)
+
+### service/SmsResponseReceiver.kt — prefs write inside synchronized block
+- Moved `prefs?.edit()?.putLong(KEY_LISTEN_START, now)?.apply()` from outside the `synchronized` block into it. Previously, two concurrent `startListening()` calls could interleave their `prefs.apply()` writes with the in-memory state update, leaving SharedPreferences out of sync with `listenStartTime`.
+
+### service/SmsResponseReceiver.kt — stopListening uses commit() not apply()
+- `stopListening()` now calls `.commit()` instead of `.apply()` for the SharedPreferences write. If the process dies immediately after `stopListening()`, `apply()` may not flush before death and listening would incorrectly restore on next launch.
+
+### service/SmsResponseReceiver.kt — atomic per-contact window tracking
+- Replaced `contactFirstResponseTime[normalizedSender]` get + conditional put (check-then-act race) with `contactFirstResponseTime.putIfAbsent(normalizedSender, now)`. Two Binder threads processing simultaneous SMS from the same contact can no longer both see null and both start independent 1-minute windows.
+
+### service/SmsResponseReceiver.kt — DB timeout on scenario load
+- `getAllScenariosOnce()` in `onReceive` is now wrapped in `withTimeoutOrNull(5_000L)`. A locked or slow database can no longer stall the SMS receiver indefinitely.
+
+### service/SmsResponseReceiver.kt — CancellationException not swallowed
+- Added `catch (e: CancellationException) { throw e }` before the broad `catch (e: Exception)` block. Coroutine cancellation from `app.appScope` is no longer swallowed and silently logged.
+- Added `import kotlinx.coroutines.CancellationException` and `import kotlinx.coroutines.withTimeoutOrNull`.
+
+### service/EmergencyNotificationListener.kt — DB timeout on scenario load
+- `getAllScenariosOnce()` now wrapped in `withTimeoutOrNull(5_000L)`. Matches the existing timeout already applied to the block phrases query. Prevents a slow DB from stalling the notification listener.
+
+### service/EmergencyNotificationListener.kt — locked scenario logged to AppLogger
+- When a locked scenario silently skips a trigger, an `AppLogger` entry is written so the user can see why their scenario didn't fire (visible in the in-app log screen).
+
+### service/SmsSender.kt — null SmsManager surfaced to AppLogger
+- When `smsManager` is null (device cannot send SMS), an `AppLogger` entry is written. Previously this was only a logcat error, leaving the user with no in-app explanation for why all sends failed.
+
+### model/Recipient.kt — isValid() phone number validation fixed
+- Removed the tautological `.all { it.isDigit() || it == '+' }` check — always true since the string is already filtered to only digits and `+`.
+- Added proper `+` position validation: `+` is only valid as an international prefix (position 0). A number like `+1234+5678` is now correctly rejected.
+
+---
+
 ## Session: 2026-04-06 (v2.0.1 — Armed/disarmed system + trigger source fix + code review fixes)
 
 ### CRITICAL: service/EmergencyNotificationListener.kt — non-emergency apps can no longer trigger scenarios

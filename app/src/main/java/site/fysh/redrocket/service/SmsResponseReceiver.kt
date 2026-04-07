@@ -19,11 +19,13 @@ import site.fysh.redrocket.model.ResponseRecord
 import site.fysh.redrocket.util.RegionSettings
 import site.fysh.redrocket.util.normalizePhone
 import site.fysh.redrocket.utils.AppLogger
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.ConcurrentHashMap
 
 class SmsResponseReceiver : BroadcastReceiver() {
@@ -110,8 +112,8 @@ class SmsResponseReceiver : BroadcastReceiver() {
                 }
                 listenStartTime = now
                 _listenStartTimeFlow.value = now
+                prefs?.edit()?.putLong(KEY_LISTEN_START, now)?.apply()
             }
-            prefs?.edit()?.putLong(KEY_LISTEN_START, now)?.apply()
         }
 
         fun isListening(): Boolean {
@@ -126,7 +128,9 @@ class SmsResponseReceiver : BroadcastReceiver() {
         fun stopListening() {
             listenStartTime = 0L
             _listenStartTimeFlow.value = 0L
-            prefs?.edit()?.putLong(KEY_LISTEN_START, 0L)?.apply()
+            // commit() is intentional here: if the process dies immediately after stopListening(),
+            // apply() might not flush before death, causing listening to incorrectly restore on restart.
+            prefs?.edit()?.putLong(KEY_LISTEN_START, 0L)?.commit()
             Log.i(TAG, "Response listening STOPPED manually.")
         }
 
@@ -267,7 +271,13 @@ class SmsResponseReceiver : BroadcastReceiver() {
                 val db = app.database
 
                 // Fast reject: only process SMS from known scenario recipients
-                val allScenarios = db.scenarioDao().getAllScenariosOnce()
+                val allScenarios = withTimeoutOrNull(5_000L) {
+                    db.scenarioDao().getAllScenariosOnce()
+                } ?: run {
+                    Log.w(TAG, "DB timeout loading scenarios - ignoring SMS from $normalizedSender")
+                    pending.finish()
+                    return@launch
+                }
                 val knownPhones = allScenarios
                     .flatMap { it.allRecipients() }
                     .map { normalizePhone(it.phoneNumber, region) }
@@ -298,9 +308,13 @@ class SmsResponseReceiver : BroadcastReceiver() {
                     return@launch
                 }
 
-                val firstTime = contactFirstResponseTime[normalizedSender]
-                if (firstTime != null) {
-                    val elapsed = now - firstTime
+                // Atomically record the first response time. putIfAbsent returns null if we
+                // just created the entry (first response), or the existing timestamp if already present.
+                val existingFirstTime = contactFirstResponseTime.putIfAbsent(normalizedSender, now)
+                if (existingFirstTime == null) {
+                    Log.i(TAG, "First response from $normalizedSender - 1-minute window started")
+                } else {
+                    val elapsed = now - existingFirstTime
                     if (elapsed > PER_CONTACT_WINDOW_MS) {
                         // 1-minute window expired - permanently stop listening to this contact
                         contactExpired.add(normalizedSender)
@@ -309,10 +323,6 @@ class SmsResponseReceiver : BroadcastReceiver() {
                         return@launch
                     }
                     Log.d(TAG, "Contact $normalizedSender updating response within 1-min window (${elapsed}ms)")
-                } else {
-                    // First response from this contact - start their 1-minute window
-                    contactFirstResponseTime[normalizedSender] = now
-                    Log.i(TAG, "First response from $normalizedSender - 1-minute window started")
                 }
 
                 val responseText = when (responseCode) {
@@ -362,6 +372,8 @@ class SmsResponseReceiver : BroadcastReceiver() {
                 if (!matched) {
                     Log.d(TAG, "No matching recipient found for sender='$normalizedSender'")
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Log.e(TAG, "Error processing SMS response", e)
             } finally {

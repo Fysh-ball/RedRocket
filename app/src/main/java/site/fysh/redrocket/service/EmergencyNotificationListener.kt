@@ -147,7 +147,12 @@ class EmergencyNotificationListener : NotificationListenerService() {
         }
 
         // Load ALL scenarios - every scenario actively listens for its trigger words
-        val allScenarios = app.database.scenarioDao().getAllScenariosOnce()
+        val allScenarios = withTimeoutOrNull(5_000L) {
+            app.database.scenarioDao().getAllScenariosOnce()
+        } ?: run {
+            Log.w(TAG, "DB timeout loading scenarios from $packageName - notification ignored")
+            return
+        }
         Log.i(TAG, "Evaluating ${allScenarios.size} scenario(s) against notification from $packageName")
 
         val contentLower = content.lowercase()
@@ -188,6 +193,8 @@ class EmergencyNotificationListener : NotificationListenerService() {
             // Skip locked scenarios
             if (scenario.isLocked) {
                 Log.i(TAG, "Scenario '${scenario.name}' is LOCKED - trigger silently ignored.")
+                AppLogger.log(app.database, app.appScope, "scenario_locked_skip",
+                    "Scenario '${scenario.name}' trigger skipped — scenario is locked")
                 continue
             }
 

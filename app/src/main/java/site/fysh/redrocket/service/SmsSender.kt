@@ -50,6 +50,13 @@ class SmsSender(
 
         val sm = smsManager ?: run {
             Log.e(TAG, "[ERROR] SmsManager is null - cannot send to ${task.recipient.phoneNumber}")
+            val app = context.applicationContext as? site.fysh.redrocket.EmergencyApp
+            if (app != null) {
+                site.fysh.redrocket.utils.AppLogger.log(
+                    app.database, app.appScope, "sms_manager_null",
+                    "SmsManager unavailable - SMS delivery is not possible on this device"
+                )
+            }
             adaptiveController.reportResult(false)
             return@withContext false
         }

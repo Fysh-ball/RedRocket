@@ -4,6 +4,20 @@ Public-facing release notes for each version. These are what users see on GitHub
 
 ---
 
+## v2.0.2 — Reliability Update (2026-04-06)
+
+### Bug Fixes
+
+- **Fixed a race condition in the response listener:** Two simultaneous SMS responses from the same contact could both open separate 1-minute reply windows. The per-contact window is now set atomically, so only the first response starts the clock.
+- **Fixed response listening state not persisting correctly on sudden process death:** The "stop listening" flag is now written synchronously to storage so it cannot be reverted by a process crash occurring in the brief window after stopping.
+- **Fixed coroutine cancellation being swallowed in the SMS response receiver:** Cancellation signals were caught by a broad exception handler and silently discarded. They are now re-thrown correctly.
+- **Fixed potential indefinite hang when the database is slow at trigger time:** Database queries in the notification listener and SMS receiver now time out after 5 seconds instead of waiting forever.
+- **Fixed phone number validation accepting `+` in invalid positions:** A `+` sign is now only accepted as an international dialing prefix (e.g. `+1...`), not mid-number.
+- **Improved visibility when SMS is unavailable:** If the device cannot send SMS, the reason is now recorded in the in-app activity log instead of being silently swallowed.
+- **Improved visibility when a locked scenario skips a trigger:** The in-app activity log now records when a trigger fires but is ignored because the scenario is locked.
+
+---
+
 ## v2.0.1 — Hotfix (2026-04-06)
 
 ### Bug Fixes
