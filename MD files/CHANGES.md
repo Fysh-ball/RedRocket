@@ -2,6 +2,24 @@
 
 ---
 
+## Session: 2026-04-06 (Full setup clone on export/import + chip size)
+
+### model/ScenarioBackup.kt — settings included in backup
+- Added `AppSettingsBackup` data class with nullable fields: `theme`, `alertSensitivity`, `replyListenHours`, `forceSequential`, `wideSpreadEnabled`, `userRegion`.
+- Added `settings: AppSettingsBackup? = null` to `ScenarioBackup`. Nullable so v1 backups (no settings block) still import cleanly.
+- Bumped default `version` from 1 to 2.
+
+### MainViewModel.kt — export includes all settings, import applies them
+- Added `currentSettingsBackup()` suspend helper that reads all relevant settings from DataStore and RegionSettings.
+- `exportScenarios()` and `autoExportBackup()` now include `currentSettingsBackup()` in the backup JSON.
+- `importScenarios()` applies each settings field if present: theme, alertSensitivity, replyListenHours, forceSequential, wideSpreadEnabled, userRegion. Missing fields (older backups) are silently skipped.
+- `BACKUP_CURRENT_VERSION` bumped to 2.
+
+### ui/RecipientsInput.kt + ui/TriggerInput.kt — slimmer chips
+- All chips (RecipientChip, KeywordChip, BlockPhraseChip): vertical padding `8dp → 4dp`, close icon `40dp → 32dp`, removed redundant `Spacer` between text and icon. Chips are visibly shorter and narrower, allowing two to fit per line in most cases.
+
+---
+
 ## Session: 2026-04-06 (Auto-export + APK naming)
 
 ### MainViewModel.kt — auto-export backup

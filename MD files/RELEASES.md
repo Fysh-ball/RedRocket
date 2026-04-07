@@ -13,7 +13,7 @@ Red Rocket now speaks your language. Whether you're in Japan, Brazil, the Philip
 - **Regional trigger presets:** 14 alert categories (earthquakes, tsunamis, nuclear, AMBER, and more) with keywords in 22 languages. Tap a preset to add it, tap again to remove it.
 - **Region picker with search:** find your country instantly instead of scrolling a full list
 - **Home screen widget:** see Red Rocket's current status at a glance without opening the app
-- **Scenario export and import:** back up your setup and restore it on a new device. Red Rocket also auto-saves a backup whenever your scenarios change, so there's always a fresh copy at Android/data/site.fysh.redrocket/files/redrocket_backup.json.
+- **Scenario export and import:** clone your entire setup to a new device — scenarios, groups, contacts, keywords, block phrases, and all settings transfer in one file. Red Rocket also auto-saves a backup whenever your scenarios change. You can choose where auto-backups are saved in Settings.
 - **In-app update notifications:** get notified when a new version is available
 - **Test send:** send a test message to any number to verify everything is working
 - **Boot recovery:** Red Rocket restores its state automatically after a device reboot
