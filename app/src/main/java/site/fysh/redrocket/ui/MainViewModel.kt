@@ -19,6 +19,7 @@ import java.util.UUID
 import site.fysh.redrocket.queue.*
 import site.fysh.redrocket.service.*
 import site.fysh.redrocket.utils.*
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
@@ -149,6 +150,11 @@ class MainViewModel(
         viewModelScope.launch {
             settings.autoBackupUri.collect { uri ->
                 _uiState.update { it.copy(autoBackupUri = uri) }
+            }
+        }
+        viewModelScope.launch {
+            settings.isArmed.collect { armed ->
+                _uiState.update { it.copy(isArmed = armed) }
             }
         }
         viewModelScope.launch {
@@ -955,6 +961,12 @@ class MainViewModel(
         }
     }
 
+    fun setArmed(armed: Boolean) {
+        viewModelScope.launch {
+            settings.setArmed(armed)
+        }
+    }
+
     fun setTheme(theme: AppTheme) {
         viewModelScope.launch {
             settings.setTheme(theme.name)
@@ -1104,7 +1116,8 @@ class MainViewModel(
             replyListenHours = app.settings.replyListenHours.first(),
             forceSequential = app.settings.forceSequential.first(),
             wideSpreadEnabled = app.settings.wideSpreadEnabled.first(),
-            userRegion = RegionSettings.userRegion.ifEmpty { null }
+            userRegion = RegionSettings.userRegion.ifEmpty { null },
+            isArmed = app.settings.isArmed.first()
         )
     }
 
@@ -1131,6 +1144,8 @@ class MainViewModel(
             // Fallback to app-private external storage
             autoBackupFile.writeText(json)
             Log.d(TAG, "Auto-backup written to fallback: ${autoBackupFile.path}")
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.e(TAG, "Auto-backup failed", e)
         }
@@ -1162,6 +1177,8 @@ class MainViewModel(
                 }
                 stream.use { it.write(json.toByteArray()) }
                 _uiState.update { it.copy(userMessage = "Exported ${scenarios.size} scenario(s)") }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Log.e(TAG, "Export failed", e)
                 _uiState.update { it.copy(userMessage = "Export failed") }
@@ -1176,8 +1193,21 @@ class MainViewModel(
                     stream.readBytes().toString(Charsets.UTF_8)
                 } ?: return@launch
                 val backup = gson.fromJson(json, ScenarioBackup::class.java)
-                // Gson bypasses constructors — default values are not applied; explicitly null-safe
-                val scenarios = backup?.scenarios.orEmpty()
+                // Gson bypasses constructors — null-safe all fields that lack non-null defaults
+                val scenarios = backup?.scenarios.orEmpty().map { s ->
+                    s.copy(
+                        name = s.name ?: "Imported Scenario",
+                        description = s.description ?: "",
+                        message = s.message ?: "",
+                        groups = s.groups.orEmpty().map { g ->
+                            g.copy(
+                                name = g.name ?: "Group",
+                                message = g.message ?: "",
+                                recipients = g.recipients.orEmpty()
+                            )
+                        }
+                    )
+                }
                 val blockPhrases = backup?.blockPhrases.orEmpty()
                 if ((backup?.version ?: 0) > BACKUP_CURRENT_VERSION) {
                     _uiState.update { it.copy(userMessage = "Backup was created by a newer version of Red Rocket. Import may be incomplete.") }
@@ -1197,8 +1227,15 @@ class MainViewModel(
                     s.forceSequential?.let { app.settings.setForceSequential(it) }
                     s.wideSpreadEnabled?.let { app.settings.setWideSpreadEnabled(it) }
                     s.userRegion?.let { RegionSettings.setUserRegion(app, it) }
+                    s.isArmed?.let { app.settings.setArmed(it) }
+                }
+                if (scenarios.isNotEmpty()) {
+                    settings.setLastScenarioId(scenarios.first().id)
+                    _uiState.update { it.copy(currentScenario = scenarios.first()) }
                 }
                 _uiState.update { it.copy(userMessage = "Imported ${scenarios.size} scenario(s)") }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Log.e(TAG, "Import failed", e)
                 _uiState.update { it.copy(userMessage = "Import failed - check file format") }
@@ -1327,5 +1364,7 @@ data class MainUiState(
     /** Non-null when a newer GitHub release is available; contains the version tag string. */
     val updateAvailable: String? = null,
     /** URI string of the user-chosen auto-backup folder. Empty = use app-private fallback. */
-    val autoBackupUri: String = ""
+    val autoBackupUri: String = "",
+    /** Whether Red Rocket is armed and actively scanning notifications for triggers. */
+    val isArmed: Boolean = true
 )

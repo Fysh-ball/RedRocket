@@ -2,6 +2,57 @@
 
 ---
 
+## Session: 2026-04-06 (v2.0.1 — Armed/disarmed system + trigger source fix + code review fixes)
+
+### CRITICAL: service/EmergencyNotificationListener.kt — non-emergency apps can no longer trigger scenarios
+- Added hard source filter at the top of `processNotification()`. If `isSystemEmergencyAlert` is false (notification is not from a known OEM emergency package and does not contain FCC-mandated WEA phrases), the function returns immediately before touching the database or evaluating any scenario. YouTube, social media, games, and every other non-emergency app are now unconditionally blocked regardless of keyword matches or armed state.
+- Previously: keyword-based scenarios had no source check, so any app notification containing a matching word (e.g. "nuclear" in a YouTube title) would trigger a send.
+- Removed the now-redundant per-scenario `continue` that was inside the loop — replaced with a single early `return` before the loop.
+
+### service/EmergencyNotificationListener.kt — armed/disarmed gate
+- Added `isArmed` check at the top of `processNotification()`. When disarmed, the function returns immediately. Cell broadcasts (`EmergencyBroadcastReceiver`) are unaffected.
+
+### utils/AppSettings.kt — isArmed setting
+- Added `IS_ARMED` DataStore key (`booleanPreferencesKey`), `isArmed: Flow<Boolean>` (default `true`), and `setArmed(Boolean)` suspend function.
+
+### model/ScenarioBackup.kt — isArmed included in device clone
+- Added `isArmed: Boolean?` to `AppSettingsBackup`. Export includes armed state; import restores it.
+
+### ui/MainViewModel.kt — armed state wired through
+- Added `isArmed: Boolean = true` to `MainUiState`.
+- Added collector for `settings.isArmed` in `init`.
+- Added `setArmed(Boolean)` function.
+- `currentSettingsBackup()` and `importScenarios()` include `isArmed`.
+
+### ui/MainScreen.kt — Armed/Disarmed toggle card
+- Added armed/disarmed card above the scenario section. Green (`primaryContainer`) when armed, red (`errorContainer`) when disarmed.
+- Disarmed subtitle: "Auto-trigger is off. Emergency broadcasts still active."
+
+### ui/MainViewModel.kt — import bug fix
+- After `importScenarios()` completes, `settings.setLastScenarioId(scenarios.first().id)` AND `_uiState.update { it.copy(currentScenario = scenarios.first()) }` are both called. This prevents the race where the DataStore write hasn't committed before the Room flow collector reads `lastScenarioId`, leaving the UI stuck on the empty default scenario.
+
+### ui/MainViewModel.kt — Gson null-safety on import
+- Imported scenarios are sanitized after Gson deserialization: `name ?: "Imported Scenario"`, `description ?: ""`, `message ?: ""`, `groups.orEmpty()`, `g.name ?: "Group"`, `g.message ?: ""`, `g.recipients.orEmpty()`. Malformed or hand-edited backup files can no longer NPE at runtime.
+
+### ui/MainViewModel.kt — CancellationException no longer swallowed
+- `autoExportBackup()`, `exportScenarios()`, and `importScenarios()` all now rethrow `CancellationException` before catching general `Exception`. Structured concurrency is preserved.
+- Added `import kotlinx.coroutines.CancellationException`.
+
+### ui/MainScreen.kt — cooldown timer no longer runs forever
+- `LaunchedEffect` cooldown loop now `break`s when `(nowMs - lastSendCompletedAt) >= cooldownDuration`. Previously the loop ran indefinitely after the cooldown expired, re-triggering recomposition every second.
+
+### ui/RecipientsInput.kt — SMS intent crash fix
+- `context.startActivity(intent)` in `RecipientChip` is now wrapped in a `try/catch ActivityNotFoundException`. Tablets and restricted enterprise devices without an SMS app no longer crash.
+
+### ui/RecipientsInput.kt — contact picker performance
+- `items(filteredContacts)` now uses `key = { it.phoneNumber }`. Compose can now diff the list correctly when the search query changes instead of rebinding every visible item.
+
+### ui/SettingsDialog.kt — DocumentFile off main thread
+- `DocumentFile.fromTreeUri()` (a Binder IPC call) moved from `remember { }` on the composition thread to `LaunchedEffect + withContext(Dispatchers.IO)`. Eliminates potential jank or ANR on cold content providers.
+- Added `import kotlinx.coroutines.Dispatchers` and `import kotlinx.coroutines.withContext`.
+
+---
+
 ## Session: 2026-04-06 (Full setup clone on export/import + chip size)
 
 ### model/ScenarioBackup.kt — settings included in backup
