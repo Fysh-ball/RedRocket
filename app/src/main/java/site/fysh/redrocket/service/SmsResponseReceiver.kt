@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
 
 class SmsResponseReceiver : BroadcastReceiver() {
 
@@ -35,6 +36,7 @@ class SmsResponseReceiver : BroadcastReceiver() {
         private const val CHANNEL_ID = "responses"
         private const val PREFS_NAME = "sms_response_receiver_state"
         private const val KEY_LISTEN_START = "listen_start_time"
+        private val notifIdCounter = AtomicInteger(1000)
 
         /** Default global listening window: 1 hour. Configurable via setListenWindowHours(). */
         @Volatile
@@ -150,10 +152,13 @@ class SmsResponseReceiver : BroadcastReceiver() {
                 "3" -> return 3
             }
 
-            // Guard: reject messages containing multiple digits, or any digit not in {1, 2, 3}
+            // Guard: reject messages containing multiple digits, or any digit not in {1, 2, 3}.
+            // If a single valid digit IS present, return it immediately — digit takes priority
+            // over keyword matching so "help 1" correctly returns 1, not 3 (URGENT).
             val digitsInRaw = rawTrimmed.filter { it.isDigit() }
             if (digitsInRaw.isNotEmpty()) {
                 if (digitsInRaw.length > 1 || digitsInRaw.first() !in listOf('1', '2', '3')) return null
+                return digitsInRaw.first().digitToInt()
             }
 
             // Normalize: lowercase, replace all non-alphanumeric chars with a space, collapse whitespace
@@ -424,7 +429,7 @@ class SmsResponseReceiver : BroadcastReceiver() {
         }
 
         val priority = if (responseCode == 3) NotificationCompat.PRIORITY_MAX else NotificationCompat.PRIORITY_HIGH
-        val notifId = (System.currentTimeMillis() % Int.MAX_VALUE).toInt()
+        val notifId = notifIdCounter.getAndIncrement()
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_info)

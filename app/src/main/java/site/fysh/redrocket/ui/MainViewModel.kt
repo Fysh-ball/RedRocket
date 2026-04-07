@@ -1145,6 +1145,7 @@ class MainViewModel(
             throw e
         } catch (e: Exception) {
             Log.e(TAG, "Auto-backup failed", e)
+            _uiState.update { it.copy(userMessage = "Auto-backup failed — check storage permissions") }
         }
     }
 
@@ -1187,8 +1188,13 @@ class MainViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val json = app.contentResolver.openInputStream(uri)?.use { stream ->
-                    stream.readBytes().toString(Charsets.UTF_8)
-                } ?: return@launch
+                    val bytes = stream.readBytes()
+                    if (bytes.size > 5 * 1024 * 1024) null  // reject files > 5 MB
+                    else bytes.toString(Charsets.UTF_8)
+                } ?: run {
+                    _uiState.update { it.copy(userMessage = "Import failed — file is too large or unreadable") }
+                    return@launch
+                }
                 val backup = gson.fromJson(json, ScenarioBackup::class.java)
                 // Gson bypasses constructors — null-safe all fields that lack non-null defaults
                 val scenarios = backup?.scenarios.orEmpty().map { s ->
