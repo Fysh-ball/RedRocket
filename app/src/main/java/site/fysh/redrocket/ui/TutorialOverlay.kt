@@ -53,9 +53,9 @@ fun TutorialSpotlightOverlay(
     }
     val body = when (stepIndex) {
         0 -> "Tap this bar to open the scenario list. Switch to a different scenario, or tap '+ Add New Scenario' at the bottom to create one."
-        1 -> "Long-press this bar (not the list) to rename the current scenario. Give it a name like 'Family' or 'Work Team'."
+        1 -> "Press and hold this bar (not the list) to rename the current scenario. Give it a name like 'Family' or 'Work Team'."
         2 -> "Activation Keywords: tap + to add words that trigger sending when they appear in an alert. Block Phrases: tap the box to add phrases (in any language) that mark an alert as a test or false alarm."
-        3 -> "Long-press the group pill to rename it from 'Default'. Each group can have its own message and recipients."
+        3 -> "Press and hold the group button to rename it from 'Default'. Each group can have its own message and set of contacts."
         4 -> "Type your emergency message here. It's sent to all contacts in this group when the trigger fires."
         else -> "Tap Dashboard below to see delivery status and replies. Contacts reply 1 (Safe), 2 (Updates), or 3 (Urgent)."
     }
@@ -253,11 +253,11 @@ private fun TutorialCard(
                 if (!isLastStep) {
                     TextButton(
                         onClick = onAdvance,
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
                     ) {
                         Text(
                             "Skip",
-                            style = MaterialTheme.typography.labelSmall,
+                            style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -266,9 +266,9 @@ private fun TutorialCard(
             Spacer(Modifier.height(6.dp))
             Text(
                 body,
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface,
-                lineHeight = 18.sp
+                lineHeight = 22.sp
             )
             Spacer(Modifier.height(12.dp))
             Row(

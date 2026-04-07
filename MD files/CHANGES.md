@@ -2,6 +2,35 @@
 
 ---
 
+## Session: 2026-04-07 (v2.0.5 — UX and accessibility improvements)
+
+### ui/BrowserTabBar.kt — inactive tab contrast improved
+- Inactive tab text opacity raised from 0.7 to 0.85. The previous dimming was too subtle to distinguish selected vs unselected tabs in bright ambient light.
+- Font sizes increased: selected tab 14sp → 16sp, inactive tab 15sp → 16sp (previously 14sp selected was smaller than 15sp inactive — now both are 16sp with bold weight differentiating selected state).
+
+### ui/RecipientsInput.kt — recipient chip close button touch target enlarged
+- Close button on recipient chips resized from 32dp to 40dp with padding increased from 8dp to 12dp, meeting the Material Design 48dp minimum touch target guideline.
+
+### ui/TriggerInput.kt — keyword and block-phrase chip close button touch target enlarged
+- Same fix as RecipientsInput applied to KeywordChip and BlockPhraseChip close buttons (32dp → 40dp, padding 8dp → 12dp).
+
+### ui/SettingsDialog.kt — info box text sizes increased
+- Four informational text blocks (battery optimization warning, import info, backup folder label, "Change" button label) changed from `bodySmall` (12sp) to `bodyMedium` (14sp) for readability.
+
+### ui/StatusPopup.kt — jargon removed from send mode labels
+- "Sequential – Degraded Service" → "Sequential – Reduced Speed"
+- "Lazarus – Retrying Failed Sends" → "Retrying – Resending Failed Messages"
+- "Keep Trying (Lazarus Mode)" → "Keep Retrying Failed Messages"
+
+### ui/TutorialOverlay.kt — tutorial text readability and plain language
+- Tutorial body text style changed from `bodySmall` to `bodyMedium`; line height increased from 18sp to 22sp.
+- Skip button text style changed from `labelSmall` to `labelMedium`; vertical padding increased from 2dp to 4dp.
+- "Long-press this bar" → "Press and hold this bar" (Step 1)
+- "Long-press the group pill" → "Press and hold the group button" (Step 3)
+- "recipients" → "contacts" (Step 3) — consistent with the rest of the UI
+
+---
+
 ## Session: 2026-04-07 (v2.0.4 — Stress-test bug fixes)
 
 ### service/SmsResponseReceiver.kt — parseResponseCode: digit takes priority over keywords

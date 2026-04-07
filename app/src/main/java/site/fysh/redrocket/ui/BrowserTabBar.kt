@@ -58,7 +58,7 @@ fun BrowserTabBar(
                         label = "tabBackground$index"
                     )
                     val tabTextColor by animateColorAsState(
-                        targetValue = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        targetValue = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
                         label = "tabTextColor$index"
                     )
 
@@ -84,7 +84,7 @@ fun BrowserTabBar(
                                 text = label,
                                 style = MaterialTheme.typography.labelLarge,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                fontSize = if (isSelected) 15.sp else 14.sp,
+                                fontSize = if (isSelected) 16.sp else 15.sp,
                                 color = tabTextColor
                             )
                             if (showDot) {

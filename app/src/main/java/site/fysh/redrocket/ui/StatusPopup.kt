@@ -105,8 +105,8 @@ fun StatusPopup(
             if (isActive) {
                 val engineText = when (sendState) {
                     SendState.MULTI_THREADED -> "Multi-threaded – Quick Sending"
-                    SendState.SEQUENTIAL     -> "Sequential – Degraded Service"
-                    SendState.LAZARUS        -> "Lazarus – Retrying Failed Sends"
+                    SendState.SEQUENTIAL     -> "Sequential – Reduced Speed"
+                    SendState.LAZARUS        -> "Retrying – Resending Failed Messages"
                 }
                 Text(
                     "Mode: $engineText",
@@ -255,7 +255,7 @@ fun StatusPopup(
                 Spacer(Modifier.height(16.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        "Keep Trying (Lazarus Mode)",
+                        "Keep Retrying Failed Messages",
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.weight(1f)
                     )
