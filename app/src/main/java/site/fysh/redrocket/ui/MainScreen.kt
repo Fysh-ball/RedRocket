@@ -274,6 +274,17 @@ fun MainScreen(viewModel: MainViewModel) {
                     }
                 }
 
+                // Re-check notification permission on resume so returning from the system
+                // Notification Access settings page reflects instantly.
+                val notifLifecycleOwner = LocalLifecycleOwner.current
+                DisposableEffect(notifLifecycleOwner) {
+                    val observer = LifecycleEventObserver { _, event ->
+                        if (event == Lifecycle.Event.ON_RESUME) viewModel.refreshNotificationPermission()
+                    }
+                    notifLifecycleOwner.lifecycle.addObserver(observer)
+                    onDispose { notifLifecycleOwner.lifecycle.removeObserver(observer) }
+                }
+
                 // Notification Permission Warning
                 if (!uiState.isNotificationPermissionGranted) {
                     Card(

@@ -4,6 +4,15 @@ Public-facing release notes for each version. These are what users see on GitHub
 
 ---
 
+## v2.0.3 — Hotfix (2026-04-07)
+
+### Bug Fixes
+
+- **Fixed "Detection Offline" banner not appearing on launch:** The warning that notification access is disabled now shows immediately when the app opens instead of waiting up to a minute for the background permission check to run.
+- **Fixed "Detection Offline" banner not updating when returning from settings:** After tapping the banner and toggling notification access in Android's settings, returning to the app now reflects the change instantly.
+
+---
+
 ## v2.0.2 — Reliability Update (2026-04-06)
 
 ### Bug Fixes

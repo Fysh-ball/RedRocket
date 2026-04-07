@@ -2,6 +2,22 @@
 
 ---
 
+## Session: 2026-04-07 (v2.0.3 — Detection Offline banner shows instantly)
+
+### ui/MainViewModel.kt — isNotificationPermissionGranted default changed to false
+- Default was `true`, so on a fresh install (or any launch before the first poll ran) the "Detection Offline" banner was invisible until the polling loop's first iteration fired. Changed to `false` so the banner shows immediately on launch and disappears only once the permission is confirmed.
+
+### ui/MainViewModel.kt — refreshNotificationPermission() added
+- New public function that synchronously re-checks notification listener permission and updates `uiState` immediately. Called from the Screen on `ON_RESUME`.
+
+### ui/MainViewModel.kt — notification permission poll interval reduced
+- "Already granted" poll interval reduced from 60s to 30s. If permission is silently revoked (e.g. by Android or a device admin), the banner now appears within 30s instead of up to 60s.
+
+### ui/MainScreen.kt — ON_RESUME re-check for notification permission
+- Added `DisposableEffect` lifecycle observer that calls `viewModel.refreshNotificationPermission()` on every `ON_RESUME`. When the user taps the "Detection Offline" banner, goes to Android's Notification Access settings, and returns, the banner now disappears (or stays) instantly — no polling delay.
+
+---
+
 ## Session: 2026-04-06 (v2.0.2 — Full QA audit fixes)
 
 ### service/SmsResponseReceiver.kt — prefs write inside synchronized block
