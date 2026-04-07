@@ -234,7 +234,10 @@ private fun RecipientAddSheet(
                         }.take(16)
                         textFieldValue = newValue.copy(
                             text = filtered,
-                            selection = TextRange(filtered.length)
+                            selection = TextRange(
+                                start = newValue.selection.start.coerceAtMost(filtered.length),
+                                end = newValue.selection.end.coerceAtMost(filtered.length)
+                            )
                         )
                     }
                 },
@@ -245,7 +248,7 @@ private fun RecipientAddSheet(
                 shape = RoundedCornerShape(12.dp),
                 placeholder = { Text("e.g. +1234567890") },
                 keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Number,
+                    keyboardType = KeyboardType.Phone,
                     imeAction = ImeAction.Done
                 ),
                 keyboardActions = KeyboardActions(onDone = {

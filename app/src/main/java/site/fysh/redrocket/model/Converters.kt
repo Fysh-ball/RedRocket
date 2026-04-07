@@ -22,8 +22,8 @@ class Converters {
     }
 
     @TypeConverter
-    fun toRecipientList(value: String?): List<Recipient>? {
-        if (value == null) return null
+    fun toRecipientList(value: String?): List<Recipient> {
+        if (value == null) return emptyList()
         return try {
             gson.fromJson(value, recipientListType)
         } catch (e: JsonSyntaxException) {
@@ -46,8 +46,8 @@ class Converters {
     }
 
     @TypeConverter
-    fun toGroupList(value: String?): List<Group>? {
-        if (value == null) return null
+    fun toGroupList(value: String?): List<Group> {
+        if (value == null) return emptyList()
         return try {
             gson.fromJson(value, groupListType)
         } catch (e: JsonSyntaxException) {

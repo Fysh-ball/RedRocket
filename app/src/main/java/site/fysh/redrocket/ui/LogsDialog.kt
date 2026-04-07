@@ -53,7 +53,7 @@ fun LogsDialog(
                     )
                     Text(
                         "${logs.size} event(s) recorded",
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -171,12 +171,12 @@ private fun LogEntryCard(entry: LogEntry, timeFormat: SimpleDateFormat) {
                 Text(
                     entry.eventTypeLabel(),
                     fontWeight = FontWeight.SemiBold,
-                    fontSize = 13.sp,
+                    fontSize = 15.sp,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
                     timeFormat.format(Date(entry.timestamp)),
-                    fontSize = 11.sp,
+                    fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                 )
             }
@@ -184,7 +184,7 @@ private fun LogEntryCard(entry: LogEntry, timeFormat: SimpleDateFormat) {
                 Spacer(Modifier.height(4.dp))
                 Text(
                     entry.description,
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }

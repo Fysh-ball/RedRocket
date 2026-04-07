@@ -7,6 +7,7 @@ import site.fysh.redrocket.service.EmergencySendingService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 
 /**
@@ -19,6 +20,8 @@ class DebugSimulator(
     private val mockSender: MockSmsSender
 ) {
     private val simulatorScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    fun cancel() { simulatorScope.cancel() }
 
     fun runLoadTest(recipientCount: Int, failureRate: Double) {
         mockSender.failureRate = failureRate

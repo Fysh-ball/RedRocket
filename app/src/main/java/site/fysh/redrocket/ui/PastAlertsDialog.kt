@@ -55,7 +55,7 @@ fun PastAlertsDialog(
                     )
                     Text(
                         "${alerts.size} alert(s) logged",
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -169,7 +169,7 @@ private fun PastAlertCard(alert: PastAlert, dateFormat: SimpleDateFormat) {
                     Text(
                         badge.label,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                        fontSize = 11.sp,
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         color = badge.badgeText
                     )
@@ -180,7 +180,7 @@ private fun PastAlertCard(alert: PastAlert, dateFormat: SimpleDateFormat) {
                 ) {
                     Text(
                         dateFormat.format(Date(alert.triggeredAt)),
-                        fontSize = 11.sp,
+                        fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                     )
                     Icon(

@@ -141,6 +141,7 @@ private fun MessageEditSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .fillMaxHeight()
                 .padding(horizontal = 16.dp)
                 .imePadding()
                 .padding(bottom = 16.dp)
@@ -152,12 +153,16 @@ private fun MessageEditSheet(
                     textFieldValue = if (sanitized != newValue.text) {
                         newValue.copy(
                             text = sanitized,
-                            selection = TextRange(sanitized.length.coerceAtMost(newValue.selection.end))
+                            selection = TextRange(
+                                start = newValue.selection.start.coerceAtMost(sanitized.length),
+                                end = newValue.selection.end.coerceAtMost(sanitized.length)
+                            )
                         )
                     } else newValue
                 },
                 modifier = Modifier
                     .fillMaxWidth()
+                    .weight(1f)
                     .focusRequester(focusRequester),
                 minLines = 4,
                 shape = RoundedCornerShape(12.dp),

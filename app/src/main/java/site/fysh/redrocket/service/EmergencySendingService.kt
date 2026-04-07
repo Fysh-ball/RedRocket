@@ -123,7 +123,11 @@ class EmergencySendingService : Service() {
             when {
                 status.primarySize > 0 -> {
                     val task = app.queueManager.nextTask()
-                    if (task != null) {
+                    if (task == null) {
+                        // Race: queue was drained between getDetailedStatus() and nextTask().
+                        // Yield briefly rather than spinning at full speed.
+                        delay(50)
+                    } else {
                         app.queueManager.updateCurrentMessageStatus(
                             MessageStatus(task.recipient.phoneNumber, "Sending…")
                         )
@@ -284,8 +288,8 @@ class EmergencySendingService : Service() {
         // Clear pending SMS callbacks so SmsDeliveryReceiver doesn't hold stale lambdas
         // referencing the now-dead coroutine scope.
         SmsDeliveryReceiver.pendingSent.clear()
+        getSystemService(NotificationManager::class.java)?.cancel(NOTIFICATION_ID)
         stopForeground(STOP_FOREGROUND_REMOVE)
         super.onDestroy()
-        getSystemService(NotificationManager::class.java)?.cancel(NOTIFICATION_ID)
     }
 }

@@ -31,6 +31,7 @@ import androidx.compose.ui.window.Dialog
 import site.fysh.redrocket.model.Group
 import site.fysh.redrocket.model.Recipient
 import site.fysh.redrocket.model.Scenario
+import site.fysh.redrocket.util.smsStats
 import androidx.compose.foundation.lazy.rememberLazyListState
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
@@ -129,7 +130,7 @@ fun GroupsSection(
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(
                         "Recipients",
-                        style = MaterialTheme.typography.labelMedium,
+                        style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -144,13 +145,26 @@ fun GroupsSection(
                     ) {
                         Text(
                             "Message",
-                            style = MaterialTheme.typography.labelMedium,
+                            style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         MessageInput(
                             message = selectedGroup.message,
                             onMessageChange = { onGroupMessageChange(selectedGroup.id, it) }
+                        )
+                        val stats = smsStats(selectedGroup.message)
+                        val partsLabel = if (stats.parts == 1) "1 SMS" else "${stats.parts} SMS parts"
+                        val encodingLabel = if (stats.isUnicode) " · unicode" else ""
+                        val counterColor = if (stats.parts > 1)
+                            MaterialTheme.colorScheme.tertiary
+                        else
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        Text(
+                            text = "$partsLabel · ${stats.units}/${stats.capacity}$encodingLabel",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = counterColor,
+                            modifier = Modifier.align(Alignment.End)
                         )
                     }
                 }
@@ -319,7 +333,7 @@ fun GroupsSection(
                                                     Text(
                                                         text = "$count ${if (count == 1) "recipient" else "recipients"}",
                                                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                                                        fontSize = 11.sp,
+                                                        fontSize = 14.sp,
                                                         color = MaterialTheme.colorScheme.onPrimaryContainer,
                                                         fontWeight = FontWeight.Medium
                                                     )

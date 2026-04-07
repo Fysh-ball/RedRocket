@@ -16,6 +16,7 @@ import site.fysh.redrocket.utils.AppSettings
 import site.fysh.redrocket.utils.DebugSimulator
 import site.fysh.redrocket.utils.ForceSendAbuseTracker
 import site.fysh.redrocket.utils.MockSmsSender
+import site.fysh.redrocket.service.EmergencyWidget
 import site.fysh.redrocket.util.EmergencyPackageDetector
 import site.fysh.redrocket.util.RegionSettings
 import site.fysh.redrocket.utils.NotificationHelper
@@ -93,6 +94,9 @@ class EmergencyApp : Application() {
         EmergencyPackageDetector.detect(this)
 
         NotificationHelper.ensureDebugChannel(this)
+
+        // Push initial widget status
+        EmergencyWidget.pushUpdate(this)
 
         Log.i("EmergencyApp", "Core messaging components initialized.")
     }

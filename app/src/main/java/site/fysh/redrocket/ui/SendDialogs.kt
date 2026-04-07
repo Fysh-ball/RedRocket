@@ -77,14 +77,14 @@ fun AbuseLockoutDialog(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Locked for", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.7f))
+                        Text("Locked for", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.7f))
                         Text(timeText, fontSize = 40.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.error)
                     }
                 }
                 if (overrideAvailable) {
                     Text(
                         "A one-time emergency override is available.",
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                         textAlign = TextAlign.Center
                     )
@@ -107,7 +107,8 @@ fun AbuseLockoutDialog(
 fun ManualSendDialog(
     onDismiss: () -> Unit,
     onConfirm: (String) -> Unit,
-    captcha: String
+    captcha: String,
+    recipientCount: Int
 ) {
     var input by remember { mutableStateOf(TextFieldValue("")) }
     AlertDialog(
@@ -121,6 +122,14 @@ fun ManualSendDialog(
                     fontWeight = FontWeight.ExtraBold,
                     letterSpacing = 8.sp,
                     color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Will send $recipientCount SMS message${if (recipientCount != 1) "s" else ""}. Standard carrier charges apply.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(

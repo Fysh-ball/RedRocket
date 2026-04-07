@@ -100,15 +100,17 @@ class SmsResponseReceiver : BroadcastReceiver() {
 
         fun startListening() {
             val now = System.currentTimeMillis()
-            if (!isListening()) {
-                contactFirstResponseTime.clear()
-                contactExpired.clear()
-                Log.i(TAG, "Response listening STARTED (fresh). Global window: ${globalListenWindowMs / 60_000}min")
-            } else {
-                Log.i(TAG, "Response listening window REFRESHED (per-contact state preserved)")
+            synchronized(SmsResponseReceiver::class.java) {
+                if (!isListening()) {
+                    contactFirstResponseTime.clear()
+                    contactExpired.clear()
+                    Log.i(TAG, "Response listening STARTED (fresh). Global window: ${globalListenWindowMs / 60_000}min")
+                } else {
+                    Log.i(TAG, "Response listening window REFRESHED (per-contact state preserved)")
+                }
+                listenStartTime = now
+                _listenStartTimeFlow.value = now
             }
-            listenStartTime = now
-            _listenStartTimeFlow.value = now
             prefs?.edit()?.putLong(KEY_LISTEN_START, now)?.apply()
         }
 
@@ -173,7 +175,6 @@ class SmsResponseReceiver : BroadcastReceiver() {
                 text.contains("injured") ||
                 text.contains("hurt") ||
                 text.contains("come now") ||
-                text.contains("hurry") ||
                 text.contains("call 911") ||
                 text.contains("need assistance")
 

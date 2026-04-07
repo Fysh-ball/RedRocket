@@ -2,7 +2,6 @@ package site.fysh.redrocket.ui
 
 import android.net.Uri
 import android.util.Log
-import android.widget.Toast
 import androidx.compose.runtime.Stable
 import androidx.lifecycle.ViewModel
 import com.google.gson.Gson
@@ -25,7 +24,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.util.ArrayDeque
 
 enum class AppTheme { SYSTEM, LIGHT, GRAY, NIGHT }
@@ -62,6 +60,12 @@ class MainViewModel(
     private val settings: AppSettings
 ) : ViewModel() {
     private val TAG = "MainViewModel"
+    // Shared Gson instance — Gson is thread-safe and intended to be reused
+    private val gson = Gson()
+    companion object {
+        /** Increment when ScenarioBackup, Scenario, Group, or Recipient fields change in a breaking way. */
+        private const val BACKUP_CURRENT_VERSION = 1
+    }
 
     private val _uiState = MutableStateFlow(MainUiState())
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
@@ -92,6 +96,7 @@ class MainViewModel(
 
     private val undoStack = ArrayDeque<Scenario>()
     @Volatile private var sendStartTime: Long = 0
+    @Volatile private var lastTestSendTime: Long = 0
     private var undoTimerJob: Job? = null
     private var monitoringJob: Job? = null
 
@@ -270,6 +275,14 @@ class MainViewModel(
             settings.presetsOffered.collect { offered ->
                 _uiState.update { it.copy(presetsOffered = offered) }
             }
+        }
+
+        // Check for an available update once per session (best-effort, failures silently ignored)
+        viewModelScope.launch {
+            val latest = site.fysh.redrocket.util.UpdateChecker.checkForUpdate(
+                site.fysh.redrocket.BuildConfig.VERSION_NAME
+            )
+            if (latest != null) _uiState.update { it.copy(updateAvailable = latest) }
         }
 
         startMonitoring()
@@ -1065,18 +1078,17 @@ class MainViewModel(
                 val scenarios = app.database.scenarioDao().getAllScenariosOnce()
                 val blockPhrases = app.database.blockPhraseDao().getAllOnce().map { it.phrase }
                 val backup = ScenarioBackup(scenarios = scenarios, blockPhrases = blockPhrases)
-                val json = Gson().toJson(backup)
-                app.contentResolver.openOutputStream(uri)?.use { stream ->
-                    stream.write(json.toByteArray())
+                val json = gson.toJson(backup)
+                val stream = app.contentResolver.openOutputStream(uri)
+                if (stream == null) {
+                    _uiState.update { it.copy(userMessage = "Export failed: could not open file") }
+                    return@launch
                 }
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(app, "Exported ${scenarios.size} scenario(s)", Toast.LENGTH_SHORT).show()
-                }
+                stream.use { it.write(json.toByteArray()) }
+                _uiState.update { it.copy(userMessage = "Exported ${scenarios.size} scenario(s)") }
             } catch (e: Exception) {
                 Log.e(TAG, "Export failed", e)
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(app, "Export failed", Toast.LENGTH_LONG).show()
-                }
+                _uiState.update { it.copy(userMessage = "Export failed") }
             }
         }
     }
@@ -1087,34 +1099,65 @@ class MainViewModel(
                 val json = app.contentResolver.openInputStream(uri)?.use { stream ->
                     stream.readBytes().toString(Charsets.UTF_8)
                 } ?: return@launch
-                val backup = Gson().fromJson(json, ScenarioBackup::class.java)
+                val backup = gson.fromJson(json, ScenarioBackup::class.java)
+                // Gson bypasses constructors — default values are not applied; explicitly null-safe
+                val scenarios = backup?.scenarios.orEmpty()
+                val blockPhrases = backup?.blockPhrases.orEmpty()
+                if ((backup?.version ?: 0) > BACKUP_CURRENT_VERSION) {
+                    _uiState.update { it.copy(userMessage = "Backup was created by a newer version of Red Rocket. Import may be incomplete.") }
+                }
                 // Scenarios: REPLACE on ID conflict so existing data is updated correctly
-                app.database.scenarioDao().insertScenarios(backup.scenarios)
+                app.database.scenarioDao().insertScenarios(scenarios)
                 // Block phrases: IGNORE conflict is on id (auto-generated), so check by phrase text
                 val existingPhrases = app.database.blockPhraseDao().getAllOnce().map { it.phrase }.toSet()
-                backup.blockPhrases
+                blockPhrases
                     .filter { it !in existingPhrases }
                     .forEach { phrase -> app.database.blockPhraseDao().insert(BlockPhrase(phrase = phrase)) }
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(app, "Imported ${backup.scenarios.size} scenario(s)", Toast.LENGTH_SHORT).show()
-                }
+                _uiState.update { it.copy(userMessage = "Imported ${scenarios.size} scenario(s)") }
             } catch (e: Exception) {
                 Log.e(TAG, "Import failed", e)
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(app, "Import failed - check file format", Toast.LENGTH_LONG).show()
-                }
+                _uiState.update { it.copy(userMessage = "Import failed - check file format") }
             }
         }
     }
 
     fun sendTestMessage(phoneNumber: String) {
+        val normalized = normalizePhone(phoneNumber.trim(), RegionSettings.effectiveRegion)
+        if (normalized.length < 7) {
+            _uiState.update { it.copy(userMessage = "Invalid phone number") }
+            return
+        }
         viewModelScope.launch {
-            val recipient = Recipient(name = "Test Recipient", phoneNumber = phoneNumber)
+            if (_uiState.value.isSending) {
+                _uiState.update { it.copy(userMessage = "Cannot send test while an emergency send is active.") }
+                return@launch
+            }
+            val now = System.currentTimeMillis()
+            val secondsSinceLast = (now - lastTestSendTime) / 1000
+            if (lastTestSendTime > 0 && secondsSinceLast < 60) {
+                val remaining = 60 - secondsSinceLast
+                _uiState.update { it.copy(userMessage = "Please wait ${remaining}s before sending another test.") }
+                return@launch
+            }
+            lastTestSendTime = now
+            val recipient = Recipient(name = "Test Recipient", phoneNumber = normalized)
             val message = "[TEST] Red Rocket is active on this device. Emergency messaging is configured and ready."
+            // Note: "test-send-<uuid>" IDs are transient and have no matching Scenario entity.
+            // Responses to test messages are intentionally dropped by SmsResponseReceiver.
             app.queueManager.enqueueScenario(listOf(recipient), message, "test-send-${UUID.randomUUID()}")
             EmergencySendingService.startService(app)
-            AppLogger.log(app.database, app.appScope, "test_send", "Test message sent to $phoneNumber")
+            AppLogger.log(app.database, app.appScope, "test_send", "Test message sent to $normalized")
         }
+    }
+
+    /** Called from the UI after a userMessage has been displayed to clear it from state. */
+    fun clearUserMessage() {
+        _uiState.update { it.copy(userMessage = null) }
+    }
+
+    /** Dismisses the update banner for this session. */
+    fun dismissUpdate() {
+        _uiState.update { it.copy(updateAvailable = null) }
     }
 
     // --- Preset offering ---
@@ -1123,6 +1166,11 @@ class MainViewModel(
         viewModelScope.launch {
             settings.setPresetsOffered(true)
         }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        debugSimulator.cancel()
     }
 }
 
@@ -1188,5 +1236,9 @@ data class MainUiState(
     val showTutorial: Boolean = false,
     val tutorialStep: Int = 0,
     val showTutorialComplete: Boolean = false,
-    val tutorialInitialScenarioName: String = ""
+    val tutorialInitialScenarioName: String = "",
+    /** One-shot message for the UI to surface as a Toast. Cleared by calling clearUserMessage(). */
+    val userMessage: String? = null,
+    /** Non-null when a newer GitHub release is available; contains the version tag string. */
+    val updateAvailable: String? = null
 )

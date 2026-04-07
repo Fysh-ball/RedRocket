@@ -255,7 +255,7 @@ fun ScenarioDropdown(
                                                     Text(
                                                         text = "$count ${if (count == 1) "recipient" else "recipients"}",
                                                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                                                        fontSize = 11.sp,
+                                                        fontSize = 14.sp,
                                                         color = MaterialTheme.colorScheme.onPrimaryContainer,
                                                         fontWeight = FontWeight.Medium
                                                     )

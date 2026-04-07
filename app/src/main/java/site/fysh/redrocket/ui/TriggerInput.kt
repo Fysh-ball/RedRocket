@@ -90,7 +90,7 @@ fun TriggerInput(
                 if (userRegion.isEmpty()) {
                     Text(
                         "auto",
-                        fontSize = 10.sp,
+                        fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.padding(end = 8.dp)
@@ -98,7 +98,7 @@ fun TriggerInput(
                 }
                 Text(
                     regionPreset.dialCode,
-                    fontSize = 11.sp,
+                    fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                     modifier = Modifier.padding(end = 4.dp)
                 )
@@ -312,7 +312,7 @@ fun TriggerInput(
 private fun SubSectionLabel(text: String) {
     Text(
         text,
-        style = MaterialTheme.typography.labelSmall,
+        style = MaterialTheme.typography.labelMedium,
         fontWeight = FontWeight.Bold,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         letterSpacing = 0.5.sp
@@ -453,12 +453,12 @@ private fun PresetPickerDialog(
                                 Text(
                                     preset.name,
                                     fontWeight = FontWeight.SemiBold,
-                                    fontSize = 14.sp,
+                                    fontSize = 15.sp,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
                                     preset.keywords.joinToString(", "),
-                                    fontSize = 11.sp,
+                                    fontSize = 13.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 2
                                 )
@@ -544,7 +544,7 @@ private fun RegionPickerDialog(
                                     Text(
                                         region.displayName,
                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                        fontSize = 13.sp,
+                                        fontSize = 15.sp,
                                         color = if (isSelected)
                                             MaterialTheme.colorScheme.onPrimaryContainer
                                         else
@@ -553,7 +553,7 @@ private fun RegionPickerDialog(
                                     if (isDetected) {
                                         Text(
                                             "Auto-detected",
-                                            fontSize = 10.sp,
+                                            fontSize = 13.sp,
                                             color = MaterialTheme.colorScheme.primary,
                                             fontWeight = FontWeight.SemiBold
                                         )
@@ -561,7 +561,7 @@ private fun RegionPickerDialog(
                                 }
                                 Text(
                                     region.dialCode,
-                                    fontSize = 12.sp,
+                                    fontSize = 14.sp,
                                     color = if (isSelected)
                                         MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                                     else

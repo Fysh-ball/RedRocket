@@ -110,7 +110,7 @@ fun StatusPopup(
                 }
                 Text(
                     "Mode: $engineText",
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(top = 2.dp)
                 )
@@ -133,7 +133,7 @@ fun StatusPopup(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Total Sent", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                        Text("Total Sent", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                         Text("$totalSent", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary)
                     }
                 }
@@ -168,7 +168,7 @@ fun StatusPopup(
                 Spacer(Modifier.height(8.dp))
                 Text(
                     "Time: ${elapsedTime}s",
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             } else {
@@ -197,14 +197,14 @@ fun StatusPopup(
                     if (failedCount > 0) {
                         Text(
                             "Failed: $failedCount",
-                            style = MaterialTheme.typography.bodySmall,
+                            style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.error,
                             fontWeight = FontWeight.Bold
                         )
                     }
                     Text(
                         "Time: ${elapsedTime}s",
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -226,7 +226,7 @@ fun StatusPopup(
                         ) {
                             Text(
                                 currentMessageStatus.phoneNumber,
-                                style = MaterialTheme.typography.bodySmall,
+                                style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.weight(1f)
                             )
@@ -241,7 +241,7 @@ fun StatusPopup(
                             }
                             Text(
                                 currentMessageStatus.statusText,
-                                style = MaterialTheme.typography.labelSmall,
+                                style = MaterialTheme.typography.bodySmall,
                                 color = statusColor,
                                 fontWeight = FontWeight.Bold
                             )
@@ -314,7 +314,7 @@ private fun StatCard(
             )
             Text(
                 text = label,
-                style = MaterialTheme.typography.labelSmall,
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
