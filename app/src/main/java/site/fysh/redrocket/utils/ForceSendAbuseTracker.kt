@@ -143,7 +143,10 @@ class ForceSendAbuseTracker(context: Context) {
     private fun applyDecay() {
         val now = System.currentTimeMillis()
         val elapsedMs = now - lastDecayTime
-        if (elapsedMs < 1000) return  // Don't apply sub-second decay
+        if (elapsedMs < 1000) {
+            lastDecayTime = now  // Prevent a large elapsed-time spike if clock jumps forward later
+            return
+        }
 
         val decayIntervalMs: Long = when {
             isInExtendedSlowDecay -> 30 * 60 * 1000L  // 30 minutes per point

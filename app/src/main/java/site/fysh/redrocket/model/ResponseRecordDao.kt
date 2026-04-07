@@ -11,7 +11,15 @@ interface ResponseRecordDao {
     @Query("SELECT * FROM response_records WHERE scenarioId = :scenarioId ORDER BY receivedAt DESC")
     fun getResponsesForScenario(scenarioId: String): Flow<List<ResponseRecord>>
 
-    @Query("SELECT * FROM response_records WHERE scenarioId = :scenarioId ORDER BY receivedAt DESC")
+    @Query("""
+        SELECT * FROM response_records
+        WHERE id IN (
+            SELECT MAX(id) FROM response_records
+            WHERE scenarioId = :scenarioId
+            GROUP BY phoneNumber
+        )
+        ORDER BY receivedAt DESC
+    """)
     fun getLatestResponsePerRecipient(scenarioId: String): Flow<List<ResponseRecord>>
 
     @Query("SELECT * FROM response_records ORDER BY receivedAt DESC")

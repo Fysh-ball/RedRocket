@@ -2,6 +2,217 @@
 
 ---
 
+## Session: 2026-04-06 (v2.0 release — Input fixes + UI text audit + Ko-fi icon)
+
+### ui/RecipientsInput.kt — hold-to-repeat backspace fix
+- Changed `keyboardType = KeyboardType.Number` → `KeyboardType.Phone`. The numeric keypad on most Android keyboards does not fire hold-to-repeat backspace events; the phone dialer keyboard does. Backspace now works correctly on hold in the recipient number field.
+
+### ui/RecipientsInput.kt + ui/MessageInput.kt — text selection + delete fix
+- `TextRange(newValue.selection.end.coerceAtMost(filtered.length))` was creating a zero-width (collapsed) cursor, discarding any drag-to-select selection the user had made. Fixed to `TextRange(start = newValue.selection.start.coerceAtMost(filtered.length), end = newValue.selection.end.coerceAtMost(filtered.length))`. Both `start` and `end` are independently clamped so selecting text and pressing delete now works correctly in both the recipient number field and the message edit sheet.
+
+### res/drawable/ic_kofi.xml — Ko-fi icon viewport redesign
+- Mug body previously occupied x=4–17, y=8–20 of the 24×24 viewport (lower-right quadrant only), making the icon render visually smaller than the GitHub icon at the same dp size. Redesigned to fill the full viewport: body x=1–19 y=3–21 with handle path extending to x=23.5. Icon now matches the visual density of the GitHub Octocat icon.
+
+### ui/SettingsDialog.kt — Ko-fi button text
+- Button text changed to `"Wanna Buy Me a Cup of Rice? 🍚"`.
+
+### Comprehensive UI text size audit — all major UI files
+All files audited for text and icons that were too small on real devices (including S24 Ultra). Changes applied:
+
+- **SettingsDialog.kt**: All `bodySmall` → `bodyMedium` for description texts; `labelSmall` → `bodySmall` for battery warning and import merge note; `labelMedium` → `labelLarge` for section card headers; warning icon `14dp` → `18dp`; Archive/FileOpen/Send icons `16dp` → `20dp`.
+- **BrowserTabBar.kt**: Tab font `14sp/13sp` (selected/unselected) → `15sp/14sp`.
+- **ScenarioDropdown.kt**: Recipient count badge `11sp` → `14sp`.
+- **GroupsSection.kt**: "Recipients" and "Message" labels `labelMedium` → `bodyMedium`; SMS counter `labelSmall` → `bodySmall`; group recipient count badge `11sp` → `14sp`.
+- **MainScreen.kt**: Abuse/error warning banners `labelMedium` → `bodyMedium`; warning card descriptions `12sp` → `14sp`; update banner text `13sp/11sp` → `15sp/14sp`; locked scenario description `bodySmall` → `bodyMedium`; undo/dismiss icons `16dp` → `20dp`; undo text `13sp` → `15sp`.
+- **SendDialogs.kt**: Override description and carrier charge text `bodySmall` → `bodyMedium`.
+- **StatusPopup.kt**: All `bodySmall` → `bodyMedium`; `labelSmall` → `bodySmall` for chip and stat card labels.
+- **TriggerInput.kt**: "auto" label `10sp` → `13sp`; dial code in header `11sp` → `13sp`; `SubSectionLabel` `labelSmall` → `labelMedium`; preset name `14sp` → `15sp`; preset keywords `11sp` → `13sp`; region display name `13sp` → `15sp`; "Auto-detected" `10sp` → `13sp`; region dial code `12sp` → `14sp`.
+- **ResponseDashboard.kt**: "Stop" button `13sp` → `15sp`; "Add contacts" hint `13sp` → `15sp`; contacts ready count `14sp` → `15sp`; monitoring label `12sp` → `14sp`; responded/percentage labels `13sp` → `15sp`; "Recipients (N)" header `14sp` → `15sp`; "Waiting for reply" header `labelMedium` → `bodyMedium`; no-response list `bodySmall` → `bodyMedium`; "Clear Responses" `13sp` → `15sp`; logs/history buttons `12sp` → `14sp`; stat card label `12sp` → `14sp`; recipient name `14sp` → `15sp`; phone `12sp` → `14sp`; status badge `11sp` → `13sp`; time-ago `10sp` → `12sp`; log label `12sp` → `14sp`; log timestamp `11sp` → `13sp`; log description `bodySmall` → `bodyMedium`; alert badge and date `11sp` → `13sp`; alert message `bodySmall` → `bodyMedium`; triggered label `11sp` → `13sp`.
+- **LogsDialog.kt**: Header count `bodySmall` → `bodyMedium`; log entry label `13sp` → `15sp`; timestamp `11sp` → `13sp`.
+- **PastAlertsDialog.kt**: Header count `bodySmall` → `bodyMedium`; all `11sp` badges/timestamps/triggered text → `13sp`.
+
+---
+
+## Session: 2026-04-06 (v2.0 patch — Bug fixes + scheduling feature removed)
+
+### Scheduling feature removed
+- `model/Scenario.kt`, `AppDatabase.kt`, `EmergencyBroadcastReceiver.kt`, `EmergencyNotificationListener.kt`, `ui/MainScreen.kt`, `ui/MainViewModel.kt` — scenario scheduling (time-window gate) removed entirely. WEA alerts have already alerted the device at full volume; a time-based suppression gate could silently block real emergency sends. DB version reverted from 11 back to 10; `MIGRATION_10_11` removed (v2.0 was never publicly released).
+
+### ui/MainViewModel.kt — test send rate limit
+- `sendTestMessage()` now enforces a 60-second cooldown between sends. Rapid repeated sends are blocked with a "Please wait Xs" message. Prevents the test button being used to spam a number.
+
+### model/ResponseRecordDao.kt — fix duplicate rows in response dashboard
+- `getLatestResponsePerRecipient()` was returning every record for the scenario. Rewritten with `SELECT MAX(id) ... GROUP BY phoneNumber` subquery so only the latest response per contact is returned.
+
+### model/Converters.kt — fix latent NPE on corrupted DB column
+- `toRecipientList()` and `toGroupList()` returned `null` when column was NULL, which Room would assign to a non-null field and crash. Both now return `emptyList()` and have non-null return types.
+
+### model/ContactSendHistoryDao.kt — fix send-count race condition
+- `recordSend()` used a read-then-write pattern that allowed concurrent calls to both insert `sendCount = 1`. Replaced with `insertIfAbsent()` (INSERT IGNORE) + `incrementCount()` (SQL UPDATE); atomic at the SQLite level.
+
+### utils/NotificationHelper.kt — fix spurious "Debug Mode OFF" notification
+- `showDebugModeNotification(false)` was cancelling the ON notification then posting an OFF one. Added `return` after the cancel; disabling debug mode now just dismisses the notification.
+
+### service/SmsResponseReceiver.kt — fix startListening() race + remove false-positive keyword
+- `startListening()`: wrapped the `!isListening()` check and per-contact state reset in `synchronized` to prevent two concurrent callers from both clearing contact state.
+- Removed `"hurry"` from the EMERGENCY keyword list — too common in casual replies (e.g. "hurry, I'm safe!") and was triggering automatic "Call 911" replies incorrectly.
+
+### util/UpdateChecker.kt — close HTTP InputStream
+- Wrapped `getInputStream()` in `.use { }` to release the socket immediately after reading.
+
+### utils/DebugSimulator.kt + ui/MainViewModel.kt — cancel simulator on ViewModel clear
+- Added `DebugSimulator.cancel()` method. `MainViewModel.onCleared()` now calls it, preventing load-test coroutines from running after the ViewModel is destroyed.
+
+### service/EmergencySendingService.kt — two fixes
+- `processQueue()`: added `delay(50)` when `nextTask()` returns null (queue drained between `getDetailedStatus()` and `nextTask()` calls) to prevent a tight CPU spin.
+- `onDestroy()`: moved notification cancel to before `stopForeground()` and `super.onDestroy()`.
+
+### utils/ForceSendAbuseTracker.kt — clock-jump decay spike fix
+- `applyDecay()` early-return path now updates `lastDecayTime = now`; a clock-forward jump after a sub-second call can no longer cause a massive one-shot point decay.
+
+### service/ManualSendGuard.kt — Kotlin Random
+- Replaced `java.util.Random` instance with `kotlin.random.Random` singleton.
+
+---
+
+## Session: 2026-04-06 (v2.0 — Update Check + No-Response Flag + Scheduling + Widget)
+
+### ⚠ New permission: INTERNET
+- **File:** `AndroidManifest.xml`
+- `android.permission.INTERNET` added. Required for the in-app update check (one HTTP request to the GitHub releases API on app start).
+- **This is the first version of Red Rocket that requires network access.** The permission is declared as a normal permission — Android grants it automatically, no runtime prompt is shown to the user. No user data leaves the device; only an outbound read-only request to `api.github.com/repos/Fysh-ball/RedRocket/releases/latest` is made.
+- Users who sideload the APK will see INTERNET listed under App Info → Permissions.
+
+### util/UpdateChecker.kt — in-app update notification (new file)
+- **File:** `util/UpdateChecker.kt`
+- Suspend function hits the GitHub releases API on app start. Compares `tag_name` against `BuildConfig.VERSION_NAME` using semver-style part comparison.
+- On network failure, timeout, or any exception: silently returns null (no error shown to user).
+- If a newer tag is found: `MainUiState.updateAvailable` is set to the tag string.
+- `MainViewModel.dismissUpdate()` clears it for the session.
+
+### MainScreen.kt — dismissible update banner
+- **File:** `ui/MainScreen.kt`
+- Shown when `uiState.updateAvailable != null`. Tap opens GitHub releases page in browser. Dismiss button (×) clears for the session.
+- Uses `tertiaryContainer` color so it's visually distinct from the error-colored warning cards.
+
+### model/Scenario.kt — scenario scheduling (3 new fields)
+- **File:** `model/Scenario.kt`
+- Added `scheduleEnabled: Boolean = false`, `scheduleStartMinutes: Int = 480` (8 AM), `scheduleEndMinutes: Int = 1320` (10 PM).
+- Added `isWithinSchedule()`: returns true when schedule is disabled (default) or current time falls within the window. Handles overnight windows (e.g. 22:00–06:00) where start > end.
+
+### model/AppDatabase.kt — migration v10 → v11
+- **File:** `model/AppDatabase.kt`
+- `MIGRATION_10_11`: three `ALTER TABLE scenarios ADD COLUMN` statements with safe defaults (`scheduleEnabled = 0`, `scheduleStartMinutes = 480`, `scheduleEndMinutes = 1320`). All existing scenarios behave identically — scheduling is opt-in.
+
+### EmergencyBroadcastReceiver.kt + EmergencyNotificationListener.kt — schedule gate
+- **Files:** `service/EmergencyBroadcastReceiver.kt`, `service/EmergencyNotificationListener.kt`
+- Both receivers now call `scenario.isWithinSchedule()` after the locked-scenario check. Scenarios outside their active window are skipped with a log entry. No change to detection logic.
+
+### MainScreen.kt — Schedule section
+- **File:** `ui/MainScreen.kt`
+- New `SectionCard("Schedule")` between Alert Filters and Groups.
+- Toggle to enable/disable the window. When enabled: two `OutlinedButton`s (From / Until) each open a Material3 `TimeInput` dialog. Window label shown in the toggle row subtitle.
+
+### ResponseDashboard.kt — "Waiting for reply" no-response card
+- **File:** `ui/ResponseDashboard.kt`
+- Added `noResponseRecipients`: recipients who were messaged but have no response record. Shown as a card listing each contact by name (or number if nameless) during an active listening window only.
+
+### service/EmergencyWidget.kt — home screen widget (new file)
+- **File:** `service/EmergencyWidget.kt`
+- `AppWidgetProvider` subclass. Shows app name, current status text (sending / listening / monitoring), and an "Open App" button (PendingIntent to MainActivity).
+- `pushUpdate(context)` is a static companion method called from `EmergencyApp.onCreate()` for the initial status push. Widget system also calls `onUpdate()` on its own schedule (every 30 min per `widget_emergency_info.xml`).
+- Widget layout: `res/layout/widget_emergency.xml`. Provider metadata: `res/xml/widget_emergency_info.xml`.
+
+### AndroidManifest.xml — widget registration
+- `EmergencyWidget` receiver registered with `android.appwidget.action.APPWIDGET_UPDATE` intent filter and `android.appwidget.provider` metadata pointing to `@xml/widget_emergency_info`.
+
+---
+
+## Session: 2026-04-06 (Boot Receiver + Battery Warning + Export/Import + Test Send + Bug Fixes)
+
+### MainScreen.kt - tutorial step 5 auto-scroll
+- **File:** `ui/MainScreen.kt`
+- `rememberScrollState()` hoisted from inside the `else` branch to `MainScreen` top level, enabling access from `LaunchedEffect`.
+- Added `LaunchedEffect(uiState.tutorialStep)` that calls `scrollState.animateScrollTo(scrollState.maxValue)` with a 150ms delay when `tutorialStep == 4 && showTutorial`. Programmatic scroll works even with `verticalScroll(enabled = false)`.
+
+### MainScreen.kt - battery optimization warning cards
+- **File:** `ui/MainScreen.kt`
+- Added battery optimization warning card shown when `PowerManager.isIgnoringBatteryOptimizations()` returns false. Tapping opens ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS. Polled via `LaunchedEffect(Unit)` every 5s (cancels automatically with composable lifecycle).
+- Added OEM-specific secondary warning card for Xiaomi/Huawei/Honor/OPPO/Vivo/Realme devices (manufacturer check via `Build.MANUFACTURER.lowercase()`), shown only when battery opt is not yet exempted.
+- Removes "Device restrictions" entry from open issues in KNOWN_ISSUES.md.
+
+### service/BootReceiver.kt - new boot receiver
+- **File:** `service/BootReceiver.kt` (new)
+- Logs `ACTION_BOOT_COMPLETED`. Registered in `AndroidManifest.xml` with `RECEIVE_BOOT_COMPLETED` permission.
+- Note: `ACTION_BOOT_COMPLETED` fires after first user unlock (FBE). Does not use `LOCKED_BOOT_COMPLETED` — Room DB is in credential-protected storage and is inaccessible before unlock.
+
+### app/build.gradle.kts - product flavors (dev/production)
+- Added `flavorDimensions += "environment"` with `dev` and `production` flavors.
+- `dev`: `applicationIdSuffix = ".dev"`, `versionNameSuffix = "-dev"`, `IS_PRODUCTION = false`.
+- `production`: `IS_PRODUCTION = true`.
+- Safe fallback `buildConfigField("Boolean", "IS_PRODUCTION", "false")` added to `defaultConfig` so any future build type without an explicit flavor override compiles safely.
+
+### EmergencyApp.kt - IS_PRODUCTION guards MockSmsSender
+- `getActiveSmsProvider()` now returns mock sender only when `!BuildConfig.IS_PRODUCTION && isDebugModeEnabled`. Production builds are always forced to real SMS regardless of debug toggle.
+
+### model/ScenarioBackup.kt - new backup model
+- **File:** `model/ScenarioBackup.kt` (new)
+- `data class ScenarioBackup(version, exportedAt, scenarios, blockPhrases)` used for export/import JSON serialization via Gson.
+
+### MainViewModel.kt + SettingsDialog.kt - scenario export/import
+- **Files:** `ui/MainViewModel.kt`, `ui/SettingsDialog.kt`
+- `exportScenarios(uri)`: serializes all scenarios + block phrases to JSON via Gson and writes to SAF URI. Explicit null check on `openOutputStream` — reports failure toast instead of silently writing nothing.
+- `importScenarios(uri)`: deserializes with null-safe `.orEmpty()` guards (Gson bypasses Kotlin constructors; defaults not applied). Warns if backup `version > 1` (newer app version). Block phrases deduplicated by phrase text before insert.
+- SettingsDialog: Data section added (Export / Import buttons + merge note). Uses `CreateDocument` and `OpenDocument` activity result launchers.
+
+### MainViewModel.kt + SettingsDialog.kt - test send
+- **Files:** `ui/MainViewModel.kt`, `ui/SettingsDialog.kt`
+- `sendTestMessage(phoneNumber)`: validates number (min 7 chars, must contain a digit), blocks if `isSending` is active to prevent injecting a test message into a live emergency queue.
+- SettingsDialog: Test Send section added with phone number input dialog.
+
+### SettingsDialog.kt - section reorder + height fix
+- `heightIn(max = 650.dp)` → `fillMaxHeight(0.87f)` to accommodate all sections on all screen sizes.
+- Section order: Appearance → Detection → Timeline → **Data** → **Test Send** → Debug → Help.
+
+### Architecture review fixes (from android-tech-lead agent)
+
+#### MainViewModel.kt + MainScreen.kt - Toast MVVM violation
+- `exportScenarios`, `importScenarios`, and `sendTestMessage` all called `Toast.makeText` via `withContext(Dispatchers.Main)` directly from the ViewModel — MVVM violation that can't be tested and may not surface if the process is backgrounded.
+- Added `userMessage: String?` to `MainUiState` and `clearUserMessage()` to the ViewModel. All feedback now sets `userMessage`. `withContext(Dispatchers.Main)` and `Toast` import removed from ViewModel entirely.
+- `MainScreen`: added `LaunchedEffect(uiState.userMessage)` that shows a `Toast` and calls `clearUserMessage()`.
+
+#### MainScreen.kt - battery optimization polling loop replaced with BroadcastReceiver + lifecycle observer
+- `LaunchedEffect(Unit) { while(true) { delay(5000) } }` was polling `isIgnoringBatteryOptimizations` every 5 seconds. This caused up to a 5-second lag after the user grants exemption, and ran unnecessary wake-ups while the screen was visible.
+- Replaced with a `DisposableEffect` that registers a `BroadcastReceiver` for `ACTION_POWER_SAVE_MODE_CHANGED` and a `LifecycleEventObserver` for `ON_RESUME`. State updates immediately when power mode changes or the user returns from battery settings. Both are cleaned up in `onDispose`.
+
+#### MainViewModel.kt - Gson singleton
+- `Gson()` was instantiated inline on every `exportScenarios`/`importScenarios` call. `Gson` is thread-safe and designed to be reused. Added `private val gson = Gson()` instance field.
+
+#### MainViewModel.kt - sendTestMessage phone validation uses normalizePhone
+- Manual digit check (`normalized.none { it.isDigit() }`) replaced with `normalizePhone(phoneNumber.trim(), RegionSettings.effectiveRegion)` — consistent with the rest of the send pipeline.
+
+#### MainViewModel.kt - BACKUP_CURRENT_VERSION constant
+- Replaced the magic `> 1` literal in the version check with `private val BACKUP_CURRENT_VERSION = 1` with a comment instructing when to increment it.
+
+### Code audit - 4 critical bug fixes (from android-code-reviewer agent)
+
+#### MainViewModel.kt - importScenarios NPE on Gson null fields
+- Gson bypasses Kotlin constructors; `backup.scenarios` and `backup.blockPhrases` can be `null` even though the data class declares `emptyList()` defaults.
+- All downstream reads now use `backup?.scenarios.orEmpty()` and `backup?.blockPhrases.orEmpty()`. Prevents NPE on partial/truncated/corrupted backup files.
+
+#### MainViewModel.kt - sendTestMessage could inject into live emergency queue
+- Added `isSending` guard before enqueue: aborts with a toast if an emergency send is already in flight. A test message injected mid-emergency would corrupt recipient counts and send "[TEST]" to real emergency contacts.
+
+#### MainViewModel.kt - exportScenarios silent success on null stream
+- `openOutputStream(uri)` can return null (SAF provider failure). Previously the write was skipped silently but the success toast still fired.
+- Now checks for null stream explicitly, shows "Export failed: could not open file" toast, and returns early.
+
+#### build.gradle.kts - IS_PRODUCTION not in defaultConfig (compile failure on unknown variant)
+- `IS_PRODUCTION` was only declared inside product flavors. Any build variant not combining with `dev` or `production` would fail with "Unresolved reference: IS_PRODUCTION".
+- Added `buildConfigField("Boolean", "IS_PRODUCTION", "false")` to `defaultConfig` as a safe fallback.
+
+---
+
 ## Session: 2026-04-05 (Preset Toggle Removal + UX/Touch + Code Audit)
 
 ### BlockPhrasePresetPicker.kt + TriggerInput.kt - preset rows now toggle (remove on second tap)

@@ -84,7 +84,7 @@ fun BrowserTabBar(
                                 text = label,
                                 style = MaterialTheme.typography.labelLarge,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                fontSize = if (isSelected) 14.sp else 13.sp,
+                                fontSize = if (isSelected) 15.sp else 14.sp,
                                 color = tabTextColor
                             )
                             if (showDot) {

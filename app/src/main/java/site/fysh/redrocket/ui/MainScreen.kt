@@ -1,10 +1,17 @@
 package site.fysh.redrocket.ui
 
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
+import android.widget.Toast
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.animation.*
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -25,6 +32,7 @@ import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.NotificationsPaused
+import androidx.compose.material.icons.filled.SystemUpdateAlt
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -71,6 +79,13 @@ fun MainScreen(viewModel: MainViewModel) {
     // Hoisted so the tutorial step-4 LaunchedEffect can programmatically scroll to the message field.
     // verticalScroll(enabled=false) blocks gestures but animateScrollTo() still works.
     val scrollState = rememberScrollState()
+
+    // One-shot user messages (export/import results, test send feedback) surfaced from the ViewModel.
+    LaunchedEffect(uiState.userMessage) {
+        val msg = uiState.userMessage ?: return@LaunchedEffect
+        Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+        viewModel.clearUserMessage()
+    }
 
     // Tutorial position tracking - store Rect directly (computed at layout time via boundsInRoot()
     // inside the onGloballyPositioned callback) so we never read a stale LayoutCoordinates
@@ -237,7 +252,7 @@ fun MainScreen(viewModel: MainViewModel) {
                             warning,
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
                             color = MaterialTheme.colorScheme.onErrorContainer,
-                            style = MaterialTheme.typography.labelMedium,
+                            style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
@@ -254,7 +269,7 @@ fun MainScreen(viewModel: MainViewModel) {
                             errorMsg,
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
                             color = MaterialTheme.colorScheme.onErrorContainer,
-                            style = MaterialTheme.typography.labelMedium
+                            style = MaterialTheme.typography.bodyMedium
                         )
                     }
                 }
@@ -281,7 +296,7 @@ fun MainScreen(viewModel: MainViewModel) {
                                 Text("Detection Offline", fontWeight = FontWeight.Bold)
                                 Text(
                                     "The app cannot monitor for emergency alerts. Tap to enable Notification Access.",
-                                    fontSize = 12.sp
+                                    fontSize = 14.sp
                                 )
                             }
                         }
@@ -290,13 +305,22 @@ fun MainScreen(viewModel: MainViewModel) {
 
                 // Battery optimization warning - shown if still active (can prevent background sending)
                 val powerManager = remember { context.getSystemService(PowerManager::class.java) }
-                var batteryOptDisabled by remember {
-                    mutableStateOf(powerManager?.isIgnoringBatteryOptimizations(context.packageName) == true)
-                }
-                LaunchedEffect(Unit) {
-                    while (true) {
-                        batteryOptDisabled = powerManager?.isIgnoringBatteryOptimizations(context.packageName) == true
-                        delay(5000L)
+                fun isExempt() = powerManager?.isIgnoringBatteryOptimizations(context.packageName) == true
+                var batteryOptDisabled by remember { mutableStateOf(isExempt()) }
+                // Re-check on resume (user returns from battery settings) and on power-save mode change.
+                val lifecycleOwner = LocalLifecycleOwner.current
+                DisposableEffect(lifecycleOwner) {
+                    val observer = LifecycleEventObserver { _, event ->
+                        if (event == Lifecycle.Event.ON_RESUME) batteryOptDisabled = isExempt()
+                    }
+                    val receiver = object : BroadcastReceiver() {
+                        override fun onReceive(ctx: Context, intent: Intent?) { batteryOptDisabled = isExempt() }
+                    }
+                    lifecycleOwner.lifecycle.addObserver(observer)
+                    context.registerReceiver(receiver, IntentFilter(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED))
+                    onDispose {
+                        lifecycleOwner.lifecycle.removeObserver(observer)
+                        context.unregisterReceiver(receiver)
                     }
                 }
                 if (!batteryOptDisabled) {
@@ -326,7 +350,7 @@ fun MainScreen(viewModel: MainViewModel) {
                                 Text("Battery Optimization Active", fontWeight = FontWeight.Bold)
                                 Text(
                                     "Messages may not send when the phone is locked. Tap to disable.",
-                                    fontSize = 12.sp
+                                    fontSize = 14.sp
                                 )
                             }
                         }
@@ -359,8 +383,44 @@ fun MainScreen(viewModel: MainViewModel) {
                                 Text("${Build.MANUFACTURER} Detected", fontWeight = FontWeight.Bold)
                                 Text(
                                     "This device may also restrict background apps via AutoStart or Power Center settings. Enable AutoStart for Red Rocket in your device's battery settings.",
-                                    fontSize = 12.sp
+                                    fontSize = 14.sp
                                 )
+                            }
+                        }
+                    }
+                }
+
+                // Update available banner — shown once per session, dismissible
+                if (uiState.updateAvailable != null) {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+                        ),
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = {
+                            try {
+                                context.startActivity(
+                                    android.content.Intent(
+                                        android.content.Intent.ACTION_VIEW,
+                                        android.net.Uri.parse("https://github.com/Fysh-ball/RedRocket/releases")
+                                    )
+                                )
+                            } catch (_: Exception) {}
+                        }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(Icons.Default.SystemUpdateAlt, contentDescription = null)
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("v${uiState.updateAvailable} available", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                Text("Tap to download from GitHub", fontSize = 14.sp)
+                            }
+                            IconButton(onClick = { viewModel.dismissUpdate() }, modifier = Modifier.size(32.dp)) {
+                                Icon(Icons.Default.Close, contentDescription = "Dismiss", modifier = Modifier.size(20.dp))
                             }
                         }
                     }
@@ -446,7 +506,7 @@ fun MainScreen(viewModel: MainViewModel) {
                                 )
                                 Text(
                                     "Triggers are blocked until this scenario is reset.",
-                                    style = MaterialTheme.typography.bodySmall,
+                                    style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.7f)
                                 )
                             }
@@ -530,15 +590,15 @@ fun MainScreen(viewModel: MainViewModel) {
                             contentPadding = PaddingValues(horizontal = 12.dp),
                             colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.inversePrimary)
                         ) {
-                            Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = null, modifier = Modifier.size(20.dp))
                             Spacer(Modifier.width(4.dp))
-                            Text("Undo", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            Text("Undo", fontSize = 15.sp, fontWeight = FontWeight.Bold)
                         }
                         IconButton(
                             onClick = { viewModel.onUndoPopupDismissed() },
                             modifier = Modifier.size(28.dp)
                         ) {
-                            Icon(Icons.Default.Close, contentDescription = "Dismiss", modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.Close, contentDescription = "Dismiss", modifier = Modifier.size(20.dp))
                         }
                     }
                 }
@@ -642,7 +702,8 @@ fun MainScreen(viewModel: MainViewModel) {
                 ManualSendDialog(
                     onDismiss = { viewModel.dismissManualSend() },
                     onConfirm = { captcha -> viewModel.onManualSendConfirmed(captcha) },
-                    captcha = uiState.currentCaptcha
+                    captcha = uiState.currentCaptcha,
+                    recipientCount = uiState.currentScenario.allRecipients().size
                 )
             }
 
@@ -677,3 +738,4 @@ fun MainScreen(viewModel: MainViewModel) {
     }
     } // closes outer Box
 }
+

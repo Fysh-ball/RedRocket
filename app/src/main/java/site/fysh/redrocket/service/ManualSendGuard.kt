@@ -4,7 +4,7 @@ import site.fysh.redrocket.model.Recipient
 import site.fysh.redrocket.model.Scenario
 import site.fysh.redrocket.queue.MessageQueueManager
 import kotlinx.coroutines.*
-import java.util.Random
+import kotlin.random.Random
 
 /**
  * Security and safety guard for manual triggers.
@@ -14,14 +14,12 @@ class ManualSendGuard(
 ) {
     private var currentCaptcha: String? = null
     private var countdownJob: Job? = null
-    private val random = Random()
-
     /**
      * Generates a randomized 6-character OTP code containing letters and numbers.
      */
     fun generateNewCaptcha(): String {
         val chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-        val captcha = (1..6).map { chars[random.nextInt(chars.length)] }.joinToString("")
+        val captcha = (1..6).map { chars[Random.nextInt(chars.length)] }.joinToString("")
         currentCaptcha = captcha
         return captcha
     }

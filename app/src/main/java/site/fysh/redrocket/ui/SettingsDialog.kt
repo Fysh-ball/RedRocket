@@ -1,5 +1,6 @@
 package site.fysh.redrocket.ui
 
+import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -21,6 +22,8 @@ import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.ui.res.painterResource
+import site.fysh.redrocket.R
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.automirrored.filled.Send
@@ -40,6 +43,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.window.Dialog
 
 @Composable
@@ -142,7 +146,7 @@ fun SettingsDialog(
                                     )
                                     Text(
                                         "Change the visual style",
-                                        style = MaterialTheme.typography.bodySmall,
+                                        style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
@@ -172,7 +176,7 @@ fun SettingsDialog(
                                         )
                                         Text(
                                             "High detects more, Low reduces false alarms",
-                                            style = MaterialTheme.typography.bodySmall,
+                                            style = MaterialTheme.typography.bodyMedium,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
@@ -199,7 +203,7 @@ fun SettingsDialog(
                                     )
                                     Text(
                                         "Monitor all app notifications",
-                                        style = MaterialTheme.typography.bodySmall,
+                                        style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
@@ -227,7 +231,7 @@ fun SettingsDialog(
                                     )
                                     Text(
                                         "Monitor replies after sending (1-24 hours)",
-                                        style = MaterialTheme.typography.bodySmall,
+                                        style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
@@ -262,8 +266,8 @@ fun SettingsDialog(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
-                                        Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(14.dp))
-                                        Text("Extended monitoring uses more battery", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
+                                        Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
+                                        Text("Extended monitoring uses more battery", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                                     }
                                 }
                             }
@@ -275,7 +279,7 @@ fun SettingsDialog(
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Text(
                                 "Back up or restore all scenarios and block phrases.",
-                                style = MaterialTheme.typography.bodySmall,
+                                style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Row(
@@ -289,7 +293,7 @@ fun SettingsDialog(
                                     modifier = Modifier.weight(1f),
                                     shape = RoundedCornerShape(12.dp)
                                 ) {
-                                    Icon(Icons.Default.Archive, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Icon(Icons.Default.Archive, contentDescription = null, modifier = Modifier.size(20.dp))
                                     Spacer(Modifier.width(6.dp))
                                     Text("Export")
                                 }
@@ -300,7 +304,7 @@ fun SettingsDialog(
                                     modifier = Modifier.weight(1f),
                                     shape = RoundedCornerShape(12.dp)
                                 ) {
-                                    Icon(Icons.Default.FileOpen, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Icon(Icons.Default.FileOpen, contentDescription = null, modifier = Modifier.size(20.dp))
                                     Spacer(Modifier.width(6.dp))
                                     Text("Import")
                                 }
@@ -312,7 +316,7 @@ fun SettingsDialog(
                             ) {
                                 Text(
                                     "Import merges with existing data. Scenarios with matching IDs are updated.",
-                                    style = MaterialTheme.typography.labelSmall,
+                                    style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.padding(10.dp)
                                 )
@@ -324,8 +328,8 @@ fun SettingsDialog(
                     SettingsSection(title = "Test Send", icon = Icons.AutoMirrored.Filled.Send) {
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Text(
-                                "Send a real test SMS to verify your messaging pipeline is working.",
-                                style = MaterialTheme.typography.bodySmall,
+                                "Send a real SMS to verify your messaging pipeline is working. Standard carrier charges may apply.",
+                                style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Button(
@@ -333,7 +337,7 @@ fun SettingsDialog(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(12.dp)
                             ) {
-                                Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, modifier = Modifier.size(20.dp))
                                 Spacer(Modifier.width(8.dp))
                                 Text("Send Test Message")
                             }
@@ -439,8 +443,8 @@ fun SettingsDialog(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(
-                        "A real SMS will be sent to this number with a [TEST] prefix. Use your own number to confirm delivery.",
-                        style = MaterialTheme.typography.bodySmall,
+                        "A real SMS will be sent to this number with a [TEST] prefix. Use your own number to confirm delivery. Standard carrier charges may apply.",
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     OutlinedTextField(
@@ -501,7 +505,7 @@ private fun SettingsSection(
                 Spacer(Modifier.width(8.dp))
                 Text(
                     title.uppercase(),
-                    style = MaterialTheme.typography.labelMedium,
+                    style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.ExtraBold,
                     color = color,
                     letterSpacing = 1.sp
@@ -599,6 +603,10 @@ private fun AlertSensitivityDropdown(
 
 @Composable
 private fun UserManualSection(onReplayTutorial: () -> Unit) {
+    val context = LocalContext.current
+    fun openUrl(url: String) {
+        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+    }
     val sections = listOf(
         "Quick Start" to "1. Create a scenario and add your activation keywords.\n2. Add the contacts you want to reach and write your message.\n3. That's it. Red Rocket runs in the background and listens for alerts.\n4. When a match hits, your message goes out to everyone on the list.",
         "Scenarios" to "A scenario is your plan for a specific situation. Each one has its own keywords, contacts, and message. You can have as many as you want: one for family, one for coworkers, one for your building. They each run independently.",
@@ -645,7 +653,7 @@ private fun UserManualSection(onReplayTutorial: () -> Unit) {
                         Spacer(Modifier.height(8.dp))
                         Text(
                             content,
-                            style = MaterialTheme.typography.bodySmall,
+                            style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             lineHeight = 18.sp
                         )
@@ -665,6 +673,33 @@ private fun UserManualSection(onReplayTutorial: () -> Unit) {
             Icon(Icons.Default.Info, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(12.dp))
             Text("Re-run Setup Tutorial", fontWeight = FontWeight.Bold)
+        }
+
+        HorizontalDivider(
+            modifier = Modifier.padding(vertical = 4.dp),
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+        )
+
+        // GitHub — check for updates (sideloaded builds have no auto-update)
+        OutlinedButton(
+            onClick = { openUrl("https://github.com/Fysh-ball/RedRocket") },
+            modifier = Modifier.fillMaxWidth().height(48.dp),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Icon(painterResource(R.drawable.ic_github), contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(12.dp))
+            Text("Check for Updates on GitHub", modifier = Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
+        }
+
+        // Ko-fi — support the developer
+        OutlinedButton(
+            onClick = { openUrl("https://ko-fi.com/fysh_yum") },
+            modifier = Modifier.fillMaxWidth().height(48.dp),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Icon(painterResource(R.drawable.ic_kofi), contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(12.dp))
+            Text("Wanna Buy Me a Cup of Rice?", modifier = Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
         }
     }
 }

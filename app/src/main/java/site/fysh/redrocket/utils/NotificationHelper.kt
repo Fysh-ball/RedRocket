@@ -31,13 +31,11 @@ object NotificationHelper {
 
         if (!enabled) {
             nm.cancel(DEBUG_NOTIFICATION_ID)
+            return
         }
 
-        val title = if (enabled) "Red Rocket: Debug Mode ON" else "Red Rocket: Debug Mode OFF"
-        val body = if (enabled)
-            "Real SMS is disabled. Messages will NOT be sent to real recipients."
-        else
-            "Real SMS is enabled. Messages will be sent to real recipients."
+        val title = "Red Rocket: Debug Mode ON"
+        val body = "Real SMS is disabled. Messages will NOT be sent to real recipients."
 
         val notif = NotificationCompat.Builder(context, DEBUG_CHANNEL_ID)
             .setContentTitle(title)

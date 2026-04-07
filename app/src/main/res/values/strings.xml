@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Red Rocket</string>
+    <string name="widget_description">Red Rocket status widget — tap to open</string>
 </resources>

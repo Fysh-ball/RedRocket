@@ -96,6 +96,11 @@ fun ResponseDashboard(
     val urgentCount = recipients.count { responseMap[normalizePhone(it.phoneNumber)]?.responseCode == 3 }
     val progressFraction = if (totalCount > 0) respondedCount.toFloat() / totalCount else 0f
 
+    // Contacts who were messaged but have not replied yet
+    val noResponseRecipients = remember(recipients, responseMap) {
+        recipients.filter { !responseMap.containsKey(normalizePhone(it.phoneNumber)) }
+    }
+
     // Pulsing animation for urgent
     val infiniteTransition = rememberInfiniteTransition(label = "urgentPulse")
     val urgentAlpha by infiniteTransition.animateFloat(
@@ -238,7 +243,7 @@ fun ResponseDashboard(
                                 onClick = onStopListening,
                                 colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
                             ) {
-                                Text("Stop", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                Text("Stop", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                             }
                         }
                     }
@@ -272,7 +277,7 @@ fun ResponseDashboard(
                             Spacer(Modifier.height(6.dp))
                             Text(
                                 "Add contacts to your scenario\nto track their responses",
-                                fontSize = 13.sp,
+                                fontSize = 15.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                                 textAlign = TextAlign.Center
                             )
@@ -317,14 +322,14 @@ fun ResponseDashboard(
                                 Spacer(Modifier.height(8.dp))
                                 Text(
                                     "${recipients.size} contact(s) ready",
-                                    fontSize = 14.sp,
+                                    fontSize = 15.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Spacer(Modifier.height(4.dp))
                                 Text(
                                     "Monitoring for emergency alerts",
-                                    fontSize = 12.sp,
+                                    fontSize = 14.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                                     textAlign = TextAlign.Center
                                 )
@@ -388,12 +393,12 @@ fun ResponseDashboard(
                                     Text(
                                         "$respondedCount of $totalCount responded",
                                         fontWeight = FontWeight.SemiBold,
-                                        fontSize = 13.sp,
+                                        fontSize = 15.sp,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
                                     Text(
                                         "${(progressFraction * 100).toInt()}%",
-                                        fontSize = 13.sp,
+                                        fontSize = 15.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = primaryColor
                                     )
@@ -419,7 +424,7 @@ fun ResponseDashboard(
                         Text(
                             "Recipients (${recipients.size})",
                             fontWeight = FontWeight.SemiBold,
-                            fontSize = 14.sp,
+                            fontSize = 15.sp,
                             color = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.padding(horizontal = 16.dp)
                         )
@@ -444,6 +449,54 @@ fun ResponseDashboard(
                 }
             }
 
+            // "No response" section — only shown when at least one recipient has been messaged
+            // but has not yet replied (relevant during an active listening window)
+            if (noResponseRecipients.isNotEmpty() && isCurrentlyListening) {
+                item {
+                    Spacer(Modifier.height(8.dp))
+                    androidx.compose.material3.Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+                        colors = androidx.compose.material3.CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+                        ),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(
+                                "Waiting for reply (${noResponseRecipients.size})",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            noResponseRecipients.forEach { recipient ->
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.padding(vertical = 2.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(8.dp)
+                                            .clip(androidx.compose.foundation.shape.CircleShape)
+                                            .background(MaterialTheme.colorScheme.outlineVariant)
+                                    )
+                                    Text(
+                                        recipient.name.ifBlank { recipient.phoneNumber },
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             // Clear responses button
             if (responses.isNotEmpty()) {
                 item {
@@ -458,7 +511,7 @@ fun ResponseDashboard(
                             onClick = onClearResponses,
                             colors = ButtonDefaults.textButtonColors(contentColor = errorColor)
                         ) {
-                            Text("Clear Responses", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                            Text("Clear Responses", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                         }
                     }
                 }
@@ -486,7 +539,7 @@ fun ResponseDashboard(
                                 onClick = onClearLogs,
                                 colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
                             ) {
-                                Text("Clear", fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                                Text("Clear", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                             }
                         }
                         TextButton(
@@ -496,7 +549,7 @@ fun ResponseDashboard(
                             Text(
                                 if (logsExpanded) "Collapse" else "Show (${logs.size})",
                                 fontWeight = FontWeight.SemiBold,
-                                fontSize = 12.sp
+                                fontSize = 14.sp
                             )
                         }
                     }
@@ -551,7 +604,7 @@ fun ResponseDashboard(
                                 onClick = onClearPastAlerts,
                                 colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
                             ) {
-                                Text("Clear", fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                                Text("Clear", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                             }
                         }
                         TextButton(
@@ -562,7 +615,7 @@ fun ResponseDashboard(
                                 if (alertHistoryExpanded) "Collapse"
                                 else "Show (${pastAlerts.size})",
                                 fontWeight = FontWeight.SemiBold,
-                                fontSize = 12.sp
+                                fontSize = 14.sp
                             )
                         }
                     }
@@ -647,7 +700,7 @@ private fun LargeStatCard(
             )
             Text(
                 label,
-                fontSize = 12.sp,
+                fontSize = 14.sp,
                 color = numColor.copy(alpha = 0.8f),
                 fontWeight = FontWeight.Medium
             )
@@ -699,12 +752,12 @@ private fun RecipientRow(
                     Text(
                         recipient.name.ifEmpty { recipient.phoneNumber },
                         fontWeight = FontWeight.SemiBold,
-                        fontSize = 14.sp,
+                        fontSize = 15.sp,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
                         recipient.phoneNumber,
-                        fontSize = 12.sp,
+                        fontSize = 14.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -717,7 +770,7 @@ private fun RecipientRow(
                         Text(
                             statusText,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                            fontSize = 11.sp,
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
                             color = statusColor
                         )
@@ -726,7 +779,7 @@ private fun RecipientRow(
                         Spacer(Modifier.height(3.dp))
                         Text(
                             timeAgo(response.receivedAt),
-                            fontSize = 10.sp,
+                            fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                         )
                     }
@@ -762,12 +815,12 @@ private fun DashboardLogEntry(entry: LogEntry, timeFormat: SimpleDateFormat) {
                 Text(
                     label,
                     fontWeight = FontWeight.SemiBold,
-                    fontSize = 12.sp,
+                    fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
                     timeFormat.format(Date(entry.timestamp)),
-                    fontSize = 11.sp,
+                    fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                 )
             }
@@ -775,7 +828,7 @@ private fun DashboardLogEntry(entry: LogEntry, timeFormat: SimpleDateFormat) {
                 Spacer(Modifier.height(2.dp))
                 Text(
                     entry.description,
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
@@ -814,7 +867,7 @@ private fun DashboardAlertCard(alert: PastAlert, dateFormat: SimpleDateFormat) {
                     Text(
                         badge.label,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                        fontSize = 11.sp,
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         color = badge.badgeText
                     )
@@ -825,7 +878,7 @@ private fun DashboardAlertCard(alert: PastAlert, dateFormat: SimpleDateFormat) {
                 ) {
                     Text(
                         dateFormat.format(Date(alert.triggeredAt)),
-                        fontSize = 11.sp,
+                        fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                     )
                     Icon(
@@ -841,7 +894,7 @@ private fun DashboardAlertCard(alert: PastAlert, dateFormat: SimpleDateFormat) {
             Spacer(Modifier.height(6.dp))
             Text(
                 alert.messageContent,
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = if (expanded) Int.MAX_VALUE else 2,
                 overflow = if (expanded) TextOverflow.Clip else TextOverflow.Ellipsis
@@ -850,7 +903,7 @@ private fun DashboardAlertCard(alert: PastAlert, dateFormat: SimpleDateFormat) {
                 Spacer(Modifier.height(4.dp))
                 Text(
                     "Triggered: ${alert.scenariosTriggered}",
-                    fontSize = 11.sp,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f)
                 )

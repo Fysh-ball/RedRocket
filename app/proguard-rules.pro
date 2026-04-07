@@ -27,9 +27,6 @@
 -keep class * implements com.google.gson.JsonSerializer
 -keep class * implements com.google.gson.JsonDeserializer
 
-# ── Compose Reorderable ───────────────────────────────────────────────────────
--keep class org.burnoutcrew.reorderable.** { *; }
-
 # ── Kotlin ────────────────────────────────────────────────────────────────────
 -keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}
 -keepnames class kotlinx.coroutines.CoroutineExceptionHandler {}
