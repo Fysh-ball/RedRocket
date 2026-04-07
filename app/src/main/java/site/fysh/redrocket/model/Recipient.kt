@@ -13,7 +13,10 @@ data class Recipient(
      */
     fun isValid(): Boolean {
         val cleanNumber = phoneNumber.replace(Regex("[^0-9+]"), "")
-        return cleanNumber.length >= 7 && cleanNumber.all { it.isDigit() || it == '+' }
+        if (cleanNumber.length < 7) return false
+        val plusCount = cleanNumber.count { it == '+' }
+        // + is only valid as an international prefix (at position 0), never mid-number
+        return plusCount == 0 || (plusCount == 1 && cleanNumber.startsWith("+"))
     }
 
     /**
