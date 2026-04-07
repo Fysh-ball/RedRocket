@@ -45,6 +45,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.window.Dialog
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @Composable
 fun SettingsDialog(
@@ -326,11 +328,17 @@ fun SettingsDialog(
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                     val context = LocalContext.current
-                                    val folderName = remember(uiState.autoBackupUri) {
-                                        if (uiState.autoBackupUri.isEmpty()) "Default (app storage)"
-                                        else androidx.documentfile.provider.DocumentFile
-                                            .fromTreeUri(context, Uri.parse(uiState.autoBackupUri))
-                                            ?.name ?: uiState.autoBackupUri
+                                    var folderName by remember { mutableStateOf("Default (app storage)") }
+                                    LaunchedEffect(uiState.autoBackupUri) {
+                                        folderName = if (uiState.autoBackupUri.isEmpty()) {
+                                            "Default (app storage)"
+                                        } else {
+                                            withContext(Dispatchers.IO) {
+                                                androidx.documentfile.provider.DocumentFile
+                                                    .fromTreeUri(context, Uri.parse(uiState.autoBackupUri))
+                                                    ?.name ?: uiState.autoBackupUri
+                                            }
+                                        }
                                     }
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
@@ -730,4 +738,4 @@ private fun UserManualSection(onReplayTutorial: () -> Unit) {
             Text("Wanna Buy Me a Cup of Rice?", modifier = Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
         }
     }
-}
+}       

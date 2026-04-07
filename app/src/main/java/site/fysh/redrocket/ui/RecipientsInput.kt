@@ -407,7 +407,7 @@ fun MultiContactPickerDialog(
                 }
                 
                 LazyColumn(modifier = Modifier.weight(1f)) {
-                    items(filteredContacts) { contact ->
+                    items(filteredContacts, key = { it.phoneNumber }) { contact ->
                         val isAlreadyAdded = existingRecipients.any { it.phoneNumber == contact.phoneNumber }
                         val isSelected = selectedContacts.contains(contact)
                         
@@ -490,7 +490,7 @@ fun RecipientChip(recipient: Recipient, onRemove: () -> Unit) {
             val intent = Intent(Intent.ACTION_SENDTO).apply {
                 data = Uri.parse("smsto:${recipient.phoneNumber}")
             }
-            context.startActivity(intent)
+            try { context.startActivity(intent) } catch (_: android.content.ActivityNotFoundException) { }
         }
     ) {
         Row(

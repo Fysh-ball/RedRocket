@@ -426,6 +426,50 @@ fun MainScreen(viewModel: MainViewModel) {
                     }
                 }
 
+                // Armed / Disarmed toggle — controls whether notification scanning is active.
+                // When disarmed, the notification listener ignores all incoming notifications.
+                // Cell broadcasts (real WEA/EAS alerts) are always processed regardless of this.
+                // Even when armed, only official emergency alert packages can trigger — arbitrary
+                // app notifications (YouTube, social media, etc.) are always blocked.
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (uiState.isArmed)
+                            MaterialTheme.colorScheme.primaryContainer
+                        else
+                            MaterialTheme.colorScheme.errorContainer,
+                        contentColor = if (uiState.isArmed)
+                            MaterialTheme.colorScheme.onPrimaryContainer
+                        else
+                            MaterialTheme.colorScheme.onErrorContainer
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                if (uiState.isArmed) "Armed" else "Disarmed",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp
+                            )
+                            Text(
+                                if (uiState.isArmed)
+                                    "Monitoring for emergency alerts"
+                                else
+                                    "Auto-trigger is off. Emergency broadcasts still active.",
+                                fontSize = 13.sp
+                            )
+                        }
+                        Switch(
+                            checked = uiState.isArmed,
+                            onCheckedChange = { viewModel.setArmed(it) }
+                        )
+                    }
+                }
+
                 // key() forces full recomposition of input sections when scenario switches,
                 // clearing any stale local draft state (typed-but-not-committed text, open dialogs).
                 key(uiState.currentScenario.id) {
@@ -524,7 +568,12 @@ fun MainScreen(viewModel: MainViewModel) {
                 var nowMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
                 LaunchedEffect(uiState.lastSendCompletedAt) {
                     if (uiState.lastSendCompletedAt == 0L) return@LaunchedEffect
-                    while (true) { delay(1000L); nowMs = System.currentTimeMillis() }
+                    val cooldownDuration = 60_000L
+                    while (true) {
+                        delay(1000L)
+                        nowMs = System.currentTimeMillis()
+                        if ((nowMs - uiState.lastSendCompletedAt) >= cooldownDuration) break
+                    }
                 }
                 val cooldownMs = 60_000L
                 val cooldownSecondsRemaining = if (uiState.lastSendCompletedAt > 0) {

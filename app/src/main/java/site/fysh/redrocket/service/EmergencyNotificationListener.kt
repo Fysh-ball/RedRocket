@@ -63,6 +63,7 @@ class EmergencyNotificationListener : NotificationListenerService() {
             // Skip our own notifications to avoid loops
             if (packageName == this.packageName) return
 
+
             val extras = notification.extras
             val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString() ?: ""
             val text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString() ?: ""
@@ -107,11 +108,25 @@ class EmergencyNotificationListener : NotificationListenerService() {
     }
 
     private suspend fun processNotification(packageName: String, content: String) {
+        // Never process notification-based triggers when Red Rocket is not armed.
+        // Cell broadcasts (EmergencyBroadcastReceiver) are unaffected.
+        if (!app.settings.isArmed.first()) {
+            Log.d(TAG, "Not armed - notification from $packageName ignored")
+            return
+        }
+
         // Two-path EAS detection: known package OR FCC-mandated content phrases.
         // isEmergencyAlertPackage always checks the full static list first so partial
         // runtime detection can never cause a known WEA package to be missed.
         val isSystemEmergencyAlert = EmergencyPackageDetector.isEmergencyAlertPackage(packageName)
             || looksLikeEASContent(content)
+
+        // Hard stop: notifications from non-emergency apps (YouTube, social media, games, etc.)
+        // can never trigger a scenario. Exit before touching the database.
+        if (!isSystemEmergencyAlert) {
+            Log.v(TAG, "Non-emergency notification from $packageName — ignored")
+            return
+        }
 
         // Read sensitivity - fail safely to MEDIUM
         val sensitivityStr = app.settings.alertSensitivity.first()
@@ -154,13 +169,14 @@ class EmergencyNotificationListener : NotificationListenerService() {
 
             // TRIGGER DECISION
             //
-            // - Has keywords: user's keyword is authoritative. Match + not blocked = trigger.
-            //   FalseAlarmDetector scoring is bypassed; keywords define exactly what matters.
-            // - No keywords: wildcard scenario - only fires on confirmed EAS source, and
-            //   content quality is evaluated by FalseAlarmDetector so the sensitivity setting
-            //   controls the threshold (HIGH = broad, LOW = life-threatening only).
+            // Reaching here means the notification passed the isSystemEmergencyAlert gate
+            // above — it is from a known OEM emergency package or contains FCC-mandated phrases.
+            //
+            // - Has keywords: keyword must match and not be blocked.
+            // - No keywords: wildcard — FalseAlarmDetector evaluates content quality against
+            //   the sensitivity threshold (HIGH = broad, LOW = life-threatening only).
             val isMatched = if (keywords.isEmpty()) {
-                isSystemEmergencyAlert && FalseAlarmDetector.shouldTrigger(
+                FalseAlarmDetector.shouldTrigger(
                     content, emptyList(), isTrustedSource = true, sensitivity = sensitivity
                 )
             } else {
