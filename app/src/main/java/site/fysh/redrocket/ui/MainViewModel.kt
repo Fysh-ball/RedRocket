@@ -24,6 +24,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.io.File
 import java.util.ArrayDeque
 
 enum class AppTheme { SYSTEM, LIGHT, GRAY, NIGHT }
@@ -99,6 +100,10 @@ class MainViewModel(
     @Volatile private var lastTestSendTime: Long = 0
     private var undoTimerJob: Job? = null
     private var monitoringJob: Job? = null
+
+    /** File written automatically whenever scenarios or block phrases change. */
+    val autoBackupFile: File
+        get() = File(app.getExternalFilesDir(null), "redrocket_backup.json")
 
     init {
         // Load settings
@@ -260,6 +265,19 @@ class MainViewModel(
             app.database.blockPhraseDao().getAll().collect { phrases ->
                 _blockPhrases.value = phrases
             }
+        }
+
+        // Auto-export: write backup silently whenever scenarios or block phrases change.
+        // Debounced so rapid consecutive edits only trigger one write.
+        viewModelScope.launch(Dispatchers.IO) {
+            combine(
+                scenarioDao.getAllScenarios(),
+                app.database.blockPhraseDao().getAll()
+            ) { scenarios, phrases -> Pair(scenarios, phrases) }
+                .debounce(3_000L)
+                .collect { (scenarios, phrases) ->
+                    if (scenarios.isNotEmpty()) autoExportBackup(scenarios, phrases)
+                }
         }
 
         // Collect reply listen hours setting
@@ -1071,6 +1089,16 @@ class MainViewModel(
     }
 
     // -- Data management --
+
+    private fun autoExportBackup(scenarios: List<Scenario>, blockPhrases: List<BlockPhrase>) {
+        try {
+            val backup = ScenarioBackup(scenarios = scenarios, blockPhrases = blockPhrases.map { it.phrase })
+            autoBackupFile.writeText(gson.toJson(backup))
+            Log.d(TAG, "Auto-backup written: ${scenarios.size} scenario(s) to ${autoBackupFile.path}")
+        } catch (e: Exception) {
+            Log.e(TAG, "Auto-backup failed", e)
+        }
+    }
 
     fun exportScenarios(uri: Uri) {
         viewModelScope.launch(Dispatchers.IO) {

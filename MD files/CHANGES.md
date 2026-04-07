@@ -2,6 +2,29 @@
 
 ---
 
+## Session: 2026-04-06 (Auto-export + APK naming)
+
+### MainViewModel.kt — auto-export backup
+- Added `autoBackupFile: File` property pointing to `getExternalFilesDir(null)/redrocket_backup.json`.
+- Added `autoExportBackup()` private function that serializes all scenarios and block phrases to JSON and writes to the auto-backup file silently.
+- Added a debounced (`3_000L`) `combine(scenarioDao.getAllScenarios(), blockPhraseDao.getAll())` collector in `init` that calls `autoExportBackup()` whenever either flow emits. Skips write when scenarios list is empty (initial state before first insert). Runs on `Dispatchers.IO`.
+
+### SettingsDialog.kt — auto-backup path display
+- Added `autoBackupPath: String` parameter.
+- Auto-backup file path shown below the import note in the Data section when non-empty.
+
+### MainScreen.kt — passes autoBackupPath to SettingsDialog
+- `viewModel.autoBackupFile.absolutePath` passed as `autoBackupPath`.
+
+### app/build.gradle.kts — APK output filename
+- Added `applicationVariants.all` block. Production release APK is now named `Red Rocket v{versionName}.apk` instead of `app-production-release.apk`. Updates automatically when `versionName` changes.
+
+### README.md + MD files/RELEASES.md
+- README rewritten to reflect v2.0 feature set while preserving the original author voice.
+- RELEASES.md created to track public-facing release notes separately from internal session logs.
+
+---
+
 ## Session: 2026-04-06 (v2.0 release — Input fixes + UI text audit + Ko-fi icon)
 
 ### ui/RecipientsInput.kt — hold-to-repeat backspace fix

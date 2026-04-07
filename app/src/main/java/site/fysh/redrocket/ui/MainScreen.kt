@@ -644,6 +644,7 @@ fun MainScreen(viewModel: MainViewModel) {
                     onThemeChange = { viewModel.setTheme(it) },
                     onReplyListenHoursChange = { viewModel.setReplyListenHours(it) },
                     onAlertSensitivityChange = { viewModel.setAlertSensitivity(it) },
+                    autoBackupPath = viewModel.autoBackupFile.absolutePath,
                     onExportScenarios = { uri -> viewModel.exportScenarios(uri) },
                     onImportScenarios = { uri -> viewModel.importScenarios(uri) },
                     onSendTestMessage = { phone -> viewModel.sendTestMessage(phone) },
