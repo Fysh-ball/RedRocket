@@ -57,7 +57,7 @@ fun SettingsDialog(
     onThemeChange: (AppTheme) -> Unit,
     onReplyListenHoursChange: (Int) -> Unit,
     onAlertSensitivityChange: (AlertSensitivity) -> Unit,
-    autoBackupPath: String = "",
+    onSetAutoBackupFolder: (android.net.Uri) -> Unit = {},
     onExportScenarios: (android.net.Uri) -> Unit = {},
     onImportScenarios: (android.net.Uri) -> Unit = {},
     onSendTestMessage: (String) -> Unit = {},
@@ -81,6 +81,10 @@ fun SettingsDialog(
     val importLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
     ) { uri -> uri?.let { onImportScenarios(it) } }
+
+    val backupFolderLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { uri -> uri?.let { onSetAutoBackupFolder(it) } }
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
@@ -321,12 +325,27 @@ fun SettingsDialog(
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
-                                    if (autoBackupPath.isNotEmpty()) {
+                                    val context = LocalContext.current
+                                    val folderName = remember(uiState.autoBackupUri) {
+                                        if (uiState.autoBackupUri.isEmpty()) "Default (app storage)"
+                                        else androidx.documentfile.provider.DocumentFile
+                                            .fromTreeUri(context, Uri.parse(uiState.autoBackupUri))
+                                            ?.name ?: uiState.autoBackupUri
+                                    }
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
                                         Text(
-                                            "Auto-backup: $autoBackupPath",
+                                            "Auto-backup folder: $folderName",
                                             style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.weight(1f)
                                         )
+                                        TextButton(onClick = { backupFolderLauncher.launch(null) }) {
+                                            Text("Change", style = MaterialTheme.typography.bodySmall)
+                                        }
                                     }
                                 }
                             }

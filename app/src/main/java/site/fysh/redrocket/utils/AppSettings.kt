@@ -25,6 +25,7 @@ class AppSettings(private val context: Context) {
         val ALERT_SENSITIVITY   = stringPreferencesKey("alert_sensitivity")
         val FORCE_SEND_USED     = booleanPreferencesKey("force_send_used")
         val TUTORIAL_SHOWN      = booleanPreferencesKey("tutorial_shown")
+        val AUTO_BACKUP_URI     = stringPreferencesKey("auto_backup_uri")
     }
 
     val isFirstLaunch: Flow<Boolean>   = context.dataStore.data.map { it[IS_FIRST_LAUNCH] ?: true }
@@ -39,6 +40,7 @@ class AppSettings(private val context: Context) {
     val alertSensitivity: Flow<String> = context.dataStore.data.map { it[ALERT_SENSITIVITY] ?: "MEDIUM" }
     val forceSendUsed: Flow<Boolean>   = context.dataStore.data.map { it[FORCE_SEND_USED] ?: false }
     val tutorialShown: Flow<Boolean>   = context.dataStore.data.map { it[TUTORIAL_SHOWN] ?: false }
+    val autoBackupUri: Flow<String>    = context.dataStore.data.map { it[AUTO_BACKUP_URI] ?: "" }
 
     suspend fun setFirstLaunch(isFirst: Boolean) {
         context.dataStore.edit { it[IS_FIRST_LAUNCH] = isFirst }
@@ -86,5 +88,9 @@ class AppSettings(private val context: Context) {
 
     suspend fun setTutorialShown(shown: Boolean) {
         context.dataStore.edit { it[TUTORIAL_SHOWN] = shown }
+    }
+
+    suspend fun setAutoBackupUri(uri: String) {
+        context.dataStore.edit { it[AUTO_BACKUP_URI] = uri }
     }
 }

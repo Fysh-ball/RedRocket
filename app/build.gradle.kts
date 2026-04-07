@@ -121,6 +121,9 @@ dependencies {
     // Gson
     implementation("com.google.code.gson:gson:2.10.1")
 
+    // Document file access (SAF folder picker)
+    implementation("androidx.documentfile:documentfile:1.0.1")
+
     // Drag-to-reorder
     implementation("sh.calvin.reorderable:reorderable:2.4.0")
 
