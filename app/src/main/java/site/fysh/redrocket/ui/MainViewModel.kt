@@ -1,7 +1,9 @@
 package site.fysh.redrocket.ui
 
+import android.content.Intent
 import android.net.Uri
 import android.util.Log
+import androidx.documentfile.provider.DocumentFile
 import androidx.compose.runtime.Stable
 import androidx.lifecycle.ViewModel
 import com.google.gson.Gson
@@ -142,6 +144,11 @@ class MainViewModel(
         viewModelScope.launch {
             settings.forceSendUsed.collect { used ->
                 _uiState.update { it.copy(forceSendUsed = used) }
+            }
+        }
+        viewModelScope.launch {
+            settings.autoBackupUri.collect { uri ->
+                _uiState.update { it.copy(autoBackupUri = uri) }
             }
         }
         viewModelScope.launch {
@@ -1092,12 +1099,34 @@ class MainViewModel(
 
     private fun autoExportBackup(scenarios: List<Scenario>, blockPhrases: List<BlockPhrase>) {
         try {
-            val backup = ScenarioBackup(scenarios = scenarios, blockPhrases = blockPhrases.map { it.phrase })
-            autoBackupFile.writeText(gson.toJson(backup))
-            Log.d(TAG, "Auto-backup written: ${scenarios.size} scenario(s) to ${autoBackupFile.path}")
+            val json = gson.toJson(ScenarioBackup(scenarios = scenarios, blockPhrases = blockPhrases.map { it.phrase }))
+            val uriString = _uiState.value.autoBackupUri
+            if (uriString.isNotEmpty()) {
+                val folder = DocumentFile.fromTreeUri(app, Uri.parse(uriString))
+                if (folder != null && folder.canWrite()) {
+                    val file = folder.findFile("redrocket_backup.json")
+                        ?: folder.createFile("application/json", "redrocket_backup")
+                    if (file != null) {
+                        app.contentResolver.openOutputStream(file.uri, "wt")?.use { it.write(json.toByteArray()) }
+                        Log.d(TAG, "Auto-backup written to user folder: ${file.uri}")
+                        return
+                    }
+                }
+            }
+            // Fallback to app-private external storage
+            autoBackupFile.writeText(json)
+            Log.d(TAG, "Auto-backup written to fallback: ${autoBackupFile.path}")
         } catch (e: Exception) {
             Log.e(TAG, "Auto-backup failed", e)
         }
+    }
+
+    fun setAutoBackupFolder(uri: Uri) {
+        app.contentResolver.takePersistableUriPermission(
+            uri,
+            Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+        )
+        viewModelScope.launch { app.settings.setAutoBackupUri(uri.toString()) }
     }
 
     fun exportScenarios(uri: Uri) {
@@ -1268,5 +1297,7 @@ data class MainUiState(
     /** One-shot message for the UI to surface as a Toast. Cleared by calling clearUserMessage(). */
     val userMessage: String? = null,
     /** Non-null when a newer GitHub release is available; contains the version tag string. */
-    val updateAvailable: String? = null
+    val updateAvailable: String? = null,
+    /** URI string of the user-chosen auto-backup folder. Empty = use app-private fallback. */
+    val autoBackupUri: String = ""
 )
