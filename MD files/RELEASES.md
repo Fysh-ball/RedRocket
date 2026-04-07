@@ -4,6 +4,17 @@ Public-facing release notes for each version. These are what users see on GitHub
 
 ---
 
+## v2.0.4 — Bug Fixes (2026-04-07)
+
+### Bug Fixes
+
+- **Fixed response code misclassification:** Replies containing both a number and a keyword — like "help 1" or "emergency 3" — now correctly use the number. Previously, the keyword was evaluated after the digit, so "help 1" would be recorded as code 3 (URGENT) instead of code 1 (Safe).
+- **Fixed app crash when importing a very large or malformed backup file:** The import now rejects files over 5 MB before reading them, preventing an out-of-memory crash.
+- **Fixed auto-backup failures being invisible:** When auto-backup fails (e.g. the destination folder was deleted or storage access was revoked), the error is now shown in the app instead of being silently swallowed.
+- **Fixed rare duplicate response notifications:** Response notifications now use a monotonically increasing counter for their ID instead of a millisecond-clock modulo, which could rarely produce the same ID for two near-simultaneous responses.
+
+---
+
 ## v2.0.3 — Hotfix (2026-04-07)
 
 ### Bug Fixes

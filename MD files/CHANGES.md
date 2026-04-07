@@ -2,6 +2,22 @@
 
 ---
 
+## Session: 2026-04-07 (v2.0.4 — Stress-test bug fixes)
+
+### service/SmsResponseReceiver.kt — parseResponseCode: digit takes priority over keywords
+- A single valid digit (1, 2, or 3) in a message now returns that code immediately without falling through to keyword matching. Previously, a reply like "help 1" would match the "help" keyword and return code 3 (URGENT) instead of code 1 (Safe) — incorrectly overriding the contact's explicit numeric reply.
+
+### service/SmsResponseReceiver.kt — notification ID collision
+- Response notification IDs now use `AtomicInteger.getAndIncrement()` instead of `(System.currentTimeMillis() % Int.MAX_VALUE).toInt()`. Two responses arriving in the same millisecond could generate the same ID, causing one notification to silently replace the other.
+
+### ui/MainViewModel.kt — import file size guard
+- `importScenarios()` now rejects files larger than 5 MB before reading into memory. A malformed or oversized backup file could previously cause an OOM crash during `readBytes()`.
+
+### ui/MainViewModel.kt — auto-backup failure now visible to user
+- When `autoExportBackup()` fails (e.g., storage permission revoked, folder deleted), the error is now surfaced to the user as a status message instead of being silently swallowed after logging.
+
+---
+
 ## Session: 2026-04-07 (v2.0.3 — Detection Offline banner shows instantly)
 
 ### ui/MainViewModel.kt — isNotificationPermissionGranted default changed to false
