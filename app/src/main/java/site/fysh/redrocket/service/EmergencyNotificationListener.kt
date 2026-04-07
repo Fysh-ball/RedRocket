@@ -108,13 +108,6 @@ class EmergencyNotificationListener : NotificationListenerService() {
     }
 
     private suspend fun processNotification(packageName: String, content: String) {
-        // Never process notification-based triggers when Red Rocket is not armed.
-        // Cell broadcasts (EmergencyBroadcastReceiver) are unaffected.
-        if (!app.settings.isArmed.first()) {
-            Log.d(TAG, "Not armed - notification from $packageName ignored")
-            return
-        }
-
         // Two-path EAS detection: known package OR FCC-mandated content phrases.
         // isEmergencyAlertPackage always checks the full static list first so partial
         // runtime detection can never cause a known WEA package to be missed.

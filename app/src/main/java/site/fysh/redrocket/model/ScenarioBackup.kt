@@ -24,6 +24,5 @@ data class AppSettingsBackup(
     val replyListenHours: Int? = null,
     val forceSequential: Boolean? = null,
     val wideSpreadEnabled: Boolean? = null,
-    val userRegion: String? = null,
-    val isArmed: Boolean? = null
+    val userRegion: String? = null
 )

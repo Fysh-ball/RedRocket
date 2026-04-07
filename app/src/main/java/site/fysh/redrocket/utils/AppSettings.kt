@@ -26,7 +26,6 @@ class AppSettings(private val context: Context) {
         val FORCE_SEND_USED     = booleanPreferencesKey("force_send_used")
         val TUTORIAL_SHOWN      = booleanPreferencesKey("tutorial_shown")
         val AUTO_BACKUP_URI     = stringPreferencesKey("auto_backup_uri")
-        val IS_ARMED            = booleanPreferencesKey("is_armed")
     }
 
     val isFirstLaunch: Flow<Boolean>   = context.dataStore.data.map { it[IS_FIRST_LAUNCH] ?: true }
@@ -42,7 +41,6 @@ class AppSettings(private val context: Context) {
     val forceSendUsed: Flow<Boolean>   = context.dataStore.data.map { it[FORCE_SEND_USED] ?: false }
     val tutorialShown: Flow<Boolean>   = context.dataStore.data.map { it[TUTORIAL_SHOWN] ?: false }
     val autoBackupUri: Flow<String>    = context.dataStore.data.map { it[AUTO_BACKUP_URI] ?: "" }
-    val isArmed: Flow<Boolean>         = context.dataStore.data.map { it[IS_ARMED] ?: true }
 
     suspend fun setFirstLaunch(isFirst: Boolean) {
         context.dataStore.edit { it[IS_FIRST_LAUNCH] = isFirst }
@@ -96,7 +94,4 @@ class AppSettings(private val context: Context) {
         context.dataStore.edit { it[AUTO_BACKUP_URI] = uri }
     }
 
-    suspend fun setArmed(armed: Boolean) {
-        context.dataStore.edit { it[IS_ARMED] = armed }
-    }
 }

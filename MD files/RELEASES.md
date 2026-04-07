@@ -12,10 +12,6 @@ Public-facing release notes for each version. These are what users see on GitHub
 - **Fixed import not switching to imported scenario:** After importing a backup, the app now correctly switches to the imported scenario instead of staying on the empty default one. Contacts now appear in the recipients box immediately after import.
 - **Fixed app crash when tapping a recipient chip on devices without an SMS app** (tablets, restricted enterprise devices)
 
-### New Features
-
-- **Armed/Disarmed toggle:** Red Rocket now has an explicit on/off switch on the main screen. When disarmed (shown in red), notification scanning is completely off. Official emergency broadcasts from the government still activate your scenario regardless of this setting. Armed by default.
-
 ---
 
 ## v2.0 — The Global Update (2026-04-06)
