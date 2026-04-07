@@ -495,7 +495,7 @@ fun RecipientChip(recipient: Recipient, onRemove: () -> Unit) {
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(start = 12.dp, end = 6.dp, top = 8.dp, bottom = 8.dp)
+            modifier = Modifier.padding(start = 10.dp, end = 4.dp, top = 4.dp, bottom = 4.dp)
         ) {
             Text(
                 text = recipient.name.ifEmpty { recipient.phoneNumber },
@@ -503,12 +503,11 @@ fun RecipientChip(recipient: Recipient, onRemove: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSecondaryContainer,
                 modifier = Modifier.weight(1f, fill = false)
             )
-            Spacer(Modifier.width(4.dp))
             Icon(
                 Icons.Default.Close,
                 contentDescription = "Remove ${recipient.name.ifEmpty { recipient.phoneNumber }}",
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(32.dp)
                     .clip(CircleShape)
                     .clickable { onRemove() }
                     .padding(8.dp),

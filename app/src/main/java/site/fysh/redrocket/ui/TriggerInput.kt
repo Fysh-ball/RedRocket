@@ -588,7 +588,7 @@ fun KeywordChip(keyword: String, onRemove: () -> Unit) {
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(start = 12.dp, end = 6.dp, top = 8.dp, bottom = 8.dp)
+            modifier = Modifier.padding(start = 10.dp, end = 4.dp, top = 4.dp, bottom = 4.dp)
         ) {
             Text(
                 text = keyword,
@@ -596,12 +596,11 @@ fun KeywordChip(keyword: String, onRemove: () -> Unit) {
                 color = MaterialTheme.colorScheme.onPrimaryContainer,
                 modifier = Modifier.weight(1f, fill = false)
             )
-            Spacer(Modifier.width(4.dp))
             Icon(
                 Icons.Default.Close,
                 contentDescription = "Remove $keyword",
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(32.dp)
                     .clip(CircleShape)
                     .clickable { onRemove() }
                     .padding(8.dp),
@@ -619,7 +618,7 @@ private fun BlockPhraseChip(phrase: String, onRemove: () -> Unit) {
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(start = 12.dp, end = 6.dp, top = 8.dp, bottom = 8.dp)
+            modifier = Modifier.padding(start = 10.dp, end = 4.dp, top = 4.dp, bottom = 4.dp)
         ) {
             Text(
                 text = phrase,
@@ -627,12 +626,11 @@ private fun BlockPhraseChip(phrase: String, onRemove: () -> Unit) {
                 color = MaterialTheme.colorScheme.onErrorContainer,
                 modifier = Modifier.weight(1f, fill = false)
             )
-            Spacer(Modifier.width(4.dp))
             Icon(
                 Icons.Default.Close,
                 contentDescription = "Remove $phrase",
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(32.dp)
                     .clip(CircleShape)
                     .clickable { onRemove() }
                     .padding(8.dp),
