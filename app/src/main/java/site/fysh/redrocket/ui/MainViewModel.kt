@@ -219,12 +219,13 @@ class MainViewModel(
         }
 
         // Check for Notification Listener Permission (cancelled when ViewModel is cleared).
-        // Polls at 2s until granted, then backs off to 60s - permission changes are rare once set.
+        // Polls at 2s until granted, then backs off to 30s.
+        // Call refreshNotificationPermission() from ON_RESUME for an immediate re-check.
         viewModelScope.launch {
             while (currentCoroutineContext().isActive) {
                 val isEnabled = PermissionUtils.isNotificationServiceEnabled(app)
                 _uiState.update { it.copy(isNotificationPermissionGranted = isEnabled) }
-                delay(if (isEnabled) 60_000L else 2_000L)
+                delay(if (isEnabled) 30_000L else 2_000L)
             }
         }
 
@@ -957,6 +958,13 @@ class MainViewModel(
     }
 
 
+    /** Immediately re-checks notification listener permission. Call from ON_RESUME. */
+    fun refreshNotificationPermission() {
+        _uiState.update {
+            it.copy(isNotificationPermissionGranted = PermissionUtils.isNotificationServiceEnabled(app))
+        }
+    }
+
     fun setTheme(theme: AppTheme) {
         viewModelScope.launch {
             settings.setTheme(theme.name)
@@ -1330,7 +1338,7 @@ data class MainUiState(
     val currentCaptcha: String = "",
     val showManualSendDialog: Boolean = false,
     val showUndoPopup: Boolean = false,
-    val isNotificationPermissionGranted: Boolean = true,
+    val isNotificationPermissionGranted: Boolean = false,
     val lastSendCompletedAt: Long = 0L,
     val theme: AppTheme = AppTheme.SYSTEM,
     val showResponseDashboard: Boolean = false,
