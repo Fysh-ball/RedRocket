@@ -4,6 +4,18 @@ Public-facing release notes for each version. These are what users see on GitHub
 
 ---
 
+## v2.0.5 — Accessibility and Usability Improvements (2026-04-07)
+
+### Improvements
+
+- **Larger touch targets on chips:** The close (×) button on recipient, keyword, and block-phrase chips is now larger and easier to tap, particularly on smaller screens or for users with reduced dexterity.
+- **Improved tab bar readability:** The inactive tab text is now brighter and font sizes are consistent across tabs, making it easier to distinguish which tab is active.
+- **Larger text in settings info boxes:** Informational text in the Settings screen (battery warning, import info, backup folder) is now displayed at standard body size instead of small caption size.
+- **Clearer tutorial text:** The tutorial now uses larger, more readable text with better line spacing. "Long-press" instructions are written as "Press and hold" for clarity.
+- **Plain-language send status labels:** Internal jargon removed from the sending status screen. "Degraded Service" is now "Reduced Speed" and the retry mode is now described as "Retrying – Resending Failed Messages" instead of a technical codename.
+
+---
+
 ## v2.0.4 — Bug Fixes (2026-04-07)
 
 ### Bug Fixes

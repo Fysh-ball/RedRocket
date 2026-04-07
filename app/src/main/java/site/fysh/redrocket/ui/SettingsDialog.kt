@@ -274,7 +274,7 @@ fun SettingsDialog(
                                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
                                         Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
-                                        Text("Extended monitoring uses more battery", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                                        Text("Extended monitoring uses more battery", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
                                     }
                                 }
                             }
@@ -324,7 +324,7 @@ fun SettingsDialog(
                                 Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                     Text(
                                         "Import merges with existing data. Scenarios with matching IDs are updated.",
-                                        style = MaterialTheme.typography.bodySmall,
+                                        style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                     val context = LocalContext.current
@@ -347,12 +347,12 @@ fun SettingsDialog(
                                     ) {
                                         Text(
                                             "Auto-backup folder: $folderName",
-                                            style = MaterialTheme.typography.bodySmall,
+                                            style = MaterialTheme.typography.bodyMedium,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             modifier = Modifier.weight(1f)
                                         )
                                         TextButton(onClick = { backupFolderLauncher.launch(null) }) {
-                                            Text("Change", style = MaterialTheme.typography.bodySmall)
+                                            Text("Change", style = MaterialTheme.typography.bodyMedium)
                                         }
                                     }
                                 }

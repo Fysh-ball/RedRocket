@@ -507,10 +507,10 @@ fun RecipientChip(recipient: Recipient, onRemove: () -> Unit) {
                 Icons.Default.Close,
                 contentDescription = "Remove ${recipient.name.ifEmpty { recipient.phoneNumber }}",
                 modifier = Modifier
-                    .size(32.dp)
+                    .size(40.dp)
                     .clip(CircleShape)
                     .clickable { onRemove() }
-                    .padding(8.dp),
+                    .padding(12.dp),
                 tint = MaterialTheme.colorScheme.onSecondaryContainer
             )
         }

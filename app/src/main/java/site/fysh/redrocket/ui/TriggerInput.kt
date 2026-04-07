@@ -600,10 +600,10 @@ fun KeywordChip(keyword: String, onRemove: () -> Unit) {
                 Icons.Default.Close,
                 contentDescription = "Remove $keyword",
                 modifier = Modifier
-                    .size(32.dp)
+                    .size(40.dp)
                     .clip(CircleShape)
                     .clickable { onRemove() }
-                    .padding(8.dp),
+                    .padding(12.dp),
                 tint = MaterialTheme.colorScheme.onPrimaryContainer
             )
         }
@@ -630,10 +630,10 @@ private fun BlockPhraseChip(phrase: String, onRemove: () -> Unit) {
                 Icons.Default.Close,
                 contentDescription = "Remove $phrase",
                 modifier = Modifier
-                    .size(32.dp)
+                    .size(40.dp)
                     .clip(CircleShape)
                     .clickable { onRemove() }
-                    .padding(8.dp),
+                    .padding(12.dp),
                 tint = MaterialTheme.colorScheme.onErrorContainer
             )
         }
