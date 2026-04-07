@@ -153,11 +153,6 @@ class MainViewModel(
             }
         }
         viewModelScope.launch {
-            settings.isArmed.collect { armed ->
-                _uiState.update { it.copy(isArmed = armed) }
-            }
-        }
-        viewModelScope.launch {
             settings.theme.collect { themeStr ->
                 val theme = when (themeStr) {
                     "LIGHT" -> AppTheme.LIGHT
@@ -961,11 +956,6 @@ class MainViewModel(
         }
     }
 
-    fun setArmed(armed: Boolean) {
-        viewModelScope.launch {
-            settings.setArmed(armed)
-        }
-    }
 
     fun setTheme(theme: AppTheme) {
         viewModelScope.launch {
@@ -1116,8 +1106,7 @@ class MainViewModel(
             replyListenHours = app.settings.replyListenHours.first(),
             forceSequential = app.settings.forceSequential.first(),
             wideSpreadEnabled = app.settings.wideSpreadEnabled.first(),
-            userRegion = RegionSettings.userRegion.ifEmpty { null },
-            isArmed = app.settings.isArmed.first()
+            userRegion = RegionSettings.userRegion.ifEmpty { null }
         )
     }
 
@@ -1227,7 +1216,6 @@ class MainViewModel(
                     s.forceSequential?.let { app.settings.setForceSequential(it) }
                     s.wideSpreadEnabled?.let { app.settings.setWideSpreadEnabled(it) }
                     s.userRegion?.let { RegionSettings.setUserRegion(app, it) }
-                    s.isArmed?.let { app.settings.setArmed(it) }
                 }
                 if (scenarios.isNotEmpty()) {
                     settings.setLastScenarioId(scenarios.first().id)
@@ -1364,7 +1352,5 @@ data class MainUiState(
     /** Non-null when a newer GitHub release is available; contains the version tag string. */
     val updateAvailable: String? = null,
     /** URI string of the user-chosen auto-backup folder. Empty = use app-private fallback. */
-    val autoBackupUri: String = "",
-    /** Whether Red Rocket is armed and actively scanning notifications for triggers. */
-    val isArmed: Boolean = true
+    val autoBackupUri: String = ""
 )
