@@ -54,6 +54,18 @@ android {
             buildConfigField("Long", "SEQUENTIAL_DELAY_MS", "200L")
         }
     }
+
+    applicationVariants.all {
+        val variant = this
+        variant.outputs
+            .map { it as com.android.build.gradle.internal.api.BaseVariantOutputImpl }
+            .forEach { output ->
+                if (variant.buildType.name == "release" && variant.flavorName == "production") {
+                    output.outputFileName = "Red Rocket v${variant.versionName}.apk"
+                }
+            }
+    }
+
     flavorDimensions += "environment"
     productFlavors {
         create("dev") {
@@ -105,7 +117,7 @@ dependencies {
 
     // DataStore
     implementation(libs.androidx.datastore.preferences)
-    
+
     // Gson
     implementation("com.google.code.gson:gson:2.10.1")
 

@@ -57,6 +57,7 @@ fun SettingsDialog(
     onThemeChange: (AppTheme) -> Unit,
     onReplyListenHoursChange: (Int) -> Unit,
     onAlertSensitivityChange: (AlertSensitivity) -> Unit,
+    autoBackupPath: String = "",
     onExportScenarios: (android.net.Uri) -> Unit = {},
     onImportScenarios: (android.net.Uri) -> Unit = {},
     onSendTestMessage: (String) -> Unit = {},
@@ -314,12 +315,20 @@ fun SettingsDialog(
                                 shape = RoundedCornerShape(8.dp),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Text(
-                                    "Import merges with existing data. Scenarios with matching IDs are updated.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(10.dp)
-                                )
+                                Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Text(
+                                        "Import merges with existing data. Scenarios with matching IDs are updated.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    if (autoBackupPath.isNotEmpty()) {
+                                        Text(
+                                            "Auto-backup: $autoBackupPath",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
