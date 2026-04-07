@@ -67,7 +67,7 @@ class MainViewModel(
     private val gson = Gson()
     companion object {
         /** Increment when ScenarioBackup, Scenario, Group, or Recipient fields change in a breaking way. */
-        private const val BACKUP_CURRENT_VERSION = 1
+        private const val BACKUP_CURRENT_VERSION = 2
     }
 
     private val _uiState = MutableStateFlow(MainUiState())
@@ -1097,9 +1097,24 @@ class MainViewModel(
 
     // -- Data management --
 
-    private fun autoExportBackup(scenarios: List<Scenario>, blockPhrases: List<BlockPhrase>) {
+    private suspend fun currentSettingsBackup(): AppSettingsBackup {
+        return AppSettingsBackup(
+            theme = app.settings.theme.first(),
+            alertSensitivity = app.settings.alertSensitivity.first(),
+            replyListenHours = app.settings.replyListenHours.first(),
+            forceSequential = app.settings.forceSequential.first(),
+            wideSpreadEnabled = app.settings.wideSpreadEnabled.first(),
+            userRegion = RegionSettings.userRegion.ifEmpty { null }
+        )
+    }
+
+    private suspend fun autoExportBackup(scenarios: List<Scenario>, blockPhrases: List<BlockPhrase>) {
         try {
-            val json = gson.toJson(ScenarioBackup(scenarios = scenarios, blockPhrases = blockPhrases.map { it.phrase }))
+            val json = gson.toJson(ScenarioBackup(
+                scenarios = scenarios,
+                blockPhrases = blockPhrases.map { it.phrase },
+                settings = currentSettingsBackup()
+            ))
             val uriString = _uiState.value.autoBackupUri
             if (uriString.isNotEmpty()) {
                 val folder = DocumentFile.fromTreeUri(app, Uri.parse(uriString))
@@ -1134,7 +1149,11 @@ class MainViewModel(
             try {
                 val scenarios = app.database.scenarioDao().getAllScenariosOnce()
                 val blockPhrases = app.database.blockPhraseDao().getAllOnce().map { it.phrase }
-                val backup = ScenarioBackup(scenarios = scenarios, blockPhrases = blockPhrases)
+                val backup = ScenarioBackup(
+                    scenarios = scenarios,
+                    blockPhrases = blockPhrases,
+                    settings = currentSettingsBackup()
+                )
                 val json = gson.toJson(backup)
                 val stream = app.contentResolver.openOutputStream(uri)
                 if (stream == null) {
@@ -1165,11 +1184,20 @@ class MainViewModel(
                 }
                 // Scenarios: REPLACE on ID conflict so existing data is updated correctly
                 app.database.scenarioDao().insertScenarios(scenarios)
-                // Block phrases: IGNORE conflict is on id (auto-generated), so check by phrase text
+                // Block phrases: deduplicated by phrase text
                 val existingPhrases = app.database.blockPhraseDao().getAllOnce().map { it.phrase }.toSet()
                 blockPhrases
                     .filter { it !in existingPhrases }
                     .forEach { phrase -> app.database.blockPhraseDao().insert(BlockPhrase(phrase = phrase)) }
+                // Settings: apply if present in backup
+                backup?.settings?.let { s ->
+                    s.theme?.let { app.settings.setTheme(it) }
+                    s.alertSensitivity?.let { app.settings.setAlertSensitivity(it) }
+                    s.replyListenHours?.let { app.settings.setReplyListenHours(it) }
+                    s.forceSequential?.let { app.settings.setForceSequential(it) }
+                    s.wideSpreadEnabled?.let { app.settings.setWideSpreadEnabled(it) }
+                    s.userRegion?.let { RegionSettings.setUserRegion(app, it) }
+                }
                 _uiState.update { it.copy(userMessage = "Imported ${scenarios.size} scenario(s)") }
             } catch (e: Exception) {
                 Log.e(TAG, "Import failed", e)
