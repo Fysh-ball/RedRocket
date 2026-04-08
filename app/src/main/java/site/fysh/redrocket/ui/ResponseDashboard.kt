@@ -101,12 +101,14 @@ fun ResponseDashboard(
         recipients.filter { !responseMap.containsKey(normalizePhone(it.phoneNumber)) }
     }
 
-    // Pulsing animation for urgent
+    // Pulsing animation for urgent — slow breathing (1800ms tween = 3.6s cycle, ~0.28 Hz)
+    // and narrowed alpha range (0.75..1.0) to stay well below the photosensitive
+    // epilepsy 3 Hz threshold while still attracting attention.
     val infiniteTransition = rememberInfiniteTransition(label = "urgentPulse")
     val urgentAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.5f,
+        initialValue = 0.75f,
         targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(600), RepeatMode.Reverse),
+        animationSpec = infiniteRepeatable(tween(1800), RepeatMode.Reverse),
         label = "urgentAlpha"
     )
 
@@ -118,27 +120,28 @@ fun ResponseDashboard(
     // Listening state
     // Driven by StateFlow - updates immediately on startListening()/stopListening() calls,
     // even across process death (listenStartTime is persisted to SharedPreferences).
+    // isCurrentlyListening is derived directly from listenStartTime so it can never
+    // contradict the live StateFlow between ticker iterations.
     val listenStartTime by SmsResponseReceiver.listenStartTimeFlow.collectAsState()
-    var isCurrentlyListening by remember { mutableStateOf(SmsResponseReceiver.isListening()) }
+    val isCurrentlyListening = listenStartTime != 0L && SmsResponseReceiver.isListening()
     var listenElapsedText by remember { mutableStateOf("") }
-    // Ticker only runs when a listening window is active; restarts whenever the window changes.
+    // Ticker only updates the elapsed-text string; the listening flag is derived above.
     LaunchedEffect(listenStartTime) {
         if (listenStartTime == 0L) {
-            isCurrentlyListening = false
             listenElapsedText = ""
             return@LaunchedEffect
         }
         while (true) {
-            isCurrentlyListening = SmsResponseReceiver.isListening()
-            listenElapsedText = if (isCurrentlyListening) {
-                val elapsed = System.currentTimeMillis() - listenStartTime
-                val hrs = TimeUnit.MILLISECONDS.toHours(elapsed)
-                val mins = TimeUnit.MILLISECONDS.toMinutes(elapsed) % 60
-                val secs = TimeUnit.MILLISECONDS.toSeconds(elapsed) % 60
-                if (hrs > 0) "%d:%02d:%02d".format(hrs, mins, secs)
-                else "%02d:%02d".format(mins, secs)
-            } else ""
-            if (!isCurrentlyListening) break
+            if (!SmsResponseReceiver.isListening()) {
+                listenElapsedText = ""
+                break
+            }
+            val elapsed = System.currentTimeMillis() - listenStartTime
+            val hrs = TimeUnit.MILLISECONDS.toHours(elapsed)
+            val mins = TimeUnit.MILLISECONDS.toMinutes(elapsed) % 60
+            val secs = TimeUnit.MILLISECONDS.toSeconds(elapsed) % 60
+            listenElapsedText = if (hrs > 0) "%d:%02d:%02d".format(hrs, mins, secs)
+                                else "%02d:%02d".format(mins, secs)
             delay(1000)
         }
     }
@@ -151,11 +154,14 @@ fun ResponseDashboard(
         else -> 0
     }
 
+    // Status indicator pulse — slowed from 400ms (~1.25 Hz) to 1400ms so even the
+    // highest severity is well below the photosensitive epilepsy 3 Hz threshold.
+    // Alpha range narrowed from 0.4..1.0 to 0.60..1.0 for gentler contrast.
     val statusPulse by infiniteTransition.animateFloat(
-        initialValue = 0.4f,
+        initialValue = 0.60f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            tween(if (highestSeverity == 3) 400 else 800),
+            tween(if (highestSeverity == 3) 1400 else 1800),
             RepeatMode.Reverse
         ),
         label = "statusPulse"
@@ -473,7 +479,12 @@ fun ResponseDashboard(
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            noResponseRecipients.forEach { recipient ->
+                            // Cap visible rows so a 100+ recipient scenario doesn't synchronously
+                            // measure all rows on every recomposition (the parent is a single
+                            // LazyColumn item, so virtualisation does not apply inside this Column).
+                            val MAX_VISIBLE = 20
+                            val visible = noResponseRecipients.take(MAX_VISIBLE)
+                            visible.forEach { recipient ->
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -491,6 +502,13 @@ fun ResponseDashboard(
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
+                            }
+                            if (noResponseRecipients.size > MAX_VISIBLE) {
+                                Text(
+                                    "+ ${noResponseRecipients.size - MAX_VISIBLE} more",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                )
                             }
                         }
                     }

@@ -151,6 +151,11 @@ class EmergencyNotificationListener : NotificationListenerService() {
             app.database.scenarioDao().getAllScenariosOnce()
         } ?: run {
             Log.w(TAG, "DB timeout loading scenarios from $packageName - notification ignored")
+            // Back-fill the orphaned PastAlert row so it does not appear in Alert History
+            // as a ghost entry with no scenario attribution.
+            app.database.pastAlertDao().updateScenariosTriggered(
+                easAlertRowId, "[scenario load timed out]"
+            )
             return
         }
         Log.i(TAG, "Evaluating ${allScenarios.size} scenario(s) against notification from $packageName")

@@ -127,8 +127,11 @@ fun SwipeToConfirm(
                         onDrag = { change, dragAmount ->
                             change.consume()
                             scope.launch {
+                                // If maxOffset is not yet measured (very first frame),
+                                // clamp to 0 so the thumb cannot escape the track.
+                                val upperBound = if (maxOffset > 0f) maxOffset else 0f
                                 val newValue = (offsetX.value + dragAmount.x)
-                                    .coerceIn(0f, if (maxOffset > 0f) maxOffset else 10000f)
+                                    .coerceIn(0f, upperBound)
                                 offsetX.snapTo(newValue)
                             }
                         }

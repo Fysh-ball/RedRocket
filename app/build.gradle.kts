@@ -21,8 +21,8 @@ android {
         applicationId = "site.fysh.redrocket"
         minSdk = 26
         targetSdk = 35
-        versionCode = 10
-        versionName = "2.0.8"
+        versionCode = 11
+        versionName = "2.0.9"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // Safe default; overridden by each product flavor
@@ -126,6 +126,9 @@ dependencies {
 
     // Drag-to-reorder
     implementation("sh.calvin.reorderable:reorderable:2.4.0")
+
+    // Splash screen compat (backports Android 12 SplashScreen API to older versions)
+    implementation("androidx.core:core-splashscreen:1.0.1")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

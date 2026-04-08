@@ -35,14 +35,21 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import site.fysh.redrocket.utils.PermissionUtils
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun FirstLaunchScreen(viewModel: MainViewModel) {
     val pagerState = rememberPagerState(pageCount = { 3 })
     val scope = rememberCoroutineScope()
-    BackHandler {}
+    // On pages after the welcome screen, back navigates to the previous page so the
+    // user is never trapped. On page 0 (welcome), back is unhandled so the system
+    // default applies and the user can exit the app to the launcher.
+    BackHandler(enabled = pagerState.currentPage > 0) {
+        scope.launch { pagerState.animateScrollToPage(pagerState.currentPage - 1) }
+    }
 
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Box(modifier = Modifier.fillMaxSize()) {
@@ -252,11 +259,16 @@ fun PermissionsPage(onComplete: () -> Unit) {
         notificationsGranted = granted
     }
 
-    // Poll notification access while this page is visible (user may return from Settings)
+    // Poll notification access while this page is visible (user may return from Settings).
+    // Synchronous system setting reads are dispatched off Main to avoid frame drops.
     LaunchedEffect(Unit) {
         while (true) {
-            notificationAccessGranted = PermissionUtils.isNotificationServiceEnabled(context)
-            batteryOptDisabled = powerManager?.isIgnoringBatteryOptimizations(context.packageName) == true
+            val (notif, battery) = withContext(Dispatchers.IO) {
+                PermissionUtils.isNotificationServiceEnabled(context) to
+                    (powerManager?.isIgnoringBatteryOptimizations(context.packageName) == true)
+            }
+            notificationAccessGranted = notif
+            batteryOptDisabled = battery
             delay(1000)
         }
     }

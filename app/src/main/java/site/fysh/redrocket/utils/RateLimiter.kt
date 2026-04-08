@@ -3,6 +3,7 @@ package site.fysh.redrocket.utils
 import android.os.SystemClock
 import android.util.Log
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.yield
 import java.util.concurrent.atomic.AtomicLong
 
 /**
@@ -21,8 +22,11 @@ class RateLimiter {
             val last = lastSendTimestamp.get()
             val timeSinceLastSend = currentTime - last
             if (timeSinceLastSend >= requiredDelay) {
-                // CAS: only one coroutine wins the slot - others loop and re-check
+                // CAS: only one coroutine wins the slot
                 if (lastSendTimestamp.compareAndSet(last, currentTime)) break
+                // CAS lost — yield so we don't busy-spin and starve the IO dispatcher
+                // when many coroutines contend for the slot in MULTI_THREADED mode.
+                yield()
             } else {
                 val sleepTime = requiredDelay - timeSinceLastSend
                 Log.v(TAG, "Rate limiting: Sleeping for ${sleepTime}ms")

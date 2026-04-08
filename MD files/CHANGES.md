@@ -2,6 +2,121 @@
 
 ---
 
+## Session: 2026-04-08 (v2.0.9 — Exhaustive audit: crashes, reliability, accessibility, branding)
+
+### AndroidManifest.xml — `<queries>` block added for OEM cell broadcast detection
+- Android 11+ package visibility rules silently returned empty results from `PackageManager.queryBroadcastReceivers()` without either `QUERY_ALL_PACKAGES` or a `<queries>` declaration. This defeated Layer 2 of `EmergencyPackageDetector` on every Android 11+ device — runtime OEM detection found nothing. Added a `<queries>` block declaring the five cell broadcast intent actions (`SMS_CB_RECEIVED`, `SMS_EMERGENCY_CB_RECEIVED`, `CMAS_RECEIVED`, `ETWS_RECEIVED`, `android.cellbroadcast.action.SMS_CB_RECEIVED`) so receiver queries now return real results without requiring the broad `QUERY_ALL_PACKAGES` permission.
+
+### AndroidManifest.xml + service/BootReceiver.kt — BootReceiver now exported + OEM quickboot actions
+- `BootReceiver` was declared `exported="false"`. On stock Android this is fine, but MIUI/HyperOS has been observed to silently drop `BOOT_COMPLETED` delivery to non-exported receivers. Changed to `exported="true"` (the intent is still protected by the system's signature-level broadcast permission) and added the Huawei and HTC quickboot actions (`com.huawei.intent.action.QUICKBOOT_POWERON`, `com.htc.intent.action.QUICKBOOT_POWERON`) so fast-boot devices also trigger early app init.
+
+### ui/ScenarioDropdown.kt — rename dialog NPE crash
+- The confirm-button lambda used `onRenameScenario(renamingScenarioId!!, newName)`. The outer `if (renamingScenarioId != null)` was a snapshot-time check — the value could be cleared by a concurrent recomposition before the user tapped Rename, causing a NullPointerException. Captured the id into a `val capturedRenamingId` outside the lambda so the confirm path can never see a null.
+
+### ui/RecipientsInput.kt — contact picker crash on OEM ROMs
+- `cursor.getColumnIndex()` returns -1 when the column is missing (observed on some Samsung/Xiaomi contact providers). `cursor.getString(-1)` throws `IllegalArgumentException`, crashing the entire contact picker. Added index guards (`if (nameIndex >= 0 && numberIndex >= 0)`) and null-safety on the results so the picker skips malformed rows and still loads everything else.
+
+### ui/RecipientsInput.kt — duplicate recipient in different phone formats
+- Duplicate-check was `recipients.none { it.phoneNumber == number }` using raw string equality. A user entering the same number as `5551234567` and then `+15551234567` would add both as separate recipients — causing the same person to receive duplicate emergency SMS during a real event. Now both sides of the comparison run through `normalizePhone(number, effectiveRegion)` so canonicalized forms match.
+
+### ui/RecipientsInput.kt — `+` admitted anywhere after a leading one
+- The comma-commit filter used `raw.filter { it.isDigit() || (it == '+' && raw.indexOf(it) == 0) }`. `indexOf` always returns the first occurrence, so a string like `+123+456` passed all three `+` character checks as "at index 0". Replaced with `forEachIndexed` so only position 0 can contain `+`.
+
+### ui/PermissionHandler.kt — dead stub composable deleted
+- `PermissionHandler()` was a composable with private `showRationale` state that nothing ever set to `true`. It emitted nothing and responded to nothing. `MainActivity` called it once on the post-setup path, doing nothing. Either retired code or a silent regression. Deleted the file; removed the call from `MainActivity`.
+
+### utils/RateLimiter.kt — CAS spin loop starved IO dispatcher
+- The rate-limit wait loop busy-spun on CAS failure with no `yield()`. In MULTI_THREADED mode with many concurrent coroutines, losers would burn Dispatchers.IO threads at full speed, starving other critical I/O work (DB writes, logs). Added `kotlinx.coroutines.yield()` on CAS failure so losing coroutines cooperate with the dispatcher.
+
+### service/EmergencyNotificationListener.kt — orphaned PastAlert row on scenario load timeout
+- `insertAlertAndGetId()` ran unconditionally at line 141, then `getAllScenariosOnce()` ran with a 5-second timeout. On timeout, the function returned without ever calling `updateScenariosTriggered()`, leaving a ghost `PastAlert` row in Alert History with `scenariosTriggered = ""`. Now back-filled with `[scenario load timed out]` on the timeout path so the row is at minimum labelled.
+
+### util/UpdateChecker.kt — IOException on non-2xx HTTP responses
+- `HttpURLConnection.inputStream` throws `IOException` on any non-2xx response (403 rate limit, 404 missing tag, 5xx server error). Both `checkForUpdate()` and `fetchReleaseNotes()` read `inputStream` without first checking `responseCode`, so every error was swallowed as a generic IOException with no actionable diagnostic. Added an explicit `responseCode !in 200..299` check before reading, logging the real status code so GitHub rate limits become diagnosable.
+
+### utils/DebugSimulator.kt — load test starts in contaminated state
+- `runLoadTest()` called `queueManager.clearQueue()` and `clearStats()` but did not reset `adaptiveController` or `rateLimiter`. A prior emergency send could leave the controller in SEQUENTIAL/LAZARUS mode or the rate limiter with a recent timestamp, producing meaningless throughput numbers for the developer. Now resets both before enqueueing the test recipients.
+
+### utils/MockSmsSender.kt — documented caller failure contract
+- Retry exhaustion returns `false` without calling any queue manager method. This is correct (caller `EmergencySendingService.processQueue` handles the failure via `handleFailure()`) but was undocumented, leaving the contract implicit. Added a block comment making the parity with production `SmsSender` explicit.
+
+### ui/ResponseDashboard.kt — `isCurrentlyListening` stale local mirror
+- A separate `var isCurrentlyListening` was updated inside a 1-second ticker coroutine. Between ticks, any recomposition that read this var could see a value contradicting the live `listenStartTimeFlow` StateFlow. Derived `isCurrentlyListening` directly from the StateFlow so it can never contradict the source of truth.
+
+### ui/ResponseDashboard.kt — unbounded `forEach` inside single LazyColumn item
+- The "Waiting for reply" section rendered `noResponseRecipients.forEach { Row(...) }` inside a single `LazyColumn item { }`. This defeated virtualization — a 100-recipient scenario measured 100 Rows on every recomposition. Capped visible rows at 20 with a "+ N more" indicator, eliminating the synchronous measure pass.
+
+### ui/MessageInput.kt — unbounded file read OOM risk
+- The upload button used `inputStream.bufferedReader().use { it.readText() }` which reads the entire file into memory before `take(1600)` discards the rest. A user selecting a 50 MB log file would OOM the app. Bounded the read at the stream level to 8 KB using `Reader.read(CharArray, 0, 8192)` so huge files are safely truncated at source.
+
+### ui/SwipeToConfirm.kt — thumb could escape track on first frame
+- The drag clamp used `coerceIn(0f, if (maxOffset > 0f) maxOffset else 10000f)`. On the very first frame before `onGloballyPositioned` had fired, `maxOffset` was 0 and the upper bound became 10000 pixels, allowing the thumb to fly off-screen. Changed the fallback to `0f` so the thumb stays put until the layout is measured.
+
+### util/RegionSettings.kt — non-atomic setUserRegion
+- `setUserRegion()` wrote the `@Volatile userRegion` field and `_userRegionFlow.value` in two separate non-atomic operations. Concurrent callers could briefly leave the field and the StateFlow inconsistent, making `effectiveRegion` and `userRegionFlow` diverge. Wrapped both writes in `synchronized(RegionSettings::class.java)` to match the `init()` pattern.
+
+### utils/AppLogger.kt — caller scope drop risk
+- `log()` accepted a `CoroutineScope` parameter and launched inside it. Current call sites all pass `app.appScope` (application-lifetime), but a future caller using a short-lived scope would silently drop log writes mid-insert. Added an internal `loggerScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)` that owns all launches. The scope parameter is retained for backwards compatibility but no longer determines the launch lifetime.
+
+### util/EmergencyPackageDetector.kt — MATCH_ALL flag SecurityException + duplicate package
+- `PackageManager.MATCH_ALL` is documented as requiring special privileges and has been observed to throw `SecurityException` on hardened ROMs. Switched to flags=0 (the `<queries>` block already grants visibility on API 30+). Also split the generic `catch (Exception)` into a distinct `catch (SecurityException)` so ROM restrictions are diagnosable in logcat. Removed `com.oplus.cellbroadcastreceiver` duplicate entry (present in both `ONEPLUS_PACKAGES` and `REALME_PACKAGES`).
+
+### ui/SendDialogs.kt — AbuseLockoutDialog countdown double-driven
+- `var secsLeft by remember(secondsRemaining) { ... }` AND `LaunchedEffect(secondsRemaining)` both used `secondsRemaining` as the key. A parent that passed a live-ticking value would hard-reset `secsLeft` on every tick while the effect also restarted the loop, causing the countdown to stutter or jump backward. Removed the `remember(secondsRemaining)` key dependency so the LaunchedEffect is the single source of truth.
+
+### ui/LogsDialog.kt — Main-thread join on unbounded log list
+- "Copy logs" ran `logs.joinToString` synchronously on the Main thread. For hundreds of entries this caused a visible frame drop on the click. Moved the join to `withContext(Dispatchers.Default)` via a `rememberCoroutineScope()`.
+
+### ui/PastAlertsDialog.kt — LazyColumn items missing stable key
+- `items(alerts)` had no `key` lambda. When alerts were cleared, Compose remapped items by position, losing the `expanded` state on each `PastAlertCard`. Added `key = { it.id }` so expanded state is stable across list changes.
+
+### ui/SettingsDialog.kt — nested `it` lambda shadow + test-send validation
+- `simCount.onValueChange = { simCount = it.copy(text = it.text.filter { it.isDigit() }) }` had three nested `it` parameters shadowing each other (outer `it` is TextFieldValue, innermost `it` is Char). Compiled correctly but was a maintenance trap. Renamed the outer parameter to `newValue` and the Char to `c`. Also added digit-count validation to the test-send dialog: Send button is now only enabled when the phone number has 7–15 digits, matching `RecipientsInput`'s minimum.
+
+### ui/FirstLaunchScreen.kt — Main-thread polling + back-button trap
+- The 1-second polling loop called `PermissionUtils.isNotificationServiceEnabled()` and `powerManager.isIgnoringBatteryOptimizations()` on the Main dispatcher. Both are synchronous system-settings reads and can block briefly under memory pressure. Wrapped in `withContext(Dispatchers.IO)`. Also replaced `BackHandler {}` (which silently trapped the user on the first-launch screen) with `BackHandler(enabled = currentPage > 0) { scrollToPage(currentPage - 1) }` so back navigates to the previous page and exits to launcher on page 0.
+
+### util/PhoneUtils.kt + util/SmsUtils.kt — known-limitation documentation
+- Added inline documentation for the AU landline subscriber-length limitation (hardcoded to 9, correct for mobiles but wrong for the 8-digit landline format) and the ZWJ emoji code-unit vs grapheme-cluster mismatch in SMS character counting.
+
+### queue/AdaptiveSendController.kt — documented non-atomic reportResult
+- `reportResult()` reads `_currentState.value`, checks, and writes in a non-atomic sequence. Two concurrent failure reports could both observe MULTI_THREADED and both transition to SEQUENTIAL, double-resetting counters. Added a doc block noting this is accepted because transitions are idempotent — the second call is a no-op semantically.
+
+### ui/MessageInput.kt — Cancel button behaviour inconsistency
+- The "Cancel" TextButton called `onDismiss` directly, discarding edits, while the sheet's own `onDismissRequest` called `saveAndDismiss()`. Users swiping down saved; users tapping Cancel lost their edits. Renamed to "Close" and routed to `saveAndDismiss()` so both paths are consistent.
+
+### ui/MainScreen.kt + ui/ResponseDashboard.kt — seizure-risk pulse animations slowed
+- Three infinite pulse animations were running at 400–600ms tweens (1.25 Hz to 0.83 Hz) with wide alpha ranges. While below the 3 Hz photosensitive epilepsy threshold, a user with photosensitivity flagged the flashing as uncomfortable. Slowed all three: debug mode banner (600ms → 2200ms, alpha 0.82–1.0 → 0.90–1.0), urgent pulse (600ms → 1800ms, alpha 0.5 → 0.75), and status pulse (400/800ms → 1400/1800ms, alpha 0.4 → 0.60). All now well below 0.5 Hz with narrower contrast ranges.
+
+### res + ui/MainActivity.kt — splash screen (Android 12+) added
+- No splash screen was configured. On cold start, the system fell back to a default window background while the Compose layout inflated. Added `androidx.core:core-splashscreen:1.0.1`, `Theme.SplashScreen` parent theme, `installSplashScreen()` in `MainActivity.onCreate`, and `splash_logo.xml` (an inset drawable wrapping `red_rocket_logo.png` at 52dp inset for Android 12's 288dp splash canvas). Cold start now shows the Red Rocket logo on the red brand background.
+
+### res/mipmap/ + res/drawable/ — adaptive launcher icon rework to match in-app logo
+- The launcher icon used `ic_launcher_foreground.png` (a red splash circle with rocket) on a solid `#E53935` background — producing a washed-out red-on-red composition when masked. The in-app welcome logo used a completely different image (`red_rocket_logo.png`, a solid red square with rocket and "Red Rocket" text), so what the user saw on the launcher didn't match what they saw inside the app. Reworked the adaptive icon: new `drawable/ic_launcher_foreground_new.xml` (inset drawable wrapping `red_rocket_logo.png` at 16dp inset for the 108dp adaptive canvas) referenced from both `mipmap-anydpi-v26/` and `mipmap-anydpi/` adaptive icon XMLs. Background restored to `#E53935` so the mask bleeds seamlessly into the logo's own red square. Launcher icon, splash screen, and in-app welcome logo are now the same image.
+
+### ui/MainViewModel.kt — sendTestMessage / clearQueue race with service teardown
+- `sendTestMessage()` only checked `isSending` before calling `queueManager.clearQueue()`. But `dismissSuccessPopup()` sets `isSending = false` before `EmergencySendingService.stopService()` completes, leaving a window where `isSending == false` while the service's `processQueue()` coroutine is still active. A test send fired in that window would atomically destroy the in-flight task list mid-send. Added an explicit `EmergencySendingService.stopService(app)` call before `clearQueue()` so the service is torn down regardless of `isSending` state.
+
+### ui/MainViewModel.kt — onAddScenario currentScenario divergence
+- After inserting a new scenario, the `getAllScenarios()` Flow collector in `init` emits on a different coroutine and updates `currentScenario` using `cachedLastScenarioId`, which still points to the OLD scenario. The newly-created scenario was selected inside `onAddScenario()`, but the Flow collector could race and overwrite it with the first scenario. Set `cachedLastScenarioId = newScenario.id` BEFORE the insert so the collector picks up the correct scenario when it emits.
+
+### service/SmsResponseReceiver.kt — isListening() check not atomic with processing
+- `onReceive()` called `isListening()` once at the top, then launched a coroutine via `goAsync()`. `stopListening()` could fire on a concurrent Binder thread in between, allowing one spurious response record to be written after the user manually stopped listening. Added a second `isListening()` check at the top of the coroutine body so stop-between-check-and-launch is caught.
+
+### queue/MessageQueueManager.kt — nextTask TOCTOU drained retry queue
+- `nextTask()` polled `primaryQueue.poll() ?: retryQueue.poll()` as a fallback. The `EmergencySendingService` only called it when `primarySize > 0`, but between the status snapshot and the poll, primary could drain to zero and `nextTask()` would fall through to the retry queue — processing a retry task outside `LazarusRetrySystem`, bypassing the 5-second inter-pass delay and "Keep Trying" check. Removed the retry queue fallback; `nextTask()` now only polls primary.
+
+### ui/MainScreen.kt — collectAsState called in argument position
+- Three `collectAsState()` calls were nested inside another composable's argument list instead of being hoisted to the top of `MainScreen`. This created new StateFlow subscriptions on every recomposition instead of once. Hoisted `blockPhrases`, `userRegion`, and `detectedRegion` to the top of the function alongside the other collections.
+
+### ui/MainScreen.kt — BroadcastReceiver Activity-context leak risk
+- The power-save mode receiver was registered against `LocalContext.current` (the Activity). Compose's `DisposableEffect` guarantees `onDispose` runs before re-launch, but an Activity-context registration is fragile around configuration changes. Switched to `context.applicationContext` to decouple the receiver lifetime from the Activity.
+
+### ui/MainViewModel.kt — undoStack thread-contract comment
+- `undoStack: ArrayDeque<Scenario>` is accessed from multiple public methods that currently all run on the Main dispatcher, but this was not enforced or documented. Added a Main-thread-only contract comment making the constraint explicit so a future refactor does not silently corrupt the stack.
+
+---
+
 ## Session: 2026-04-08 (v2.0.8 — Production hardening + UX polish)
 
 ### service/EmergencyBroadcastReceiver.kt + service/EmergencyNotificationListener.kt — alertSensitivity DataStore read timeout

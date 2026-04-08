@@ -29,11 +29,15 @@ fun BrowserTabBar(
     onTabSelected: (Int) -> Unit,
     hasUnreadResponses: Boolean,
     onSettingsClick: () -> Unit,
-    onDashboardTabPositioned: ((LayoutCoordinates) -> Unit)? = null
+    onDashboardTabPositioned: ((LayoutCoordinates) -> Unit)? = null,
+    onTabBarPositioned: ((LayoutCoordinates) -> Unit)? = null
 ) {
     Surface(
         color = MaterialTheme.colorScheme.surfaceVariant,
-        tonalElevation = 4.dp
+        tonalElevation = 4.dp,
+        modifier = if (onTabBarPositioned != null)
+            Modifier.onGloballyPositioned { onTabBarPositioned(it) }
+        else Modifier
     ) {
         Column {
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f), thickness = 1.dp)

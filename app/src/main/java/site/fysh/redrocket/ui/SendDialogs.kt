@@ -26,9 +26,12 @@ fun AbuseLockoutDialog(
     onOverride: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    var secsLeft by remember(secondsRemaining) { mutableLongStateOf(secondsRemaining) }
+    // Initialise once. The LaunchedEffect is the single source of truth for the
+    // countdown — using `remember(secondsRemaining)` here would hard-reset secsLeft on
+    // every parent recomposition that passes a new value, fighting the local decrement.
+    var secsLeft by remember { mutableLongStateOf(secondsRemaining) }
     LaunchedEffect(secondsRemaining) {
-        secsLeft = secondsRemaining
+        secsLeft = secondsRemaining   // sync on entry / when parent passes a new value
         while (secsLeft > 0) {
             delay(1_000L)
             secsLeft = (secsLeft - 1).coerceAtLeast(0L)

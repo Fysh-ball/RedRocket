@@ -32,6 +32,11 @@ fun normalizePhone(number: String): String {
 /**
  * Region-aware overload. See normalizePhone(String) for full documentation.
  * regionCode is ISO 3166-1 alpha-2 (e.g. "US", "AU", "GB") from RegionSettings.effectiveRegion.
+ *
+ * Known limitation: AU/NZ subscriber length is hardcoded to 9, which is correct for
+ * mobiles (the primary target for emergency SMS) but is wrong for AU landlines whose
+ * subscriber portion is 8 digits (e.g. "02 XXXX XXXX"). A proper fix requires libphonenumber.
+ * Landlines are out of scope for the SMS-based emergency flow.
  */
 fun normalizePhone(number: String, regionCode: String): String {
     val digits = number.filter { it.isDigit() }

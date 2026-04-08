@@ -401,7 +401,9 @@ fun SettingsDialog(
                                     }
                                     OutlinedTextField(
                                         value = simCount,
-                                        onValueChange = { simCount = it.copy(text = it.text.filter { it.isDigit() }) },
+                                        onValueChange = { newValue ->
+                                            simCount = newValue.copy(text = newValue.text.filter { c -> c.isDigit() })
+                                        },
                                         label = { Text("Simulation Batch Size") },
                                         modifier = Modifier.fillMaxWidth(),
                                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -509,16 +511,20 @@ fun SettingsDialog(
                 }
             },
             confirmButton = {
+                // Validate digit count to match RecipientsInput's 7..15 range so the
+                // user gets the same feedback in both code paths.
+                val phoneDigitsCount = testPhoneInput.text.filter { it.isDigit() }.length
+                val phoneValid = phoneDigitsCount in 7..15
                 Button(
                     onClick = {
                         val phone = testPhoneInput.text.trim()
-                        if (phone.isNotBlank()) {
+                        if (phoneValid) {
                             onSendTestMessage(phone)
                             showTestSendDialog = false
                             testPhoneInput = TextFieldValue("")
                         }
                     },
-                    enabled = testPhoneInput.text.trim().isNotBlank()
+                    enabled = phoneValid
                 ) {
                     Text("Send")
                 }
@@ -738,7 +744,7 @@ private fun UserManualSection(onReplayTutorial: () -> Unit) {
         ) {
             Icon(Icons.Default.Info, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(12.dp))
-            Text("Re-run Setup Tutorial", fontWeight = FontWeight.Bold)
+            Text("Setup Tutorial", fontWeight = FontWeight.Bold)
         }
 
         HorizontalDivider(

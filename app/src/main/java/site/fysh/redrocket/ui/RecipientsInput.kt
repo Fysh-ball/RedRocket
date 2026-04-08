@@ -5,6 +5,8 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.ContactsContract
+import site.fysh.redrocket.util.normalizePhone
+import site.fysh.redrocket.util.RegionSettings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import kotlinx.coroutines.Dispatchers
@@ -165,7 +167,12 @@ fun RecipientsInput(
     if (showAddSheet) {
         RecipientAddSheet(
             onAdd = { number ->
-                if (recipients.none { it.phoneNumber == number }) {
+                // Normalize before duplicate check so "+15550001234" and "15550001234"
+                // are recognized as the same recipient. Otherwise the same person
+                // could be added twice and would receive duplicate emergency SMS.
+                val region = RegionSettings.effectiveRegion
+                val normalizedNew = normalizePhone(number, region)
+                if (recipients.none { normalizePhone(it.phoneNumber, region) == normalizedNew }) {
                     onAddRecipients(listOf(Recipient("", number)))
                 }
             },
@@ -220,7 +227,14 @@ private fun RecipientAddSheet(
                 onValueChange = { newValue ->
                     if (newValue.text.endsWith(",")) {
                         val raw = newValue.text.removeSuffix(",")
-                        val filtered = raw.filter { it.isDigit() || (it == '+' && raw.indexOf(it) == 0) }.trim()
+                        // Use forEachIndexed so '+' is only allowed at index 0.
+                        // raw.indexOf('+') always returns the FIRST '+' position, so the
+                        // previous filter let any subsequent '+' through if a leading one existed.
+                        val filtered = buildString {
+                            raw.forEachIndexed { i, c ->
+                                if (c.isDigit() || (c == '+' && i == 0)) append(c)
+                            }
+                        }.trim()
                         if (filtered.length in 7..15) {
                             onAdd(filtered)
                         }
@@ -325,10 +339,15 @@ fun MultiContactPickerDialog(
             cursor?.use {
                 val nameIndex = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME)
                 val numberIndex = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
-                while (it.moveToNext()) {
-                    val name = it.getString(nameIndex)
-                    val number = it.getString(numberIndex).replace(" ", "").replace("-", "")
-                    tempContacts.add(Recipient(name, number))
+                // getColumnIndex returns -1 if the column is missing (some OEM ROMs).
+                // getString(-1) throws IllegalArgumentException, so abort gracefully.
+                if (nameIndex >= 0 && numberIndex >= 0) {
+                    while (it.moveToNext()) {
+                        val name = it.getString(nameIndex) ?: continue
+                        val rawNumber = it.getString(numberIndex) ?: continue
+                        val number = rawNumber.replace(" ", "").replace("-", "")
+                        tempContacts.add(Recipient(name, number))
+                    }
                 }
             }
             tempContacts.distinctBy { it.phoneNumber }

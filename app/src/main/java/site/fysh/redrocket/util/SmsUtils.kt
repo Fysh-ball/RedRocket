@@ -33,7 +33,13 @@ fun smsStats(message: String): SmsStats {
             char in GSM7_BASIC    -> units += 1
             else -> {
                 // Character outside GSM-7 — entire message switches to Unicode (UCS-2)
-                val len = message.length  // surrogate pairs already count as 2 in length
+                // `units` represents UTF-16 code units, not user-perceived grapheme clusters.
+                // Surrogate pairs (basic emoji) already count as 2 in String.length, which is
+                // correct for SMS billing. ZWJ sequences (e.g. family emoji 👨‍👩‍👧 = 8 code units
+                // displayed as one glyph) inflate units beyond the visible character count;
+                // this matches what the carrier bills for, but may surprise users reading the
+                // UI counter.
+                val len = message.length
                 val parts = if (len <= 70) 1 else ceil(len / 67.0).toInt()
                 val capacity = if (parts == 1) 70 else parts * 67
                 return SmsStats(parts = parts, units = len, capacity = capacity, isUnicode = true)

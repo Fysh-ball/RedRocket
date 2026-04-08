@@ -7,5 +7,10 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <!-- Adaptive icon background: same bright red as the in-app logo's square
+         so the adaptive mask bleeds seamlessly into the logo's own background. -->
     <color name="ic_launcher_background">#E53935</color>
+    <!-- Splash screen background matches the adaptive icon so the pre-launch
+         splash reads as an extension of the launcher icon, not a separate screen. -->
+    <color name="splash_background">#E53935</color>
 </resources>

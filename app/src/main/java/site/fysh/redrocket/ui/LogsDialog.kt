@@ -16,6 +16,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import site.fysh.redrocket.model.LogEntry
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -28,6 +31,7 @@ fun LogsDialog(
 ) {
     val timeFormat = remember { SimpleDateFormat("HH:mm:ss", Locale.getDefault()) }
     val clipboardManager = LocalClipboardManager.current
+    val scope = rememberCoroutineScope()
     var showClearConfirm by remember { mutableStateOf(false) }
 
     Dialog(
@@ -102,10 +106,16 @@ fun LogsDialog(
                                 Text("Clear", fontWeight = FontWeight.SemiBold)
                             }
                             TextButton(onClick = {
-                                val text = logs.joinToString("\n\n") { entry ->
-                                    "[${timeFormat.format(Date(entry.timestamp))}] ${entry.eventTypeLabel()}\n${entry.description}"
+                                // Move the joinToString off Main — for hundreds of entries the
+                                // synchronous join causes visible jank on the click.
+                                scope.launch {
+                                    val text = withContext(Dispatchers.Default) {
+                                        logs.joinToString("\n\n") { entry ->
+                                            "[${timeFormat.format(Date(entry.timestamp))}] ${entry.eventTypeLabel()}\n${entry.description}"
+                                        }
+                                    }
+                                    clipboardManager.setText(AnnotatedString(text))
                                 }
-                                clipboardManager.setText(AnnotatedString(text))
                             }) {
                                 Text("Copy")
                             }

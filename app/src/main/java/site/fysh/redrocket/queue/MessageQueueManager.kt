@@ -102,7 +102,11 @@ class MessageQueueManager {
     }
 
     suspend fun nextTask(): MessageTask? = mutex.withLock {
-        val task = primaryQueue.poll() ?: retryQueue.poll()
+        // Only poll from the primary queue. The retry queue is managed exclusively by
+        // LazarusRetrySystem via nextRetryTask(). Falling back to retryQueue here would
+        // allow a race (status.primarySize snapshot vs actual poll) to bypass the Lazarus
+        // inter-pass delay and "Keep Trying" logic.
+        val task = primaryQueue.poll()
         if (task != null) {
             inFlightCount++
             Log.d(TAG, "Polling next task for ${task.recipient.phoneNumber}. In-flight: $inFlightCount")

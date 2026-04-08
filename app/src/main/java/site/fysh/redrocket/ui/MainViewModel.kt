@@ -98,6 +98,9 @@ class MainViewModel(
     private val _countdownTickFlow = MutableSharedFlow<Int>(extraBufferCapacity = 1)
     val countdownTickFlow: SharedFlow<Int> = _countdownTickFlow.asSharedFlow()
 
+    // Main-thread-only — all access points (onDeleteGroup, onDeleteGroups, onUndo,
+    // showUndoPopup) run on viewModelScope which defaults to Dispatchers.Main.
+    // Never access from a background dispatcher.
     private val undoStack = ArrayDeque<Scenario>()
     @Volatile private var sendStartTime: Long = 0
     @Volatile private var lastTestSendTime: Long = 0
@@ -500,6 +503,11 @@ class MainViewModel(
                 orderIndex = _uiState.value.scenarios.size,
                 groups = listOf(Group(name = "Default"))
             )
+            // Cache the new ID before the insert so the getAllScenarios() Flow collector
+            // picks up the correct scenario when it emits in response to the insert.
+            // Without this, the collector would still see the old cachedLastScenarioId and
+            // select a different scenario, which our subsequent update() would then race against.
+            cachedLastScenarioId = newScenario.id
             scenarioDao.insertScenario(newScenario)
             _uiState.update { it.copy(currentScenario = newScenario) }
             settings.setLastScenarioId(newScenario.id)
@@ -1302,6 +1310,12 @@ class MainViewModel(
             // Note: "test-send-<uuid>" IDs are transient and have no matching Scenario entity.
             // Responses to test messages are intentionally dropped by SmsResponseReceiver.
             adaptiveController.reset()
+            // Stop the service before clearing the queue. isSending may have become false
+            // while the service is still winding down (dismissSuccessPopup sets isSending=false
+            // after sending the stop intent). Stopping here is idempotent and ensures the
+            // service's processQueue() coroutine is not holding live references into the queue
+            // we are about to repopulate.
+            EmergencySendingService.stopService(app)
             app.queueManager.clearQueue()
             app.queueManager.enqueueScenario(listOf(recipient), message, "test-send-${UUID.randomUUID()}")
             EmergencySendingService.startService(app)
