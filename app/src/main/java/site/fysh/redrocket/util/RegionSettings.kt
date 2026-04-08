@@ -49,14 +49,17 @@ object RegionSettings {
      * Safe to call multiple times - subsequent calls are no-ops.
      */
     fun init(context: Context) {
-        if (prefs != null) return
-        val p = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        prefs = p
-        detectedRegion = RegionDetector.detect(context)
-        _detectedRegionFlow.value = detectedRegion
-        val saved = p.getString(KEY_USER_REGION, "") ?: ""
-        userRegion = saved
-        _userRegionFlow.value = saved
+        if (prefs != null) return  // fast path — no lock needed for initial null check
+        synchronized(RegionSettings::class.java) {
+            if (prefs != null) return  // re-check under lock
+            val p = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            detectedRegion = RegionDetector.detect(context)
+            _detectedRegionFlow.value = detectedRegion
+            val saved = p.getString(KEY_USER_REGION, "") ?: ""
+            userRegion = saved
+            _userRegionFlow.value = saved
+            prefs = p  // assign last so fast-path check is safe
+        }
     }
 
     /**

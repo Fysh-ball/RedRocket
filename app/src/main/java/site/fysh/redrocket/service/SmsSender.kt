@@ -19,6 +19,8 @@ import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.resume
@@ -37,6 +39,7 @@ class SmsSender(
 
     private val TAG = "SmsSender"
     private val requestCounter = AtomicInteger(1000)
+    private val timeFormatter = DateTimeFormatter.ofPattern("h:mm a")
 
     override suspend fun send(task: MessageTask): Boolean = withContext(Dispatchers.IO) {
         // Runtime permission check - SEND_SMS must be granted before each attempt.
@@ -66,8 +69,7 @@ class SmsSender(
             return@withContext false
         }
 
-        val timestamp = java.text.SimpleDateFormat("h:mm a", java.util.Locale.getDefault())
-            .format(java.util.Date())
+        val timestamp = LocalTime.now().format(timeFormatter)
         val responseInstructions = "\n\nReply:\n1 = Safe\n2 = Safe, want updates\n3 = EMERGENCY\n\nAUTO MESSAGE SENT AT $timestamp"
         val fullMessage = task.message + responseInstructions
 

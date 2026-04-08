@@ -13,7 +13,9 @@ data class Recipient(
      */
     fun isValid(): Boolean {
         val cleanNumber = phoneNumber.replace(Regex("[^0-9+]"), "")
-        if (cleanNumber.length < 7) return false
+        // Count digits only — the '+' prefix must not contribute to the minimum digit threshold
+        val digitCount = cleanNumber.count { it.isDigit() }
+        if (digitCount < 7) return false
         val plusCount = cleanNumber.count { it == '+' }
         // + is only valid as an international prefix (at position 0), never mid-number
         return plusCount == 0 || (plusCount == 1 && cleanNumber.startsWith("+"))

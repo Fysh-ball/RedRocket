@@ -4,6 +4,22 @@ Public-facing release notes for each version. These are what users see on GitHub
 
 ---
 
+## v2.0.6 — Reliability and Correctness Fixes (2026-04-07)
+
+### Bug Fixes
+
+- **Fixed duplicate sends when both a cell broadcast and notification trigger fire simultaneously:** During a real emergency, it is possible for the same alert to arrive through two paths at once. Both paths now use an atomic database lock — only one path enqueues messages, the other detects the race and skips. This prevents every recipient from receiving two copies of the alert.
+- **Fixed duplicate sends if an emergency alert fires during the 4-second manual send countdown:** If a real alert triggered while the countdown was running, both the auto-trigger and the manual send could enqueue independently. The manual send now uses the same atomic lock as auto-triggers.
+- **Fixed message sending engine starting in degraded mode on resend:** Resending to failed contacts now always starts in full-speed mode, regardless of the state from the previous send session.
+- **Fixed active reply-listening window lost on app restart:** If you configured a listen window longer than 1 hour, the app would incorrectly treat the window as expired after restarting, missing any replies that arrived after the restart.
+- **Fixed sending service silently failing after a system restart under memory pressure:** On low-memory devices, Android can kill and restart background services. On restart, the service's internal job scope was in a cancelled state and would silently do nothing when trying to resume sending. This is now detected and corrected on startup.
+- **Fixed phone number validation accepting 6-digit numbers with a country prefix:** A number like `+12345` (6 digits) would pass the 7-digit minimum because the `+` sign was counted as a character. The check now counts digits only.
+- **Fixed the sending countdown not completing if the app was backgrounded:** If the app was sent to the background during the 4-second countdown, the ViewModel could be destroyed and the actual message enqueue would be silently cancelled. The enqueue step is now protected from cancellation.
+- **Fixed anti-spam tracker state corruption on rapid taps:** The force-send abuse tracker was not thread-safe. A rapid double-tap that raced through the sending guard could read and write the point total simultaneously, potentially corrupting the lockout state.
+- **Fixed HTTP connection not being released after update check:** The network socket used for checking for updates was not explicitly closed after use, which could delay socket pool reuse on poor connections.
+
+---
+
 ## v2.0.5 — Accessibility and Usability Improvements (2026-04-07)
 
 ### Improvements

@@ -2,6 +2,53 @@
 
 ---
 
+## Session: 2026-04-07 (v2.0.6 — Deep audit fixes: concurrency, correctness, reliability)
+
+### service/EmergencyBroadcastReceiver.kt — CancellationException no longer swallowed
+- Added `catch (e: CancellationException) { throw e }` before the broad exception handler, matching the pattern already in SmsResponseReceiver. Coroutine cancellation signals were previously silently discarded.
+
+### service/EmergencyBroadcastReceiver.kt + service/EmergencyNotificationListener.kt — atomic scenario locking
+- Both trigger paths now use `scenarioDao.lockIfUnlocked()` instead of `insertScenario(copy(isLocked=true))`. If a cell broadcast and a notification listener event fire within milliseconds of each other (same WEA alert triggering both), only one path wins the atomic SQL UPDATE and enqueues messages. The other path sees 0 rows updated and skips — preventing duplicate sends to all recipients.
+
+### model/ScenarioDao.kt — lockIfUnlocked() added
+- New `@Query("UPDATE scenarios SET isLocked = 1 WHERE id = :id AND isLocked = 0")` DAO method returns rows affected, enabling atomic conditional locking across concurrent trigger paths.
+
+### ui/MainViewModel.kt — manual-send countdown locking race closed
+- `executeSend()` now uses `scenarioDao.lockIfUnlocked()` instead of `insertScenario(copy(isLocked=true))` when locking scenarios at tick 0. If an auto-trigger fires during the 4-second countdown, the countdown no longer also enqueues the same scenario — preventing duplicate sends during a real emergency.
+
+### ui/MainViewModel.kt — resendToRecipients resets adaptive controller
+- `resendToRecipients()` now calls `adaptiveController.reset()` before starting the service. Previously, if a prior send ended in SEQUENTIAL mode, the resend would start at degraded throughput.
+
+### service/ManualSendGuard.kt — enqueue protected against ViewModel cancellation
+- The message enqueue loop is now wrapped in `withContext(NonCancellable)`. If the ViewModel is destroyed during the 4-second countdown (app backgrounded under memory pressure), the enqueue and service start now complete regardless.
+
+### service/SmsResponseReceiver.kt — listen window restored correctly after process death
+- `init()` now reads the user-configured listen hours from SharedPreferences before validating the saved timestamp. Previously, a user who configured a 2 or 3-hour window would have their active window incorrectly expired on process restart because the hardcoded 1-hour default was used for comparison.
+- `setListenWindowHours()` now persists the configured hours to SharedPreferences so `init()` can restore them synchronously on next launch.
+- `init()` uses double-checked locking (`synchronized`) to prevent a race between the main thread and a Binder-thread BootReceiver calling init() concurrently.
+- Notification channel now created once in `init()` instead of on every incoming SMS response (removing a Binder IPC call per response).
+
+### service/EmergencySendingService.kt — survives START_STICKY restart
+- `serviceScope` changed from `val` to `var`. If Android kills and restarts the service under memory pressure, the scope is now recreated at the top of `onStartCommand()` before any coroutines are launched. Previously, launching on the cancelled scope silently failed.
+- Completion notification PendingIntent uses `requestCode = 2` and `FLAG_UPDATE_CURRENT`, distinct from the foreground open-app (requestCode 0) and stop-action (requestCode 1) intents.
+
+### utils/ForceSendAbuseTracker.kt — thread safety
+- All public and private methods annotated `@Synchronized`. Concurrent calls from a rapid double-tap racing through the `isSending` guard could previously corrupt the abuse point total or fire duplicate lockout triggers.
+
+### util/RegionSettings.kt — double-checked locking in init()
+- Same pattern applied as SmsResponseReceiver: `synchronized(RegionSettings::class.java)` with `prefs` assigned last. Prevents double-initialization from concurrent main-thread and Binder-thread callers.
+
+### service/SmsSender.kt — DateTimeFormatter replaces SimpleDateFormat
+- `SimpleDateFormat` is not thread-safe and was constructed fresh per message. Replaced with a class-level `DateTimeFormatter` instance (thread-safe, available from API 26 which matches minSdk).
+
+### util/UpdateChecker.kt — HTTP connection always released
+- `HttpURLConnection.disconnect()` now called in a `finally` block. Previously, any exception before the input stream was opened leaked the underlying socket.
+
+### model/Recipient.kt — isValid() digit count excludes '+' prefix
+- The 7-character minimum was checked against `cleanNumber.length`, which includes the `+` sign. A number like `+12345` (6 digits + prefix) would pass with only 6 actual digits. Fixed to count digits only via `count { it.isDigit() }`.
+
+---
+
 ## Session: 2026-04-07 (v2.0.5 — UX and accessibility improvements)
 
 ### ui/BrowserTabBar.kt — inactive tab contrast improved

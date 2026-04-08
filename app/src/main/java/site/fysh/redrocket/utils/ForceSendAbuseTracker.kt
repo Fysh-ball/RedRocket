@@ -68,6 +68,7 @@ class ForceSendAbuseTracker(context: Context) {
      * Call this when the user successfully passes captcha / confirms a force send.
      * Returns the resulting lockout tier.
      */
+    @Synchronized
     fun recordForceSend(): AbuseLevel {
         applyDecay()
 
@@ -91,6 +92,7 @@ class ForceSendAbuseTracker(context: Context) {
     }
 
     /** Returns current abuse level without modifying state. */
+    @Synchronized
     fun currentAbuseLevel(): AbuseLevel {
         applyDecay()
         return when {
@@ -103,19 +105,23 @@ class ForceSendAbuseTracker(context: Context) {
     }
 
     /** Returns true if a timed lockout is currently active. */
+    @Synchronized
     fun isLocked(): Boolean = System.currentTimeMillis() < lockoutEndTime
 
     /** Remaining lockout seconds, or 0 if not locked. */
+    @Synchronized
     fun lockoutSecondsRemaining(): Long =
         max(0L, (lockoutEndTime - System.currentTimeMillis()) / 1000L)
 
     /** Current raw point value. */
+    @Synchronized
     fun pointsValue(): Int {
         applyDecay()
         return points
     }
 
     /** Number of times the hard lockout has been triggered. */
+    @Synchronized
     fun lockoutCount(): Int = lockoutCount
 
     /**
@@ -123,6 +129,7 @@ class ForceSendAbuseTracker(context: Context) {
      * Resets the lockout timer. Returns false if the override has already been used
      * (it won't be available again until points reach 0).
      */
+    @Synchronized
     fun useOverride(): Boolean {
         if (overrideUsed) return false
         if (!isLocked()) return false
@@ -134,12 +141,14 @@ class ForceSendAbuseTracker(context: Context) {
     }
 
     /** True if the one-time override button should be shown during the current lockout. */
+    @Synchronized
     fun overrideAvailable(): Boolean = isLocked() && !overrideUsed && lockoutCount <= 1
 
     // Private helpers
     /**
      * Applies passive point decay since the last time this was called.
      */
+    @Synchronized
     private fun applyDecay() {
         val now = System.currentTimeMillis()
         val elapsedMs = now - lastDecayTime
@@ -195,6 +204,7 @@ class ForceSendAbuseTracker(context: Context) {
         }
     }
 
+    @Synchronized
     private fun triggerLockout() {
         lockoutCount++
         overrideUsed = false  // Reset override for new lockout
@@ -227,6 +237,7 @@ class ForceSendAbuseTracker(context: Context) {
     }
 
     /** Persists all mutable state to SharedPreferences. */
+    @Synchronized
     private fun persistState() {
         prefs.edit()
             .putInt(KEY_POINTS, points)

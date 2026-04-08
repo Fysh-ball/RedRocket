@@ -198,6 +198,16 @@ class EmergencyNotificationListener : NotificationListenerService() {
                 continue
             }
 
+            // Atomically lock the scenario. If another trigger path (e.g. EmergencyBroadcastReceiver)
+            // already locked it in a concurrent call, rowsUpdated == 0 and we skip to prevent
+            // duplicate sends to all recipients.
+            val rowsUpdated = app.database.scenarioDao().lockIfUnlocked(scenario.id)
+            if (rowsUpdated == 0) {
+                Log.i(TAG, "Scenario '${scenario.name}' already locked by concurrent trigger - duplicate send prevented")
+                continue
+            }
+            Log.i(TAG, "[LOCKOUT] Scenario '${scenario.name}' locked after notification trigger.")
+
             // Trigger this scenario
             Log.i(TAG, "TRIGGERED scenario '${scenario.name}' - enqueuing ${scenario.allRecipients().size} recipient(s)")
             AppLogger.log(app.database, app.appScope, "scenario_triggered",
@@ -210,10 +220,6 @@ class EmergencyNotificationListener : NotificationListenerService() {
                         "Group '${group.name}' - ${group.recipients.size} contact(s) queued")
                 }
             }
-
-            // Lock scenario to prevent re-triggering
-            app.database.scenarioDao().insertScenario(scenario.copy(isLocked = true))
-            Log.i(TAG, "[LOCKOUT] Scenario '${scenario.name}' locked after notification trigger.")
             triggeredNames.add(scenario.name)
             triggeredCount++
         }
