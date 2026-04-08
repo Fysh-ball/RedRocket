@@ -60,6 +60,18 @@ There's a test send option in Settings if you want to verify everything is worki
 
 ---
 
+## Keeping Red Rocket updated
+
+Red Rocket does not send update notifications, by design. The only notification you will ever see from Red Rocket is an active emergency alert, a response from a contact, or the foreground status while it is sending. Everything else, including "a new version is available", is handled quietly inside the app when you next open it.
+
+This is intentional. If Red Rocket pinged you for updates, you would eventually learn to swipe its notifications away without reading them, and the first time a real emergency fired, you might miss it. The app's notification channel has one job.
+
+If you want Red Rocket to update itself automatically the way a Play Store app would, install [**Obtainium**](https://github.com/ImranR98/Obtainium). It is a free, open-source app that watches a list of GitHub repositories for you and installs new APKs in the background. Add this repository to Obtainium once, and you are done. Obtainium handles the version check, the download, and the install. Red Rocket never has to run in the background or ask for extra permissions.
+
+Alternatively, when you open Red Rocket, it checks GitHub once and shows a small banner at the top of the main screen if a newer version is available. Tap it to go to the release page.
+
+---
+
 ## A note
 
 This app was designed and quality tested by me. While I wish I could have written it all myself, current world events makes me believe that this app needed to exist ASAP. While most of the issues have been ironed out, I am only human. I probably did make mistakes so please if there are any issues report it and I'll fix it right away. I use this app too lol.
