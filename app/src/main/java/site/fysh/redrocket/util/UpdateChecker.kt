@@ -24,6 +24,13 @@ object UpdateChecker {
             connection.setRequestProperty("Accept", "application/vnd.github+json")
             connection.connectTimeout = 5_000
             connection.readTimeout = 5_000
+            // Check responseCode BEFORE reading inputStream. HttpURLConnection routes
+            // non-2xx responses to errorStream and throws IOException on inputStream.
+            val responseCode = connection.responseCode
+            if (responseCode !in 200..299) {
+                Log.d(TAG, "Update check got HTTP $responseCode (likely rate limit or transient)")
+                return@withContext null
+            }
             val json = connection.inputStream.use { it.bufferedReader().readText() }
             val tag = JSONObject(json).optString("tag_name", "").trimStart('v', 'V')
             if (tag.isNotBlank() && isNewerVersion(tag, currentVersion)) {
@@ -50,6 +57,11 @@ object UpdateChecker {
             connection.setRequestProperty("Accept", "application/vnd.github+json")
             connection.connectTimeout = 5_000
             connection.readTimeout = 5_000
+            val responseCode = connection.responseCode
+            if (responseCode !in 200..299) {
+                Log.d(TAG, "Release notes fetch got HTTP $responseCode for v$version")
+                return@withContext null
+            }
             val json = connection.inputStream.use { it.bufferedReader().readText() }
             JSONObject(json).optString("body", "").ifBlank { null }
         } catch (e: Exception) {

@@ -1,6 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Package visibility for OEM cell broadcast receiver detection.
+         On Android 11+, queryBroadcastReceivers() returns nothing for packages that
+         are not declared visible. Without this block, EmergencyPackageDetector's
+         Layer 2 runtime detection silently returns empty on the majority of devices. -->
+    <queries>
+        <intent>
+            <action android:name="android.provider.Telephony.SMS_CB_RECEIVED" />
+        </intent>
+        <intent>
+            <action android:name="android.provider.Telephony.SMS_EMERGENCY_CB_RECEIVED" />
+        </intent>
+        <intent>
+            <action android:name="android.provider.Telephony.CMAS_RECEIVED" />
+        </intent>
+        <intent>
+            <action android:name="android.provider.Telephony.ETWS_RECEIVED" />
+        </intent>
+        <intent>
+            <action android:name="android.cellbroadcast.action.SMS_CB_RECEIVED" />
+        </intent>
+    </queries>
+
     <!-- Permissions for SMS and Notifications -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
     <uses-permission android:name="android.permission.RECEIVE_SMS" />
@@ -107,12 +129,17 @@
             </intent-filter>
         </service>
 
-        <!-- Boot receiver - restores listen window and abuse tracker state after reboot -->
+        <!-- Boot receiver - restores listen window and abuse tracker state after reboot.
+             exported=true: BOOT_COMPLETED is system-broadcast and protected by signature
+             permission, but some hardened ROMs (MIUI/HyperOS) silently drop it for
+             exported=false receivers. OEM quickboot actions cover Huawei/HTC fast boot. -->
         <receiver
             android:name=".service.BootReceiver"
-            android:exported="false">
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="com.huawei.intent.action.QUICKBOOT_POWERON" />
             </intent-filter>
         </receiver>
 

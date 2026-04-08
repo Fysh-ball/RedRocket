@@ -4,6 +4,57 @@ Public-facing release notes for each version. These are what users see on GitHub
 
 ---
 
+## v2.0.9 — Crash Fixes, Reliability, Accessibility, and New Logo (2026-04-08)
+
+This release is the result of a full end-to-end audit of every trigger, queue, UI, and service file in the app. 37 fixes in total. Nothing in this release is cosmetic only — every change addresses a real bug, reliability concern, or accessibility issue.
+
+### Critical Crash Fixes
+
+- **Contact picker no longer crashes on some devices.** On some Samsung and Xiaomi ROMs the contacts database returns cursor columns in a different order than standard Android, which caused the contact picker to throw an error and close instantly. The picker now handles missing columns gracefully.
+- **Rename scenario dialog no longer crashes if dismissed mid-tap.** Tapping "Rename" on a scenario rename dialog could crash the app if the dialog was simultaneously dismissed by a recomposition. Fixed.
+- **Adding the same contact twice in different formats no longer creates duplicates.** A contact saved as `5551234567` and `+15551234567` was treated as two separate recipients, meaning the same person would receive two identical emergency messages during a real event. The duplicate check now normalizes phone numbers before comparing.
+- **OEM cell broadcast detection works again on Android 11+.** Since Android 11 introduced package visibility restrictions, the app was silently unable to detect any OEM cell broadcast receiver it didn't already know about by name. Detection now works on every device.
+- **Removed a dead permission rationale dialog.** A permission rationale dialog existed in code but nothing ever triggered it.
+
+### Reliability Improvements
+
+- **Emergency alerts no longer create ghost entries in Alert History.** If the scenario database was slow to respond during an incoming alert, the alert was still recorded but with no scenario attribution. The entry is now properly labelled if the scenario load times out.
+- **Rate limiter no longer starves other background work.** During multi-threaded sending with many recipients, the rate limiter's coordination loop could monopolize background threads, delaying database writes and other critical work.
+- **Test load simulator no longer shows misleading results.** Running a debug load test could inherit left-over state from a previous emergency send. The simulator now fully resets before each run.
+- **Update checker no longer swallows GitHub errors.** GitHub rate limits and missing releases are now logged with their real status code so problems are diagnosable.
+- **Test send and emergency send no longer race each other.** Sending a test message while a previous send was still winding down could silently abort the in-flight messages.
+- **New scenarios now stay selected after creation.** Adding a new scenario could briefly flash back to the previously-selected scenario before the new one took focus.
+- **BootReceiver now survives MIUI/HyperOS restrictions.** On Xiaomi devices, non-exported boot receivers could silently never fire, leaving the app's persistent state unrestored after reboot. Also added support for Huawei and HTC fast-boot actions.
+- **Region setting is now atomic.** Rapid region changes during a settings import no longer briefly leave the current region inconsistent with the setting stored on disk.
+- **Logger can no longer drop entries.** Log writes now run on the app's own internal scope instead of inheriting the caller's scope.
+- **Retry queue cannot be accidentally drained.** A rare race condition could cause a message waiting for retry to be sent bypassing the retry timing logic.
+
+### Photosensitivity and Accessibility
+
+- **Debug mode banner no longer flashes.** The "DEBUG MODE" banner now pulses gently over ~4 seconds instead of ~1 second. Safe for users with photosensitive epilepsy.
+- **Urgent response pulse slowed.** The urgent notification indicator in the Response Dashboard was pulsing at ~1.25 Hz. Slowed to ~0.28 Hz with narrower contrast.
+- **Status indicator pulse slowed.** The highest-severity status dot in the dashboard header now pulses much more gently.
+- **No more back-button trap on first launch.** The first-launch screen used to silently swallow the back button, trapping users who wanted to exit. Back now navigates normally.
+- **Permissions polling moved off the UI thread.** The setup screen's 1-second permission check no longer runs on the Main thread.
+- **Test send now validates phone number length.** The "Send Test Message" dialog no longer accepts phone numbers shorter than 7 digits.
+
+### New Logo and Splash Screen
+
+- **Launcher icon now matches the in-app logo.** Previously the launcher showed a different variant of the Red Rocket image from what appears inside the app. Both now use the same image, properly sized so nothing gets clipped by the launcher's circular mask.
+- **Cold start now shows a splash screen.** On cold start, the app now shows the Red Rocket logo on the brand red background while the first screen loads, instead of the system default.
+
+### UX Polish
+
+- **Message edit Close button saves your text.** Previously tapping "Cancel" in the message editor discarded your edits while swiping down saved them. Renamed to "Close" and made both paths save consistently.
+- **Very large uploaded text files no longer crash the app.** Selecting a huge log file via the upload button used to read the entire file into memory. Now bounded at the stream level.
+- **Swipe-to-send thumb no longer escapes the track on first use.** A measurement race on the very first frame could allow the swipe thumb to fly off-screen. Fixed.
+- **Listening state banner on the Dashboard is now fully live.** The banner is now derived directly from the listening window state.
+- **Recipient waiting list no longer slows down with many contacts.** The "Waiting for reply" section shows the first 20 contacts plus a "+ N more" indicator.
+- **Log copy no longer stutters.** Copying the full system log to the clipboard used to briefly freeze the UI with hundreds of entries. Now runs on a background dispatcher.
+- **Alert History expand state survives clearing alerts.** Expanding a past alert and then clearing older alerts no longer loses your expansion state on the remaining ones.
+
+---
+
 ## v2.0.8 — Reliability and UX Polish (2026-04-08)
 
 ### Bug Fixes

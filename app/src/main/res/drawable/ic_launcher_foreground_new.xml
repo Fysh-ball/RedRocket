@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Adaptive icon foreground: uses the same red_rocket_logo.png the app displays
+  internally (FirstLaunchScreen, welcome screen), inset into the 66dp safe zone
+  of the 108dp adaptive icon canvas so no rocket or text is clipped by the
+  launcher's circular/squircle mask.
+
+  Inset math: (108 - 66) / 2 = 21dp on each side.
+-->
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@drawable/red_rocket_logo"
+    android:insetLeft="16dp"
+    android:insetRight="16dp"
+    android:insetTop="16dp"
+    android:insetBottom="16dp" />

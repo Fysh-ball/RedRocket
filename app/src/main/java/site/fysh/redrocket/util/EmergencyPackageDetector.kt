@@ -74,10 +74,10 @@ object EmergencyPackageDetector {
         "com.hihonor.android.cellbroadcastreceiver"
     )
 
-    /** OnePlus / OxygenOS / ColorOS */
+    /** OnePlus / OxygenOS / ColorOS — also covers Oppo/Realme on newer ColorOS builds */
     private val ONEPLUS_PACKAGES = listOf(
         "com.oneplus.cellbroadcastreceiver",
-        "com.oplus.cellbroadcastreceiver",
+        "com.oplus.cellbroadcastreceiver",     // shared with Oppo/Realme on newer builds
         "com.oplus.emergency"
     )
 
@@ -90,8 +90,7 @@ object EmergencyPackageDetector {
 
     /** Realme (ColorOS-derived) */
     private val REALME_PACKAGES = listOf(
-        "com.realme.cellbroadcastreceiver",
-        "com.oplus.cellbroadcastreceiver"     // shared with OnePlus/Oppo on newer builds
+        "com.realme.cellbroadcastreceiver"
     )
 
     /** Vivo / OriginOS / FuntouchOS */
@@ -258,11 +257,14 @@ object EmergencyPackageDetector {
 
         // Layer 2: Broadcast receiver query
         // Some OEMs register cell broadcast receivers under non-standard package names.
-        // Query the system for any package that handles CB intents.
+        // Query the system for any package that handles CB intents. The manifest
+        // <queries> block declares visibility for these actions on Android 11+.
         for (action in CB_BROADCAST_ACTIONS) {
             try {
                 val intent = Intent(action)
-                val receivers = pm.queryBroadcastReceivers(intent, PackageManager.MATCH_ALL)
+                // Use flags=0: <queries> already grants visibility on API 30+, and
+                // MATCH_ALL has been observed to throw SecurityException on hardened ROMs.
+                val receivers = pm.queryBroadcastReceivers(intent, 0)
                 for (info in receivers) {
                     val pkg = info.activityInfo?.packageName ?: continue
                     if (pkg !in found && pkg != context.packageName) {
@@ -270,6 +272,9 @@ object EmergencyPackageDetector {
                         Log.i(TAG, "FOUND emergency package (broadcast query, action=$action): $pkg")
                     }
                 }
+            } catch (e: SecurityException) {
+                // Some hardened ROMs throw on broadcast queries. Log distinctly so it's diagnosable.
+                Log.w(TAG, "SecurityException querying broadcast receivers for action: $action - ROM restriction", e)
             } catch (e: Exception) {
                 Log.w(TAG, "Error querying broadcast receivers for action: $action", e)
             }

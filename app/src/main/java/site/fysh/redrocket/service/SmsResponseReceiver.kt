@@ -273,6 +273,14 @@ class SmsResponseReceiver : BroadcastReceiver() {
 
         app.appScope.launch(Dispatchers.IO) {
             try {
+                // Re-check inside the coroutine: stopListening() may have been called on a
+                // concurrent Binder thread between the outer isListening() check above and now.
+                if (!isListening()) {
+                    Log.d(TAG, "Global listening window closed before processing began - ignoring SMS")
+                    pending.finish()
+                    return@launch
+                }
+
                 val bundle = intent.extras ?: run {
                     Log.w(TAG, "No extras in intent, ignoring")
                     pending.finish()

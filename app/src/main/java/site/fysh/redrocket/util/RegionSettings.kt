@@ -68,8 +68,12 @@ object RegionSettings {
      */
     fun setUserRegion(context: Context, code: String) {
         val normalized = code.uppercase().trim()
-        userRegion = normalized
-        _userRegionFlow.value = normalized
+        // Atomically update both the @Volatile field and the StateFlow so concurrent
+        // callers cannot observe a brief mismatch between effectiveRegion and userRegionFlow.
+        synchronized(RegionSettings::class.java) {
+            userRegion = normalized
+            _userRegionFlow.value = normalized
+        }
         val p = prefs ?: context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .also { prefs = it }
         p.edit().putString(KEY_USER_REGION, normalized).apply()

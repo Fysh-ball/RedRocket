@@ -1,5 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.MyApplication" parent="android:Theme.Material.Light.NoActionBar" />
+    <!-- App launch theme: uses Theme.SplashScreen so the pre-launch window shows the
+         Red Rocket logo centered on a dark red background instead of the default
+         system splash. windowSplashScreenAnimatedIcon uses the adaptive foreground
+         which is masked to a circle by the SplashScreen compat layer. -->
+    <style name="Theme.MyApplication" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
+        <!-- Use splash_logo which wraps red_rocket_logo with a 64dp inset so the
+             full logo fits inside Android 12's SplashScreen circular mask (288dp
+             canvas, inner ~192dp visible). -->
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_logo</item>
+        <item name="postSplashScreenTheme">@style/Theme.MyApplication.Main</item>
+    </style>
+
+    <!-- Post-splash theme applied to MainActivity via installSplashScreen(). -->
+    <style name="Theme.MyApplication.Main" parent="android:Theme.Material.Light.NoActionBar" />
 </resources>

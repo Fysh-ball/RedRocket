@@ -57,6 +57,10 @@ class MockSmsSender(
             Log.e(TAG, "[MOCK] FAILED (Attempt $attempt): ${task.recipient.phoneNumber}")
         }
 
+        // Caller contract: a `false` return must be matched by exactly one handleFailure() call
+        // in EmergencySendingService.processQueue(). MockSmsSender does NOT call markFailure()
+        // here because the production SmsSender behaves the same way — both delegate failure
+        // bookkeeping to the service loop. Verified parity with SmsSender.send() retry path.
         return false
     }
 }

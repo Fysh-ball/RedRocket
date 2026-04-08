@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
@@ -14,6 +15,10 @@ import site.fysh.redrocket.ui.theme.EmergencyAppTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Install the SplashScreen before super.onCreate so the system holds the
+        // splash window until the first composition is ready. This gives a clean
+        // Red Rocket → main UI transition instead of a brief black/white flash.
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
@@ -47,9 +52,9 @@ class MainActivity : ComponentActivity() {
                         FirstLaunchScreen(viewModel)
                     }
                     else -> {
-                        // After setup is complete, check/request permissions upfront so the main
-                        // app features work reliably. The rationale dialog is shown if denied.
-                        PermissionHandler()
+                        // Permissions are requested up-front by FirstLaunchScreen during setup.
+                        // If the user later revokes them, the corresponding setup-status banners
+                        // in MainScreen flag the issue and offer a one-tap path back to Settings.
                         MainScreen(viewModel)
                     }
                 }

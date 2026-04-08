@@ -81,7 +81,9 @@ fun PastAlertsDialog(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                         contentPadding = PaddingValues(vertical = 12.dp)
                     ) {
-                        items(alerts) { alert ->
+                        // Stable key — without it, expanded state on PastAlertCard is
+                        // lost on list changes because Compose remaps items by position.
+                        items(alerts, key = { it.id }) { alert ->
                             PastAlertCard(alert, dateFormat)
                         }
                     }

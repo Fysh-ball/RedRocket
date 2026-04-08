@@ -1,6 +1,7 @@
 package site.fysh.redrocket.utils
 
 import android.content.Context
+import site.fysh.redrocket.EmergencyApp
 import site.fysh.redrocket.model.Recipient
 import site.fysh.redrocket.queue.MessageQueueManager
 import site.fysh.redrocket.service.EmergencySendingService
@@ -31,8 +32,14 @@ class DebugSimulator(
         simulatorScope.launch {
             queueManager.clearQueue()
             queueManager.clearStats()
+            // Reset adaptive controller and rate limiter so prior session state
+            // (SEQUENTIAL/LAZARUS mode, last-send timestamp) does not contaminate
+            // load test throughput numbers.
+            val app = context.applicationContext as EmergencyApp
+            app.adaptiveController.reset()
+            app.rateLimiter.reset()
             queueManager.enqueueScenario(dummyRecipients, "MOCK DEBUG MESSAGE", "debug_scenario")
-            
+
             // Start the foreground service to process the queue and show notifications
             EmergencySendingService.startService(context)
         }

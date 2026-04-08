@@ -303,8 +303,11 @@ fun ScenarioDropdown(
         }
     }
 
-    // Rename dialog triggered from main surface long-press
-    if (renamingScenarioId != null) {
+    // Rename dialog triggered from main surface long-press.
+    // Capture the id into a local val so the confirm-button lambda cannot NPE if
+    // renamingScenarioId is cleared by a concurrent recomposition before the user taps.
+    val capturedRenamingId = renamingScenarioId
+    if (capturedRenamingId != null) {
         AlertDialog(
             onDismissRequest = { renamingScenarioId = null },
             title = { Text("Rename Scenario") },
@@ -319,7 +322,7 @@ fun ScenarioDropdown(
             confirmButton = {
                 TextButton(onClick = {
                     if (newName.isNotBlank()) {
-                        onRenameScenario(renamingScenarioId!!, newName)
+                        onRenameScenario(capturedRenamingId, newName)
                     }
                     renamingScenarioId = null
                 }) {

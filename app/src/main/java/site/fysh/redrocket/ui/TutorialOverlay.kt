@@ -92,7 +92,7 @@ fun TutorialSpotlightOverlay(
             2    -> 12.dp.toPx()  // TriggerInput outer surface: RoundedCornerShape(12.dp)
             3    -> 8.dp.toPx()   // GroupsSection header pill: RoundedCornerShape(8.dp)
             4    -> 12.dp.toPx()  // MessageInput outer surface: RoundedCornerShape(12.dp)
-            else -> 10.dp.toPx()  // Dashboard tab: RoundedCornerShape(10.dp)
+            else -> 0f  // Full tab bar — flat edges align exactly with the HorizontalDivider line
         }
     }
 
@@ -250,18 +250,6 @@ private fun TutorialCard(
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.weight(1f)
                 )
-                if (!isLastStep) {
-                    TextButton(
-                        onClick = onAdvance,
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
-                    ) {
-                        Text(
-                            "Skip",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
             }
             Spacer(Modifier.height(6.dp))
             Text(

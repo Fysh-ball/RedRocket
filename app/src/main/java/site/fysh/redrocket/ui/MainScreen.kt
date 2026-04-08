@@ -62,6 +62,9 @@ fun MainScreen(viewModel: MainViewModel) {
     val responses by viewModel.allResponses.collectAsState()
     val pastAlerts by viewModel.pastAlerts.collectAsState()
     val logs by viewModel.logs.collectAsState()
+    val blockPhrases by viewModel.blockPhrases.collectAsState()
+    val userRegion by viewModel.userRegion.collectAsState()
+    val detectedRegion by viewModel.detectedRegion.collectAsState()
     val haptic = LocalHapticFeedback.current
     LaunchedEffect(Unit) {
         viewModel.countdownTickFlow.collect {
@@ -96,6 +99,7 @@ fun MainScreen(viewModel: MainViewModel) {
     var groupHeaderBoundsRect by remember { mutableStateOf<ComposeRect?>(null) }
     var messageBoundsRect    by remember { mutableStateOf<ComposeRect?>(null) }
     var dashboardTabBoundsRect by remember { mutableStateOf<ComposeRect?>(null) }
+    var tabBarBoundsRect       by remember { mutableStateOf<ComposeRect?>(null) }
 
     // Auto-scroll to the message field when tutorial reaches step 4 (5/6: Your Message).
     // The main column scroll is disabled during the tutorial so the user can't scroll away from
@@ -133,7 +137,8 @@ fun MainScreen(viewModel: MainViewModel) {
                 },
                 hasUnreadResponses = hasUnreadResponses,
                 onSettingsClick = { showSettings = true },
-                onDashboardTabPositioned = { dashboardTabBoundsRect = it.boundsInRoot() }
+                onDashboardTabPositioned = { dashboardTabBoundsRect = it.boundsInRoot() },
+                onTabBarPositioned = { tabBarBoundsRect = it.boundsInRoot() }
             )
         }
     ) { innerPadding ->
@@ -211,14 +216,17 @@ fun MainScreen(viewModel: MainViewModel) {
                     onPositioned = { scenarioBoundsRect = it.boundsInRoot() }
                 )
 
-                // Debug mode warning banner (hidden in production builds) - pulsing red
+                // Debug mode warning banner (hidden in production builds) - slow breathing pulse.
+                // Timing: 2200ms tween + Reverse = 4400ms full cycle (~0.23 Hz), and the alpha
+                // range is narrowed to 0.90..1.00 so the contrast change is very subtle.
+                // Both are well below the 3 Hz photosensitive epilepsy threshold.
                 if (uiState.isDebugEnabled) {
                     val infiniteTransition = rememberInfiniteTransition(label = "debugPulse")
                     val pulseAlpha by infiniteTransition.animateFloat(
-                        initialValue = 0.82f,
+                        initialValue = 0.90f,
                         targetValue = 1.0f,
                         animationSpec = infiniteRepeatable(
-                            animation = tween(600),
+                            animation = tween(2200),
                             repeatMode = RepeatMode.Reverse
                         ),
                         label = "pulse"
@@ -329,6 +337,11 @@ fun MainScreen(viewModel: MainViewModel) {
                 var batteryOptDisabled by remember { mutableStateOf(isExempt()) }
                 // Re-check on resume (user returns from battery settings) and on power-save mode change.
                 val lifecycleOwner = LocalLifecycleOwner.current
+                // Use applicationContext so receiver lifetime is decoupled from the Activity.
+                // Compose guarantees onDispose runs before the effect re-launches on key change,
+                // but registration against applicationContext avoids any Activity-context leak
+                // if that ordering ever shifts during configuration change edge cases.
+                val appContext = context.applicationContext
                 DisposableEffect(lifecycleOwner) {
                     val observer = LifecycleEventObserver { _, event ->
                         if (event == Lifecycle.Event.ON_RESUME) batteryOptDisabled = isExempt()
@@ -340,17 +353,17 @@ fun MainScreen(viewModel: MainViewModel) {
                     // API 34+ requires an explicit exported/not-exported flag on dynamic receivers.
                     // Power-save mode is a system broadcast so RECEIVER_EXPORTED is required.
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                        context.registerReceiver(
+                        appContext.registerReceiver(
                             receiver,
                             IntentFilter(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED),
                             Context.RECEIVER_EXPORTED
                         )
                     } else {
-                        context.registerReceiver(receiver, IntentFilter(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED))
+                        appContext.registerReceiver(receiver, IntentFilter(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED))
                     }
                     onDispose {
                         lifecycleOwner.lifecycle.removeObserver(observer)
-                        context.unregisterReceiver(receiver)
+                        appContext.unregisterReceiver(receiver)
                     }
                 }
                 if (!batteryOptDisabled) {
@@ -467,7 +480,7 @@ fun MainScreen(viewModel: MainViewModel) {
                         TriggerInput(
                             keywordsString = uiState.currentScenario.description,
                             onKeywordsChange = { viewModel.onKeywordsChange(it) },
-                            blockPhrases = viewModel.blockPhrases.collectAsState().value,
+                            blockPhrases = blockPhrases,
                             onAddBlockPhrase = { viewModel.addBlockPhrase(it) },
                             onDeleteBlockPhrase = { viewModel.deleteBlockPhrase(it) },
                             onSheetDismissed = {
@@ -476,8 +489,8 @@ fun MainScreen(viewModel: MainViewModel) {
                                     viewModel.advanceTutorialStep(6)
                                 }
                             },
-                            userRegion = viewModel.userRegion.collectAsState().value,
-                            detectedRegion = viewModel.detectedRegion.collectAsState().value,
+                            userRegion = userRegion,
+                            detectedRegion = detectedRegion,
                             onSetRegion = { viewModel.setUserRegion(it) }
                         )
                     }
@@ -762,7 +775,7 @@ fun MainScreen(viewModel: MainViewModel) {
             triggerBounds = triggerBoundsRect,
             groupHeaderBounds = groupHeaderBoundsRect,
             messageBounds = messageBoundsRect,
-            tabBarBounds = dashboardTabBoundsRect,
+            tabBarBounds = tabBarBoundsRect,
             uiState = uiState,
             onAdvance = { viewModel.advanceTutorialStep(6) },
             onDismiss = { viewModel.dismissTutorial() }

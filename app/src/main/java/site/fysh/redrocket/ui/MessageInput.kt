@@ -31,14 +31,22 @@ fun MessageInput(
     var showSheet by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
-    // File picker - loads text file directly into message field, no dialog needed
+    // File picker - loads text file directly into message field, no dialog needed.
+    // Read is bounded at 8KB so a user accidentally selecting a large file (e.g. a 50MB
+    // log) cannot OOM the app — readText() would otherwise pull the entire file into
+    // memory before take(1600) discards everything beyond the SMS limit.
     val filePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
         if (uri != null) {
             try {
-                val inputStream = context.contentResolver.openInputStream(uri)
-                val raw = inputStream?.bufferedReader()?.use { it.readText() } ?: ""
+                val MAX_READ_BYTES = 8192
+                val raw = context.contentResolver.openInputStream(uri)?.use { stream ->
+                    val buf = CharArray(MAX_READ_BYTES)
+                    val reader = stream.bufferedReader()
+                    val n = reader.read(buf, 0, MAX_READ_BYTES)
+                    if (n <= 0) "" else String(buf, 0, n)
+                } ?: ""
                 val smsSafe = raw
                     .replace("\r\n", "\n")
                     .replace("\r", "\n")
@@ -181,8 +189,10 @@ private fun MessageEditSheet(
                 horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TextButton(onClick = onDismiss) {
-                    Text("Cancel")
+                // Cancel and swipe-down both save (consistent with the sheet's
+                // onDismissRequest behaviour). The user's edits are preserved either way.
+                TextButton(onClick = { saveAndDismiss() }) {
+                    Text("Close")
                 }
                 Spacer(Modifier.width(8.dp))
                 Button(

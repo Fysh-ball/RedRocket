@@ -32,7 +32,15 @@ class AdaptiveSendController {
     @Volatile private var isForceSequential = false
     @Volatile private var keepTrying = true
 
-    /** Called after every send attempt. Drives state transitions per spec. */
+    /**
+     * Called after every send attempt. Drives state transitions per spec.
+     *
+     * Note: the read-check-write of `_currentState.value` here is not atomic. Two
+     * concurrent reportResult(false) calls in MULTI_THREADED mode could both observe
+     * MULTI_THREADED and both transition to SEQUENTIAL, double-resetting counters.
+     * This is accepted because state transitions are idempotent — the second transition
+     * is a no-op semantically (state ends in SEQUENTIAL with both counters at 0 either way).
+     */
     fun reportResult(success: Boolean) {
         if (success) {
             val successes = consecutiveSuccesses.incrementAndGet()
