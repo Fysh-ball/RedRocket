@@ -9,6 +9,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.draw.drawWithContent
@@ -39,11 +40,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.window.Dialog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -74,6 +77,7 @@ fun SettingsDialog(
         mutableStateOf(TextFieldValue(uiState.replyListenHours.toString()))
     }
     var showTestSendDialog by remember { mutableStateOf(false) }
+    var showSimConfirmDialog by remember { mutableStateOf(false) }
     var testPhoneInput by remember { mutableStateOf(TextFieldValue("")) }
 
     val exportLauncher = rememberLauncherForActivityResult(
@@ -418,14 +422,10 @@ fun SettingsDialog(
                                         shape = RoundedCornerShape(12.dp)
                                     )
                                     Button(
-                                        onClick = {
-                                            val count = simCount.text.toIntOrNull() ?: 10
-                                            val rate = (simFailureRatePercent.text.toDoubleOrNull() ?: 0.0) / 100.0
-                                            onRunSimulation(count, rate)
-                                        },
+                                        onClick = { showSimConfirmDialog = true },
                                         modifier = Modifier.fillMaxWidth(),
                                         shape = RoundedCornerShape(12.dp),
-                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
                                     ) {
                                         Text("Run Mock Sending Test")
                                     }
@@ -446,7 +446,7 @@ fun SettingsDialog(
                                 Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.width(12.dp))
                                 Text("User Manual", modifier = Modifier.weight(1f))
-                                Icon(if (manualExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown, contentDescription = null)
+                                Icon(if (manualExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown, contentDescription = if (manualExpanded) "Collapse" else "Expand")
                             }
                             if (manualExpanded) {
                                 UserManualSection(onReplayTutorial = onReplayTutorial)
@@ -483,15 +483,26 @@ fun SettingsDialog(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    val focusManager = LocalFocusManager.current
                     OutlinedTextField(
                         value = testPhoneInput,
                         onValueChange = { testPhoneInput = it },
                         label = { Text("Phone number") },
                         placeholder = { Text("+1 555 000 0000") },
                         modifier = Modifier.fillMaxWidth(),
-                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Phone
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Phone,
+                            imeAction = ImeAction.Send
                         ),
+                        keyboardActions = KeyboardActions(onSend = {
+                            val phone = testPhoneInput.text.trim()
+                            if (phone.isNotBlank()) {
+                                focusManager.clearFocus()
+                                onSendTestMessage(phone)
+                                showTestSendDialog = false
+                                testPhoneInput = TextFieldValue("")
+                            }
+                        }),
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp)
                     )
@@ -516,6 +527,25 @@ fun SettingsDialog(
                 TextButton(onClick = { showTestSendDialog = false; testPhoneInput = TextFieldValue("") }) {
                     Text("Cancel")
                 }
+            }
+        )
+    }
+
+    if (showSimConfirmDialog) {
+        val count = (simCount.text.toIntOrNull() ?: 10).coerceAtLeast(1)
+        AlertDialog(
+            onDismissRequest = { showSimConfirmDialog = false },
+            title = { Text("Run Mock Sending Test?", fontWeight = FontWeight.Bold) },
+            text = { Text("This will simulate sending $count message(s) using fake SMS. No real messages will be sent.") },
+            confirmButton = {
+                Button(onClick = {
+                    showSimConfirmDialog = false
+                    val rate = (simFailureRatePercent.text.toDoubleOrNull() ?: 0.0) / 100.0
+                    onRunSimulation(count, rate)
+                }) { Text("Run") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSimConfirmDialog = false }) { Text("Cancel") }
             }
         )
     }
@@ -680,7 +710,7 @@ private fun UserManualSection(onReplayTutorial: () -> Unit) {
                         Icon(
                             if (isExpanded) Icons.Default.KeyboardArrowUp
                             else Icons.Default.KeyboardArrowDown,
-                            contentDescription = null,
+                            contentDescription = if (isExpanded) "Collapse" else "Expand",
                             modifier = Modifier.size(18.dp),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )

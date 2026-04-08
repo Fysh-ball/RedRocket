@@ -101,6 +101,7 @@ class MainViewModel(
     private val undoStack = ArrayDeque<Scenario>()
     @Volatile private var sendStartTime: Long = 0
     @Volatile private var lastTestSendTime: Long = 0
+    @Volatile private var cachedLastScenarioId: String? = null
     private var undoTimerJob: Job? = null
     private var monitoringJob: Job? = null
 
@@ -165,6 +166,11 @@ class MainViewModel(
             }
         }
 
+        // Cache lastScenarioId so the scenarios collector never blocks on DataStore
+        viewModelScope.launch {
+            settings.lastScenarioId.collect { cachedLastScenarioId = it }
+        }
+
         // Load scenarios from database
         viewModelScope.launch {
             scenarioDao.getAllScenarios().collect { scenarios ->
@@ -198,7 +204,7 @@ class MainViewModel(
                         }
                     }
 
-                    val lastId = settings.lastScenarioId.first()
+                    val lastId = cachedLastScenarioId
                     _uiState.update { state ->
                         val current = if (lastId != null) {
                             migrated.find { it.id == lastId } ?: migrated.first()
@@ -1295,6 +1301,8 @@ class MainViewModel(
             val message = "[TEST] Red Rocket is active on this device. Emergency messaging is configured and ready."
             // Note: "test-send-<uuid>" IDs are transient and have no matching Scenario entity.
             // Responses to test messages are intentionally dropped by SmsResponseReceiver.
+            adaptiveController.reset()
+            app.queueManager.clearQueue()
             app.queueManager.enqueueScenario(listOf(recipient), message, "test-send-${UUID.randomUUID()}")
             EmergencySendingService.startService(app)
             AppLogger.log(app.database, app.appScope, "test_send", "Test message sent to $normalized")

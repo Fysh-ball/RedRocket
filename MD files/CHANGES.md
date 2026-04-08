@@ -2,6 +2,40 @@
 
 ---
 
+## Session: 2026-04-08 (v2.0.8 — Production hardening + UX polish)
+
+### service/EmergencyBroadcastReceiver.kt + service/EmergencyNotificationListener.kt — alertSensitivity DataStore read timeout
+- `alertSensitivity.first()` in both trigger paths had no timeout. A frozen or slow DataStore could stall the goAsync() window indefinitely, causing a silent miss on a real emergency broadcast. Now wrapped in `withTimeoutOrNull(3_000L) { ... } ?: "MEDIUM"` — fails safely to MEDIUM sensitivity if DataStore is unresponsive.
+
+### service/EmergencyNotificationListener.kt — dead redundant condition removed
+- `if (isSystemEmergencyAlert && triggeredCount > 0 && easAlertRowId >= 0)` — the `isSystemEmergencyAlert &&` guard was always true at that point because of the early return at line 119. Removed to eliminate dead code.
+
+### service/SmsResponseReceiver.kt — per-contact window boundary off-by-one
+- Per-contact 1-minute reply window used `elapsed > PER_CONTACT_WINDOW_MS` (strict greater-than). A response received at exactly the boundary would incorrectly pass. Changed to `>=` for correct closed-interval semantics.
+
+### ui/MainViewModel.kt — sendTestMessage() starts in dirty state
+- `sendTestMessage()` did not call `adaptiveController.reset()` or `queueManager.clearQueue()` before enqueuing. A test send could inherit SEQUENTIAL mode or stale retry items from a previous send session. Both are now cleared before the test message is enqueued.
+
+### ui/MainViewModel.kt — lastScenarioId DataStore read per database emission
+- The `getAllScenarios().collect` lambda called `settings.lastScenarioId.first()` on every emission, issuing a DataStore suspension on every keystroke during editing. Added `cachedLastScenarioId: String?` field kept current by a dedicated collector in `init`. The scenarios collector now reads the cached value with zero I/O cost.
+
+### ui/SettingsDialog.kt — simulation count allows zero
+- "Run Mock Sending Test" accepted `simCount = "0"`, running a zero-item simulation loop with no feedback. Added `.coerceAtLeast(1)` so the simulation always runs at least one message.
+
+### ui/SettingsDialog.kt — mock test button runs without confirmation
+- Clicking "Run Mock Sending Test" immediately started the simulation. Added a confirmation dialog showing the message count before running.
+
+### ui/SettingsDialog.kt — mock test button color misleading
+- Button used `MaterialTheme.colorScheme.error` (red), which implies destructive or emergency action. Changed to `secondary` since this is a non-destructive debug tool.
+
+### ui/SettingsDialog.kt — test phone field missing keyboard send action
+- The phone number field in the "Send Test Message" dialog had no `ImeAction`. Added `ImeAction.Send` + `KeyboardActions(onSend = { ... })` so users can submit directly from the keyboard without tapping the button.
+
+### ui/SettingsDialog.kt — expansion arrow icons missing accessibility labels
+- Both `KeyboardArrowUp`/`KeyboardArrowDown` expansion icons in the settings dialog had `contentDescription = null`. Added `"Expand"` / `"Collapse"` labels for screen reader users.
+
+---
+
 ## Session: 2026-04-08 (v2.0.7 — Bug fixes + version label + What's New dialog)
 
 ### service/EmergencyNotificationListener.kt — dead branches removed

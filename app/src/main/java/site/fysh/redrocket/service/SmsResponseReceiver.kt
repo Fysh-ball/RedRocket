@@ -351,7 +351,7 @@ class SmsResponseReceiver : BroadcastReceiver() {
                     Log.i(TAG, "First response from $normalizedSender - 1-minute window started")
                 } else {
                     val elapsed = now - existingFirstTime
-                    if (elapsed > PER_CONTACT_WINDOW_MS) {
+                    if (elapsed >= PER_CONTACT_WINDOW_MS) {
                         // 1-minute window expired - permanently stop listening to this contact
                         contactExpired.add(normalizedSender)
                         Log.d(TAG, "Contact $normalizedSender 1-minute window expired (${elapsed}ms). Stopped listening.")

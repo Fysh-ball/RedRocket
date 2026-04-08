@@ -4,6 +4,24 @@ Public-facing release notes for each version. These are what users see on GitHub
 
 ---
 
+## v2.0.8 — Reliability and UX Polish (2026-04-08)
+
+### Bug Fixes
+
+- **Fixed emergency alert potentially being missed if settings were slow to load:** When a real emergency broadcast arrived, the app read the alert sensitivity setting from storage without a timeout. On a device under memory pressure, a slow storage read could stall the handler long enough to miss the alert entirely. The read now times out after 3 seconds and falls back to standard sensitivity, so the alert is always processed.
+- **Fixed test send possibly starting in reduced-speed mode:** Sending a test message could inherit the sending speed mode left over from a previous emergency send session, causing the test to run in slow retry mode instead of full speed. The sending state is now fully reset before each test send.
+- **Fixed reply window rejecting a response received at exactly the 60-second mark:** A contact's reply arriving at precisely the one-minute boundary was incorrectly treated as outside the window. The boundary check is now inclusive.
+- **Fixed simulated send test accepting zero messages:** Entering "0" in the simulation count field and tapping Run would silently do nothing. The count is now clamped to a minimum of 1.
+
+### Improvements
+
+- **Faster scenario switching:** Switching between scenarios no longer triggers a storage read in the background. The last-selected scenario is now cached in memory, eliminating a small but unnecessary I/O cost each time the scenario list updates.
+- **Confirmation before running a simulated send:** Tapping "Run Mock Sending Test" now shows a confirmation dialog with the message count before starting, preventing accidental runs.
+- **Tap "Send" on the keyboard to submit a test message:** The phone number field in the test send dialog now has a Send action on the keyboard so you can submit without tapping the button.
+- **Mock send button no longer styled as an emergency action:** The "Run Mock Sending Test" button was red, the same color used for active emergency indicators. It is now styled as a standard secondary action.
+
+---
+
 ## v2.0.7 — Bug Fixes and Improvements (2026-04-08)
 
 ### New
