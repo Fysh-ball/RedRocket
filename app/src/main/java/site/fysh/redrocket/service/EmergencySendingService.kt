@@ -15,7 +15,7 @@ import kotlinx.coroutines.*
 class EmergencySendingService : Service() {
 
     private val TAG = "EmergencySendingService"
-    private val serviceScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+    private var serviceScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
     @Volatile private var processingJob: Job? = null
     @Volatile private var notificationJob: Job? = null
 
@@ -47,6 +47,15 @@ class EmergencySendingService : Service() {
         // A RemoteServiceException crash occurs if startForeground is not called promptly.
         val notification = createNotification("Emergency Message System Active", null, null)
         startForeground(NOTIFICATION_ID, notification)
+
+        // On START_STICKY restart after process death, onDestroy() was called which cancelled
+        // serviceScope. Launching on a cancelled scope throws JobCancellationException silently,
+        // so recreate the scope before doing any work.
+        if (!serviceScope.isActive) {
+            serviceScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+            processingJob = null
+            notificationJob = null
+        }
 
         if (intent?.action == ACTION_STOP) {
             Log.i(TAG, "Stop action received via notification")
@@ -169,9 +178,9 @@ class EmergencySendingService : Service() {
                     // Fire a separate completion notification so the user is notified even when backgrounded
                     val completionText = "${status.successCount} delivered, ${status.failedCount} failed"
                     val openPi = PendingIntent.getActivity(
-                        this, 0,
+                        this, 2,  // distinct request code — 0 = foreground open, 1 = stop action
                         Intent(this, site.fysh.redrocket.ui.MainActivity::class.java),
-                        PendingIntent.FLAG_IMMUTABLE
+                        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
                     )
                     val completionNotif = NotificationCompat.Builder(this, CHANNEL_ID)
                         .setContentTitle("Red Rocket: Complete")

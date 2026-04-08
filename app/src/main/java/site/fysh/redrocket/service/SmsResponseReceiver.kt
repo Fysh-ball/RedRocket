@@ -36,6 +36,7 @@ class SmsResponseReceiver : BroadcastReceiver() {
         private const val CHANNEL_ID = "responses"
         private const val PREFS_NAME = "sms_response_receiver_state"
         private const val KEY_LISTEN_START = "listen_start_time"
+        private const val KEY_LISTEN_HOURS = "listen_hours"
         private val notifIdCounter = AtomicInteger(1000)
 
         /** Default global listening window: 1 hour. Configurable via setListenWindowHours(). */
@@ -62,15 +63,36 @@ class SmsResponseReceiver : BroadcastReceiver() {
          * Safe to call multiple times - subsequent calls are no-ops.
          */
         fun init(context: Context) {
-            if (prefs != null) return
-            val p = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            prefs = p
-            val saved = p.getLong(KEY_LISTEN_START, 0L)
-            // Restore only if the saved window is still within the configured listen duration
-            if (saved > 0L && System.currentTimeMillis() - saved < globalListenWindowMs) {
-                listenStartTime = saved
-                _listenStartTimeFlow.value = saved
-                Log.i(TAG, "Restored listen window from SharedPreferences (started ${(System.currentTimeMillis() - saved) / 1000}s ago)")
+            if (prefs != null) return  // fast path — no lock needed for initial null check
+            synchronized(SmsResponseReceiver::class.java) {
+                if (prefs != null) return  // re-check under lock: another thread may have initialized first
+                val p = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                // Restore the configured listen duration BEFORE validating the saved timestamp.
+                // Without this, a user who set 3 hours would have their active window incorrectly
+                // expired on process restart because the hardcoded 1-hour default would be used.
+                val configuredHours = p.getInt(KEY_LISTEN_HOURS, 1)
+                globalListenWindowMs = configuredHours.coerceIn(1, 24).toLong() * 3_600_000L
+                val saved = p.getLong(KEY_LISTEN_START, 0L)
+                // Restore only if the saved window is still within the configured listen duration
+                if (saved > 0L && System.currentTimeMillis() - saved < globalListenWindowMs) {
+                    listenStartTime = saved
+                    _listenStartTimeFlow.value = saved
+                    Log.i(TAG, "Restored listen window from SharedPreferences (started ${(System.currentTimeMillis() - saved) / 1000}s ago)")
+                }
+                prefs = p  // assign last so the fast-path null check above remains safe
+
+                // Create the notification channel once here to avoid a Binder IPC call
+                // on every incoming SMS response inside showNotification().
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    val nm = context.applicationContext
+                        .getSystemService(android.app.NotificationManager::class.java)
+                    val ch = android.app.NotificationChannel(
+                        CHANNEL_ID,
+                        "Response Notifications",
+                        android.app.NotificationManager.IMPORTANCE_HIGH
+                    ).apply { description = "Notifications for SMS responses received" }
+                    nm?.createNotificationChannel(ch)
+                }
             }
         }
 
@@ -98,8 +120,12 @@ class SmsResponseReceiver : BroadcastReceiver() {
          * Called from ViewModel when the user changes the "reply listen hours" setting.
          */
         fun setListenWindowHours(hours: Int) {
-            globalListenWindowMs = hours.coerceIn(1, 24).toLong() * 3_600_000L
-            Log.i(TAG, "Global listen window set to ${hours}h (${globalListenWindowMs}ms)")
+            val clamped = hours.coerceIn(1, 24)
+            globalListenWindowMs = clamped.toLong() * 3_600_000L
+            // Persist so init() can restore the correct window on next process start
+            // without waiting for the ViewModel to push the DataStore value.
+            prefs?.edit()?.putInt(KEY_LISTEN_HOURS, clamped)?.apply()
+            Log.i(TAG, "Global listen window set to ${clamped}h (${globalListenWindowMs}ms)")
         }
 
         fun startListening() {
@@ -169,7 +195,12 @@ class SmsResponseReceiver : BroadcastReceiver() {
 
             if (text.isEmpty()) return null
 
+            // Split into words once for word-boundary checks
+            val words = text.split(" ").toSet()
+
             // Priority 1 - EMERGENCY (3): checked first so it always wins over SAFE/UPDATES
+            // NOTE: bare "help" is word-boundary matched (not substring) to avoid false positives
+            // from "helpful", "helped", "unhelpful", etc. triggering an automatic 911 reply.
             val isEmergency =
                 text.contains("emergency") ||
                 text.contains("not safe") ||
@@ -178,8 +209,8 @@ class SmsResponseReceiver : BroadcastReceiver() {
                 text.contains("i need help") ||
                 text.contains("need help") ||
                 text.contains("please help") ||
-                text.contains("help") ||
-                text.contains("sos") ||
+                "help" in words ||
+                "sos" in words ||
                 text.contains("s o s") ||
                 text.contains("injured") ||
                 text.contains("hurt") ||
@@ -416,18 +447,7 @@ class SmsResponseReceiver : BroadcastReceiver() {
 
     private fun showNotification(context: Context, recipientName: String, responseText: String, responseCode: Int) {
         val nm = context.getSystemService(NotificationManager::class.java) ?: return
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                "Response Notifications",
-                NotificationManager.IMPORTANCE_HIGH
-            ).apply {
-                description = "Notifications for SMS responses received"
-            }
-            nm.createNotificationChannel(channel)
-        }
-
+        // Channel is created once in init() — no Binder IPC here on every response.
         val priority = if (responseCode == 3) NotificationCompat.PRIORITY_MAX else NotificationCompat.PRIORITY_HIGH
         val notifId = notifIdCounter.getAndIncrement()
 

@@ -46,15 +46,19 @@ class ManualSendGuard(
                 onCountdownTick(i)
                 delay(1000)
             }
-            // Enqueue ALL valid scenarios before firing tick(0)
-            for (scenario in validScenarios) {
-                for (group in scenario.groups) {
-                    if (group.recipients.isNotEmpty() && group.message.isNotBlank()) {
-                        queueManager.enqueueScenario(group.recipients, group.message, scenario.id)
+            // Enqueue ALL valid scenarios inside NonCancellable so that if the ViewModel is
+            // destroyed mid-countdown (e.g. app backgrounded), the enqueue still completes.
+            // The service will then send even if the UI is gone.
+            withContext(NonCancellable) {
+                for (scenario in validScenarios) {
+                    for (group in scenario.groups) {
+                        if (group.recipients.isNotEmpty() && group.message.isNotBlank()) {
+                            queueManager.enqueueScenario(group.recipients, group.message, scenario.id)
+                        }
                     }
                 }
+                onCountdownTick(0)
             }
-            onCountdownTick(0)
         }
     }
 

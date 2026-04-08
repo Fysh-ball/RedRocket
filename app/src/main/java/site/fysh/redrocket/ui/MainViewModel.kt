@@ -790,8 +790,14 @@ class MainViewModel(
                     AppLogger.log(app.database, viewModelScope, "manual_send",
                         "${validScenarios.size} scenario(s) triggered manually - $totalRecipients contact(s)")
                     for (scenario in validScenarios) {
+                        // Use the same atomic lock as auto-trigger paths so a concurrent EBR/ENL
+                        // trigger during the 4-second countdown cannot cause duplicate sends.
+                        val rowsUpdated = scenarioDao.lockIfUnlocked(scenario.id)
+                        if (rowsUpdated == 0) {
+                            Log.i(TAG, "[LOCKOUT] Scenario '${scenario.name}' already locked by concurrent trigger during countdown - skipping")
+                            continue
+                        }
                         val locked = scenario.copy(isLocked = true)
-                        scenarioDao.insertScenario(locked)
                         if (_uiState.value.currentScenario.id == scenario.id) {
                             _uiState.update { state -> state.copy(currentScenario = locked) }
                         }
@@ -1021,6 +1027,7 @@ class MainViewModel(
                 Log.w(TAG, "resendToRecipients: no recipients matched any group for scenario $scenarioId")
                 return@launch
             }
+            adaptiveController.reset()  // start resend in MULTI_THREADED mode regardless of prior send state
             sendStartTime = System.currentTimeMillis()
             _uiState.update { it.copy(isSending = true, totalCount = enqueued) }
             SmsResponseReceiver.startListening()

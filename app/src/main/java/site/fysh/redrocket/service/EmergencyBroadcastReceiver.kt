@@ -88,7 +88,13 @@ class EmergencyBroadcastReceiver : BroadcastReceiver() {
 
         app.appScope.launch(Dispatchers.IO) {
             try {
-                val allScenarios = app.database.scenarioDao().getAllScenariosOnce()
+                val allScenarios = withTimeoutOrNull(5_000L) {
+                    app.database.scenarioDao().getAllScenariosOnce()
+                } ?: run {
+                    Log.w(TAG, "DB timeout loading scenarios - cell broadcast ignored")
+                    pendingResult.finish()
+                    return@launch
+                }
                 Log.i(TAG, "Evaluating ${allScenarios.size} scenario(s) against cell broadcast")
                 if (messageBody.isNotBlank()) {
                     AppLogger.log(app.database, app.appScope, "emergency_detected",
@@ -165,6 +171,16 @@ class EmergencyBroadcastReceiver : BroadcastReceiver() {
                         continue
                     }
 
+                    // Atomically lock the scenario. If another trigger path (e.g. EmergencyNotificationListener)
+                    // already locked it in a concurrent call, rowsUpdated == 0 and we skip to prevent
+                    // duplicate sends to all recipients.
+                    val rowsUpdated = app.database.scenarioDao().lockIfUnlocked(scenario.id)
+                    if (rowsUpdated == 0) {
+                        Log.i(TAG, "Scenario '${scenario.name}' already locked by concurrent trigger - duplicate send prevented")
+                        continue
+                    }
+                    Log.i(TAG, "[LOCKOUT] Scenario '${scenario.name}' locked after cell broadcast trigger.")
+
                     // Trigger this scenario
                     Log.i(TAG, "TRIGGERED scenario '${scenario.name}' - enqueuing ${scenario.allRecipients().size} recipient(s)")
                     AppLogger.log(app.database, app.appScope, "scenario_triggered",
@@ -177,10 +193,6 @@ class EmergencyBroadcastReceiver : BroadcastReceiver() {
                                 "Group '${group.name}' - ${group.recipients.size} contact(s) queued")
                         }
                     }
-
-                    // Lock scenario to prevent re-triggering
-                    app.database.scenarioDao().insertScenario(scenario.copy(isLocked = true))
-                    Log.i(TAG, "[LOCKOUT] Scenario '${scenario.name}' locked after cell broadcast trigger.")
                     triggeredNames.add(scenario.name)
                     triggeredCount++
                 }
@@ -196,6 +208,8 @@ class EmergencyBroadcastReceiver : BroadcastReceiver() {
                 } else {
                     Log.i(TAG, "No scenarios triggered by this cell broadcast")
                 }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Log.e(TAG, "Error processing cell broadcast", e)
             } finally {

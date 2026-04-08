@@ -21,8 +21,8 @@ android {
         applicationId = "site.fysh.redrocket"
         minSdk = 26
         targetSdk = 35
-        versionCode = 7
-        versionName = "2.0.5"
+        versionCode = 8
+        versionName = "2.0.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // Safe default; overridden by each product flavor

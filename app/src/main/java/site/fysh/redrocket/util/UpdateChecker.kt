@@ -17,12 +17,12 @@ object UpdateChecker {
      * as "no update available" and not surface an error to the user.
      */
     suspend fun checkForUpdate(currentVersion: String): String? = withContext(Dispatchers.IO) {
+        val connection = URL(RELEASES_URL).openConnection() as java.net.HttpURLConnection
         try {
-            val connection = URL(RELEASES_URL).openConnection()
             connection.setRequestProperty("Accept", "application/vnd.github+json")
             connection.connectTimeout = 5_000
             connection.readTimeout = 5_000
-            val json = connection.getInputStream().use { it.bufferedReader().readText() }
+            val json = connection.inputStream.use { it.bufferedReader().readText() }
             val tag = JSONObject(json).optString("tag_name", "").trimStart('v', 'V')
             if (tag.isNotBlank() && isNewerVersion(tag, currentVersion)) {
                 Log.i(TAG, "Update available: $tag (current: $currentVersion)")
@@ -33,6 +33,8 @@ object UpdateChecker {
         } catch (e: Exception) {
             Log.d(TAG, "Update check skipped: ${e.message}")
             null
+        } finally {
+            connection.disconnect()
         }
     }
 
