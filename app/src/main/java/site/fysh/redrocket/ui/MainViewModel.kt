@@ -312,6 +312,25 @@ class MainViewModel(
             if (latest != null) _uiState.update { it.copy(updateAvailable = latest) }
         }
 
+        // Show What's New dialog when the app version has changed since the last launch.
+        // Fetches release notes from GitHub so the content never needs to be hardcoded.
+        viewModelScope.launch {
+            val lastSeen = settings.lastSeenVersion.first()
+            val current = site.fysh.redrocket.BuildConfig.VERSION_NAME
+            when {
+                lastSeen.isEmpty() -> {
+                    // First ever launch — record version silently, no dialog
+                    settings.setLastSeenVersion(current)
+                }
+                lastSeen != current -> {
+                    _uiState.update { it.copy(showWhatsNew = true) }
+                    // Fetch release notes from GitHub in the background
+                    val body = site.fysh.redrocket.util.UpdateChecker.fetchReleaseNotes(current)
+                    _uiState.update { it.copy(whatsNewBody = body) }
+                }
+            }
+        }
+
         startMonitoring()
     }
 
@@ -653,12 +672,13 @@ class MainViewModel(
     // --- Recipient Management ---
 
     fun onRemoveRecipient(recipient: Recipient) {
-        undoStack.addLast(_uiState.value.currentScenario.copy())
-        _uiState.update { state ->
-            val updatedRecipients = state.currentScenario.recipients.filter { it != recipient }
-            state.copy(currentScenario = state.currentScenario.copy(recipients = updatedRecipients))
-        }
-        autoSave()
+        // All recipients live in groups — the legacy flat `recipients` field is always empty
+        // for multi-group scenarios. Route to the group that owns this recipient so the
+        // removal is actually reflected in the UI and persisted correctly.
+        val owningGroup = _uiState.value.currentScenario.groups
+            .firstOrNull { g -> g.recipients.any { it.phoneNumber == recipient.phoneNumber } }
+            ?: return
+        onRemoveRecipientFromGroup(owningGroup.id, recipient)
     }
 
     // --- Global Controls ---
@@ -1291,6 +1311,13 @@ class MainViewModel(
         _uiState.update { it.copy(updateAvailable = null) }
     }
 
+    fun dismissWhatsNew() {
+        _uiState.update { it.copy(showWhatsNew = false) }
+        viewModelScope.launch {
+            settings.setLastSeenVersion(site.fysh.redrocket.BuildConfig.VERSION_NAME)
+        }
+    }
+
     // --- Preset offering ---
 
     fun markPresetsOffered() {
@@ -1372,6 +1399,10 @@ data class MainUiState(
     val userMessage: String? = null,
     /** Non-null when a newer GitHub release is available; contains the version tag string. */
     val updateAvailable: String? = null,
+    /** True when the app has just been updated and the What's New dialog should be shown. */
+    val showWhatsNew: Boolean = false,
+    /** Release notes fetched from GitHub for the What's New dialog. Null while loading. */
+    val whatsNewBody: String? = null,
     /** URI string of the user-chosen auto-backup folder. Empty = use app-private fallback. */
     val autoBackupUri: String = ""
 )

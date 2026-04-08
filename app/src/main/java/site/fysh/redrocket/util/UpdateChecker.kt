@@ -10,6 +10,8 @@ object UpdateChecker {
     private const val TAG = "UpdateChecker"
     private const val RELEASES_URL =
         "https://api.github.com/repos/Fysh-ball/RedRocket/releases/latest"
+    private const val RELEASE_BY_TAG_URL =
+        "https://api.github.com/repos/Fysh-ball/RedRocket/releases/tags/v"
 
     /**
      * Fetches the latest GitHub release tag and returns it if it is newer than [currentVersion].
@@ -32,6 +34,26 @@ object UpdateChecker {
             }
         } catch (e: Exception) {
             Log.d(TAG, "Update check skipped: ${e.message}")
+            null
+        } finally {
+            connection.disconnect()
+        }
+    }
+
+    /**
+     * Fetches the GitHub release body for [version] (e.g. "2.0.6" → tag "v2.0.6").
+     * Returns the markdown body string, or null on any failure.
+     */
+    suspend fun fetchReleaseNotes(version: String): String? = withContext(Dispatchers.IO) {
+        val connection = URL("$RELEASE_BY_TAG_URL$version").openConnection() as java.net.HttpURLConnection
+        try {
+            connection.setRequestProperty("Accept", "application/vnd.github+json")
+            connection.connectTimeout = 5_000
+            connection.readTimeout = 5_000
+            val json = connection.inputStream.use { it.bufferedReader().readText() }
+            JSONObject(json).optString("body", "").ifBlank { null }
+        } catch (e: Exception) {
+            Log.d(TAG, "Could not fetch release notes for v$version: ${e.message}")
             null
         } finally {
             connection.disconnect()
