@@ -134,17 +134,15 @@ class EmergencyNotificationListener : NotificationListenerService() {
         // EAS/WEA notifications are logged unconditionally before any filtering so
         // they always appear in Alert History regardless of scenario configuration.
         // Row ID is kept so triggered scenario names can be back-filled after the loop.
-        val easAlertRowId: Long = if (isSystemEmergencyAlert) {
-            app.database.pastAlertDao().insertAlertAndGetId(
-                PastAlert(
-                    messageContent = content.ifBlank { "[EAS alert - no text retrieved]" }.take(500),
-                    source = "alert",
-                    scenariosTriggered = ""
-                )
+        // Note: isSystemEmergencyAlert is always true here — the !isSystemEmergencyAlert
+        // guard at line 119 returns early, so this code is only reached for EAS alerts.
+        val easAlertRowId: Long = app.database.pastAlertDao().insertAlertAndGetId(
+            PastAlert(
+                messageContent = content.ifBlank { "[EAS alert - no text retrieved]" }.take(500),
+                source = "alert",
+                scenariosTriggered = ""
             )
-        } else {
-            -1L
-        }
+        )
 
         // Load ALL scenarios - every scenario actively listens for its trigger words
         val allScenarios = withTimeoutOrNull(5_000L) {
@@ -231,17 +229,9 @@ class EmergencyNotificationListener : NotificationListenerService() {
             )
         }
 
-        // Non-EAS notifications only appear in Alert History when they actually caused
-        // a trigger. Keyword matches that were blocked or didn't fire are not logged.
-        if (!isSystemEmergencyAlert && triggeredCount > 0) {
-            app.database.pastAlertDao().insertAlert(
-                PastAlert(
-                    messageContent = content.take(500),
-                    source = "notification",
-                    scenariosTriggered = triggeredNames.joinToString(",")
-                )
-            )
-        }
+        // (Non-EAS path removed: processNotification() returns early at line 119 for
+        // non-emergency packages, so this point is only ever reached for EAS alerts.
+        // The back-fill above handles the only logging path needed.)
 
         if (triggeredCount > 0) {
             AppLogger.log(app.database, app.appScope, "emergency_detected",

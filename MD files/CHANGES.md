@@ -2,6 +2,25 @@
 
 ---
 
+## Session: 2026-04-08 (v2.0.7 — Bug fixes + version label + What's New dialog)
+
+### service/EmergencyNotificationListener.kt — dead branches removed
+- The `else { -1L }` branch in `easAlertRowId` and the `if (!isSystemEmergencyAlert && triggeredCount > 0)` block at the end of `processNotification()` were unreachable — the function hard-returns at line 119 for non-emergency packages, so both branches could never execute. Removed to eliminate misleading code.
+
+### ui/MainViewModel.kt — onRemoveRecipient rerouted to correct data model
+- `onRemoveRecipient()` was modifying the legacy flat `recipients` field (which is always empty for multi-group scenarios) instead of the recipient's owning group. Removals would silently write a stale record to the DB and corrupt the undo stack without any visible effect in the UI. Now routes to `onRemoveRecipientFromGroup()` on the correct group.
+
+### ui/MainScreen.kt — registerReceiver crash on Android 14+
+- Dynamic `BroadcastReceiver` for power-save mode changes was registered without the required `RECEIVER_EXPORTED` flag on API 34+. Android 14 throws a `SecurityException` on `registerReceiver()` without an explicit exported/not-exported flag. Added `RECEIVER_EXPORTED` flag on API 34+ (system broadcasts require it).
+
+### ui/MainScreen.kt — version number displayed next to "Alert System" title
+- App version (e.g. "v2.0.7") now appears to the right of the "Alert System" heading so users can always see which version they are running.
+
+### ui/MainScreen.kt + ui/MainViewModel.kt + util/UpdateChecker.kt + utils/AppSettings.kt — What's New dialog on update
+- On first launch after an update, a dialog shows the release notes for the installed version fetched live from the GitHub releases API. No changelog text is hardcoded — the dialog content comes from the GitHub release body, so it is always accurate and requires no code changes to update. Shows a spinner while loading and locks the "Got it" button until content arrives. Dismissed state is persisted in DataStore so the dialog appears exactly once per version upgrade.
+
+---
+
 ## Session: 2026-04-07 (v2.0.6 — Deep audit fixes: concurrency, correctness, reliability)
 
 ### service/EmergencyBroadcastReceiver.kt — CancellationException no longer swallowed

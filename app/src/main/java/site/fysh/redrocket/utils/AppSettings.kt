@@ -23,9 +23,10 @@ class AppSettings(private val context: Context) {
         val REPLY_LISTEN_HOURS  = intPreferencesKey("reply_listen_hours")
         val PRESETS_OFFERED     = booleanPreferencesKey("presets_offered")
         val ALERT_SENSITIVITY   = stringPreferencesKey("alert_sensitivity")
-        val FORCE_SEND_USED     = booleanPreferencesKey("force_send_used")
-        val TUTORIAL_SHOWN      = booleanPreferencesKey("tutorial_shown")
-        val AUTO_BACKUP_URI     = stringPreferencesKey("auto_backup_uri")
+        val FORCE_SEND_USED       = booleanPreferencesKey("force_send_used")
+        val TUTORIAL_SHOWN        = booleanPreferencesKey("tutorial_shown")
+        val AUTO_BACKUP_URI       = stringPreferencesKey("auto_backup_uri")
+        val LAST_SEEN_VERSION     = stringPreferencesKey("last_seen_version")
     }
 
     val isFirstLaunch: Flow<Boolean>   = context.dataStore.data.map { it[IS_FIRST_LAUNCH] ?: true }
@@ -40,7 +41,8 @@ class AppSettings(private val context: Context) {
     val alertSensitivity: Flow<String> = context.dataStore.data.map { it[ALERT_SENSITIVITY] ?: "MEDIUM" }
     val forceSendUsed: Flow<Boolean>   = context.dataStore.data.map { it[FORCE_SEND_USED] ?: false }
     val tutorialShown: Flow<Boolean>   = context.dataStore.data.map { it[TUTORIAL_SHOWN] ?: false }
-    val autoBackupUri: Flow<String>    = context.dataStore.data.map { it[AUTO_BACKUP_URI] ?: "" }
+    val autoBackupUri: Flow<String>      = context.dataStore.data.map { it[AUTO_BACKUP_URI] ?: "" }
+    val lastSeenVersion: Flow<String>    = context.dataStore.data.map { it[LAST_SEEN_VERSION] ?: "" }
 
     suspend fun setFirstLaunch(isFirst: Boolean) {
         context.dataStore.edit { it[IS_FIRST_LAUNCH] = isFirst }
@@ -92,6 +94,10 @@ class AppSettings(private val context: Context) {
 
     suspend fun setAutoBackupUri(uri: String) {
         context.dataStore.edit { it[AUTO_BACKUP_URI] = uri }
+    }
+
+    suspend fun setLastSeenVersion(version: String) {
+        context.dataStore.edit { it[LAST_SEEN_VERSION] = version }
     }
 
 }

@@ -53,6 +53,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.mutableLongStateOf
 import kotlinx.coroutines.delay
+import site.fysh.redrocket.BuildConfig
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -179,12 +180,20 @@ fun MainScreen(viewModel: MainViewModel) {
             ) {
                 // Tab header
                 Column {
-                    Text(
-                        "Alert System",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            "Alert System",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            "v${BuildConfig.VERSION_NAME}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                     HorizontalDivider(modifier = Modifier.padding(top = 6.dp))
                 }
 
@@ -328,7 +337,17 @@ fun MainScreen(viewModel: MainViewModel) {
                         override fun onReceive(ctx: Context, intent: Intent?) { batteryOptDisabled = isExempt() }
                     }
                     lifecycleOwner.lifecycle.addObserver(observer)
-                    context.registerReceiver(receiver, IntentFilter(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED))
+                    // API 34+ requires an explicit exported/not-exported flag on dynamic receivers.
+                    // Power-save mode is a system broadcast so RECEIVER_EXPORTED is required.
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                        context.registerReceiver(
+                            receiver,
+                            IntentFilter(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED),
+                            Context.RECEIVER_EXPORTED
+                        )
+                    } else {
+                        context.registerReceiver(receiver, IntentFilter(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED))
+                    }
                     onDispose {
                         lifecycleOwner.lifecycle.removeObserver(observer)
                         context.unregisterReceiver(receiver)
@@ -752,6 +771,48 @@ fun MainScreen(viewModel: MainViewModel) {
 
     if (uiState.showTutorialComplete) {
         TutorialCompleteOverlay(onDismiss = { viewModel.completeTutorial() })
+    }
+
+    if (uiState.showWhatsNew) {
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissWhatsNew() },
+            title = {
+                Text(
+                    "What's new in v${BuildConfig.VERSION_NAME}",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                when (val body = uiState.whatsNewBody) {
+                    null -> {
+                        // Still loading from GitHub
+                        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(modifier = androidx.compose.ui.Modifier.size(32.dp))
+                        }
+                    }
+                    else -> {
+                        // Render each non-blank line from the GitHub release body
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            body.lines()
+                                .map { it.trim() }
+                                .filter { it.isNotBlank() }
+                                .forEach { line ->
+                                    Text(line, style = MaterialTheme.typography.bodyMedium)
+                                }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { viewModel.dismissWhatsNew() },
+                    enabled = uiState.whatsNewBody != null
+                ) {
+                    Text("Got it")
+                }
+            }
+        )
     }
     } // closes outer Box
 }

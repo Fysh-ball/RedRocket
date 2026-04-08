@@ -4,6 +4,20 @@ Public-facing release notes for each version. These are what users see on GitHub
 
 ---
 
+## v2.0.7 — Bug Fixes and Improvements (2026-04-08)
+
+### New
+
+- **Version number now shown in the app header:** The current version (e.g. v2.0.7) is displayed next to the "Alert System" title so you always know which version you are running without having to go into settings.
+- **What's New dialog on update:** After updating the app, a dialog shows the release notes for the new version. The content is pulled live from GitHub — no need to go to the store or the website to see what changed.
+
+### Bug Fixes
+
+- **Fixed crash on Android 14 devices when the battery optimization warning is shown:** The receiver that monitors power-save mode changes was missing a required flag introduced in Android 14, causing a crash on affected devices.
+- **Fixed removing a contact doing nothing:** Tapping the × button on a recipient chip in certain scenarios would silently fail — the contact appeared to be removed but was still there after saving. The removal now correctly targets the right data.
+
+---
+
 ## v2.0.6 — Reliability and Correctness Fixes (2026-04-07)
 
 ### Bug Fixes
