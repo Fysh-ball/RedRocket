@@ -102,7 +102,9 @@ class EmergencyBroadcastReceiver : BroadcastReceiver() {
                 }
 
                 // Read sensitivity - fail safely to MEDIUM
-                val sensitivityStr = app.settings.alertSensitivity.first()
+                val sensitivityStr = withTimeoutOrNull(3_000L) {
+                    app.settings.alertSensitivity.first()
+                } ?: "MEDIUM"
                 val sensitivity = try { AlertSensitivity.valueOf(sensitivityStr) } catch (_: Exception) { AlertSensitivity.MEDIUM }
 
                 // Load user-defined block phrases (any language).
