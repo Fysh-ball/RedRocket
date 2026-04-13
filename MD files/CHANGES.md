@@ -2,6 +2,14 @@
 
 ---
 
+## v2.0.10 - Hotfix: Global Keyword Detection toggle not respected
+
+### service/EmergencyNotificationListener.kt - gate content matching on wideSpreadEnabled
+- `looksLikeEASContent()` ran on every notification regardless of the Global Keyword Detection toggle state. When the toggle was OFF, any app notification containing FCC-mandated phrases like "EMERGENCY ALERT" or "CIVIL EMERGENCY" would still be processed through the full trigger pipeline, potentially sending SMS alerts from non-WEA sources the user did not opt into.
+- Content-based matching now only activates when `wideSpreadEnabled` is true. Known WEA system packages (the static emergency alert package list) are always processed regardless of the toggle.
+
+---
+
 ## Session: 2026-04-08 (v2.0.9 — Exhaustive audit: crashes, reliability, accessibility, branding)
 
 ### AndroidManifest.xml — `<queries>` block added for OEM cell broadcast detection
