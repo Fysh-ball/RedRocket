@@ -108,16 +108,21 @@ class EmergencyNotificationListener : NotificationListenerService() {
     }
 
     private suspend fun processNotification(packageName: String, content: String) {
-        // Two-path EAS detection: known package OR FCC-mandated content phrases.
-        // isEmergencyAlertPackage always checks the full static list first so partial
-        // runtime detection can never cause a known WEA package to be missed.
-        val isSystemEmergencyAlert = EmergencyPackageDetector.isEmergencyAlertPackage(packageName)
-            || looksLikeEASContent(content)
+        // Path 1: Always check known system WEA/EAS packages (never gated on settings).
+        val isKnownEmergencyPackage = EmergencyPackageDetector.isEmergencyAlertPackage(packageName)
 
-        // Hard stop: notifications from non-emergency apps (YouTube, social media, games, etc.)
-        // can never trigger a scenario. Exit before touching the database.
+        // Path 2: Content-based EAS detection from ANY app's notification.
+        // Only active when Global Keyword Detection (wideSpreadEnabled) is ON.
+        val wideSpreadOn = withTimeoutOrNull(2_000L) {
+            app.settings.wideSpreadEnabled.first()
+        } ?: false
+        val isContentMatch = wideSpreadOn && looksLikeEASContent(content)
+
+        val isSystemEmergencyAlert = isKnownEmergencyPackage || isContentMatch
+
+        // Hard stop: not a known WEA package AND not a content match (or wide-spread is off).
         if (!isSystemEmergencyAlert) {
-            Log.v(TAG, "Non-emergency notification from $packageName — ignored")
+            Log.v(TAG, "Non-emergency notification from $packageName - ignored (wideSpread=$wideSpreadOn)")
             return
         }
 
