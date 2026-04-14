@@ -345,12 +345,15 @@ fun MultiContactPickerDialog(
                     while (it.moveToNext()) {
                         val name = it.getString(nameIndex) ?: continue
                         val rawNumber = it.getString(numberIndex) ?: continue
-                        val number = rawNumber.replace(" ", "").replace("-", "")
-                        tempContacts.add(Recipient(name, number))
+                        val number = rawNumber.replace(Regex("[^\\d+]"), "")
+                        val recipient = Recipient(name, number)
+                        if (recipient.isValid()) {
+                            tempContacts.add(recipient)
+                        }
                     }
                 }
             }
-            tempContacts.distinctBy { it.phoneNumber }
+            tempContacts.distinctBy { normalizePhone(it.phoneNumber) }
         }
         contactList = loaded
     }
@@ -409,8 +412,8 @@ fun MultiContactPickerDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     TextButton(onClick = {
-                        val available = filteredContacts.filter { contact -> 
-                            existingRecipients.none { it.phoneNumber == contact.phoneNumber } 
+                        val available = filteredContacts.filter { contact ->
+                            existingRecipients.none { normalizePhone(it.phoneNumber) == normalizePhone(contact.phoneNumber) }
                         }
                         if (selectedContacts.size == available.size && available.isNotEmpty()) {
                             selectedContacts.clear()
@@ -419,7 +422,7 @@ fun MultiContactPickerDialog(
                             selectedContacts.addAll(available)
                         }
                     }) {
-                        val availableCount = filteredContacts.count { contact -> existingRecipients.none { it.phoneNumber == contact.phoneNumber } }
+                        val availableCount = filteredContacts.count { contact -> existingRecipients.none { normalizePhone(it.phoneNumber) == normalizePhone(contact.phoneNumber) } }
                         Text(if (selectedContacts.size == availableCount && availableCount > 0) "Deselect All" else "Select All")
                     }
                     Text("${selectedContacts.size} selected", style = MaterialTheme.typography.bodyMedium)
@@ -427,7 +430,7 @@ fun MultiContactPickerDialog(
                 
                 LazyColumn(modifier = Modifier.weight(1f)) {
                     items(filteredContacts, key = { it.phoneNumber }) { contact ->
-                        val isAlreadyAdded = existingRecipients.any { it.phoneNumber == contact.phoneNumber }
+                        val isAlreadyAdded = existingRecipients.any { normalizePhone(it.phoneNumber) == normalizePhone(contact.phoneNumber) }
                         val isSelected = selectedContacts.contains(contact)
                         
                         Row(

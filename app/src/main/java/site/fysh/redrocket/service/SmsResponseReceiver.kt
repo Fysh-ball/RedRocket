@@ -166,7 +166,7 @@ class SmsResponseReceiver : BroadcastReceiver() {
          * Parses a response code from the SMS body using normalized keyword matching.
          *
          * Normalization: lowercase → remove punctuation (replace with space) → collapse spaces.
-         * Priority (highest wins): EMERGENCY (3) > UPDATES (2) > SAFE (1)
+         * Priority (highest wins): EMERGENCY (3) > SAFE (1) > UPDATES (2)
          * Returns null if no match - caller should ignore the message safely.
          */
         fun parseResponseCode(body: String): Int? {
@@ -204,8 +204,8 @@ class SmsResponseReceiver : BroadcastReceiver() {
             val isEmergency =
                 text.contains("emergency") ||
                 text.contains("not safe") ||
-                text.contains("danger") ||
-                text.contains("urgent") ||
+                containsWithoutNegation(text, "danger") ||
+                containsWithoutNegation(text, "urgent") ||
                 text.contains("i need help") ||
                 text.contains("need help") ||
                 text.contains("please help") ||
@@ -213,14 +213,31 @@ class SmsResponseReceiver : BroadcastReceiver() {
                 "sos" in words ||
                 text.contains("s o s") ||
                 text.contains("injured") ||
-                text.contains("hurt") ||
+                (containsWithoutNegation(text, "hurt") && !text.contains("unhurt")) ||
                 text.contains("come now") ||
                 text.contains("call 911") ||
                 text.contains("need assistance")
 
             if (isEmergency) return 3
 
-            // Priority 2 - UPDATES (2)
+            // Priority 2 - SAFE (1): checked before UPDATES so "I'm safe, will update you later" = Safe
+            // "ok", "fine", "good" require exact message match - too broad as substrings
+            val isSafe =
+                text.contains("i am safe") ||
+                text.contains("im safe") ||
+                text.contains("i m safe") ||
+                text.contains("all good") ||
+                text.contains("im good") ||
+                text.contains("i m good") ||
+                text.contains("okay") ||
+                text.contains("safe") ||
+                text == "ok" ||
+                text == "fine" ||
+                text == "good"
+
+            if (isSafe) return 1
+
+            // Priority 3 - UPDATES (2)
             val isUpdates =
                 text.contains("keep me updated") ||
                 text.contains("want updates") ||
@@ -238,24 +255,17 @@ class SmsResponseReceiver : BroadcastReceiver() {
 
             if (isUpdates) return 2
 
-            // Priority 3 - SAFE (1)
-            // "ok", "fine", "good" require exact message match - too broad as substrings
-            val isSafe =
-                text.contains("i am safe") ||
-                text.contains("im safe") ||
-                text.contains("i m safe") ||
-                text.contains("all good") ||
-                text.contains("im good") ||
-                text.contains("i m good") ||
-                text.contains("okay") ||
-                text.contains("safe") ||
-                text == "ok" ||
-                text == "fine" ||
-                text == "good"
-
-            if (isSafe) return 1
-
             return null
+        }
+
+        /** Returns true if keyword appears in text without a preceding negation. */
+        private fun containsWithoutNegation(text: String, keyword: String): Boolean {
+            val idx = text.indexOf(keyword)
+            if (idx < 0) return false
+            // Check for negation in the 12 chars before the keyword
+            val prefix = text.substring(maxOf(0, idx - 12), idx)
+            val negations = listOf("no ", "not ", "un", "didn't ", "don't ", "never ", "out of ", "no more ")
+            return negations.none { prefix.endsWith(it) }
         }
     }
 
@@ -334,7 +344,7 @@ class SmsResponseReceiver : BroadcastReceiver() {
                 }
 
                 val body = messages.joinToString("") { it.messageBody ?: "" }.trim()
-                Log.d(TAG, "SMS from sender='$sender', body='$body'")
+                if (BuildConfig.DEBUG) Log.d(TAG, "SMS from sender='$sender', body='$body'")
 
                 val responseCode = parseResponseCode(body) ?: run {
                     Log.d(TAG, "Body '$body' is not a recognizable response, ignoring")
@@ -380,6 +390,7 @@ class SmsResponseReceiver : BroadcastReceiver() {
                 Log.d(TAG, "Checking against ${allScenarios.size} scenarios")
 
                 var matched = false
+                var notificationShown = false
                 for (scenario in allScenarios) {
                     for (recipient in scenario.allRecipients()) {
                         val normalizedRecipient = normalizePhone(recipient.phoneNumber, region)
@@ -403,7 +414,10 @@ class SmsResponseReceiver : BroadcastReceiver() {
                             val displayName = if (recipient.name.isNotBlank()) recipient.name else "Added Number"
                             AppLogger.log(app.database, app.appScope, "response_received",
                                 "Contact '$displayName' replied: $responseText")
-                            showNotification(context, displayName, responseText, responseCode)
+                            if (!notificationShown) {
+                                showNotification(context, displayName, responseText, responseCode)
+                                notificationShown = true
+                            }
                             matched = true
 
                             if (responseCode == 3) {
@@ -430,30 +444,45 @@ class SmsResponseReceiver : BroadcastReceiver() {
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.SEND_SMS)
             != PackageManager.PERMISSION_GRANTED
         ) {
-            Log.w(TAG, "SEND_SMS permission not granted - auto-reply to $destination skipped")
+            Log.w(TAG, "SEND_SMS permission not granted - auto-reply skipped")
             return
         }
         try {
-            @Suppress("DEPRECATION")
             val smsManager = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 context.getSystemService(SmsManager::class.java)
             } else {
-                SmsManager.getDefault()
+                @Suppress("DEPRECATION") SmsManager.getDefault()
             }
-            smsManager?.sendTextMessage(
-                destination,
-                null,
-                "Call 911 if it's a life threatening emergency",
-                null,
-                null
-            )
-            Log.i(TAG, "Auto-replied to $destination: 'Call 911...'")
+            val message = "Call 911 if it's a life threatening emergency"
+            // Try up to 2 times
+            var sent = false
+            repeat(2) { attempt ->
+                if (sent) return@repeat
+                try {
+                    smsManager?.sendTextMessage(destination, null, message, null, null)
+                    sent = true
+                    if (BuildConfig.DEBUG) Log.i(TAG, "Auto-replied to $destination (attempt ${attempt + 1})")
+                    else Log.i(TAG, "Auto-reply sent successfully")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Auto-reply attempt ${attempt + 1} failed", e)
+                    if (attempt == 0) Thread.sleep(1000) // brief wait before retry
+                }
+            }
+            if (!sent) {
+                Log.e(TAG, "Auto-reply failed after 2 attempts")
+            }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to send auto-reply to $destination", e)
+            Log.e(TAG, "Failed to send auto-reply", e)
         }
     }
 
     private fun showNotification(context: Context, recipientName: String, responseText: String, responseCode: Int) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
+            != PackageManager.PERMISSION_GRANTED) {
+            Log.w(TAG, "POST_NOTIFICATIONS permission not granted - response notification suppressed")
+            return
+        }
         val nm = context.getSystemService(NotificationManager::class.java) ?: return
         // Channel is created once in init() — no Binder IPC here on every response.
         val priority = if (responseCode == 3) NotificationCompat.PRIORITY_MAX else NotificationCompat.PRIORITY_HIGH

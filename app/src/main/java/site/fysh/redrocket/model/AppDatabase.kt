@@ -9,8 +9,8 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
-    entities = [Scenario::class, ResponseRecord::class, PastAlert::class, ContactSendHistory::class, LogEntry::class, BlockPhrase::class],
-    version = 10,
+    entities = [Scenario::class, ResponseRecord::class, PastAlert::class, ContactSendHistory::class, LogEntry::class, BlockPhrase::class, PendingMessage::class],
+    version = 11,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -21,6 +21,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun contactSendHistoryDao(): ContactSendHistoryDao
     abstract fun logEntryDao(): LogEntryDao
     abstract fun blockPhraseDao(): BlockPhraseDao
+    abstract fun pendingMessageDao(): PendingMessageDao
 
     companion object {
         @Volatile
@@ -53,10 +54,22 @@ abstract class AppDatabase : RoomDatabase() {
             override fun migrate(database: SupportSQLiteDatabase) {
                 try {
                     database.execSQL("ALTER TABLE past_alerts ADD COLUMN source TEXT NOT NULL DEFAULT ''")
-                } catch (_: Exception) { /* column already present */ }
+                } catch (e: android.database.SQLException) {
+                    if (e.message?.contains("duplicate column", ignoreCase = true) == true) {
+                        // Column already present - safe to ignore
+                    } else {
+                        throw e
+                    }
+                }
                 try {
                     database.execSQL("ALTER TABLE past_alerts ADD COLUMN scenariosTriggered TEXT NOT NULL DEFAULT ''")
-                } catch (_: Exception) { /* column already present */ }
+                } catch (e: android.database.SQLException) {
+                    if (e.message?.contains("duplicate column", ignoreCase = true) == true) {
+                        // Column already present - safe to ignore
+                    } else {
+                        throw e
+                    }
+                }
             }
         }
 
@@ -83,6 +96,25 @@ abstract class AppDatabase : RoomDatabase() {
                 ).forEach { phrase ->
                     database.execSQL("INSERT INTO block_phrases (phrase) VALUES (?)", arrayOf(phrase))
                 }
+            }
+        }
+
+        // Creates pending_messages table for durable message queue persistence.
+        // Ensures pending SMS tasks survive process death.
+        private val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `pending_messages` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `recipientName` TEXT NOT NULL,
+                        `recipientPhone` TEXT NOT NULL,
+                        `message` TEXT NOT NULL,
+                        `scenarioId` TEXT NOT NULL,
+                        `status` TEXT NOT NULL DEFAULT 'PENDING',
+                        `retryCount` INTEGER NOT NULL DEFAULT 0,
+                        `createdAt` INTEGER NOT NULL DEFAULT 0
+                    )"""
+                )
             }
         }
 
@@ -113,8 +145,9 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "emergency_app_database"
                 )
-                .addMigrations(MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
+                .addMigrations(MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11)
                 .fallbackToDestructiveMigrationFrom(1, 2, 3, 4, 5)
+                .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
                 .build()
                 INSTANCE = instance
                 instance

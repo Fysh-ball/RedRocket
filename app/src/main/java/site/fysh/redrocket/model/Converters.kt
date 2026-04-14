@@ -12,13 +12,8 @@ class Converters {
     private val groupListType = object : TypeToken<List<Group>>() {}.type
 
     @TypeConverter
-    fun fromRecipientList(value: List<Recipient>?): String? {
-        return try {
-            gson.toJson(value)
-        } catch (e: Exception) {
-            Log.e("Converters", "Failed to serialize recipient list", e)
-            null
-        }
+    fun fromRecipientList(value: List<Recipient>?): String {
+        return gson.toJson(value ?: emptyList<Recipient>())
     }
 
     @TypeConverter
@@ -36,13 +31,8 @@ class Converters {
     }
 
     @TypeConverter
-    fun fromGroupList(value: List<Group>?): String? {
-        return try {
-            gson.toJson(value)
-        } catch (e: Exception) {
-            Log.e("Converters", "Failed to serialize group list", e)
-            null
-        }
+    fun fromGroupList(value: List<Group>?): String {
+        return gson.toJson(value ?: emptyList<Group>())
     }
 
     @TypeConverter

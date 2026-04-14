@@ -84,6 +84,18 @@ class AdaptiveSendController {
         }
     }
 
+    /**
+     * Called when a radio-off or no-service error is detected. Immediately forces
+     * SEQUENTIAL mode with the failure counter at the transition threshold so the
+     * next failure triggers Lazarus without wasting time on doomed send attempts.
+     */
+    fun reportRadioError() {
+        consecutiveFailures.set(3)
+        consecutiveSuccesses.set(0)
+        _currentState.value = SendState.SEQUENTIAL
+        Log.w(TAG, "Radio/service error detected - forcing SEQUENTIAL for fast Lazarus transition")
+    }
+
     fun enterLazarusMode() {
         consecutiveFailures.set(0)
         consecutiveSuccesses.set(0)

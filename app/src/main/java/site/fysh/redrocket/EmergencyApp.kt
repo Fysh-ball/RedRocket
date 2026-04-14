@@ -59,22 +59,14 @@ class EmergencyApp : Application() {
         SmsResponseReceiver.init(this)
         RegionSettings.init(this)
         
-        queueManager = MessageQueueManager()
+        queueManager = MessageQueueManager(database.pendingMessageDao())
         adaptiveController = AdaptiveSendController()
         rateLimiter = RateLimiter()
         
-        // Robust SmsManager retrieval
-        val smsManager = try {
-            getSystemService(SmsManager::class.java) ?: @Suppress("DEPRECATION") SmsManager.getDefault()
-        } catch (e: Exception) {
-            Log.e("EmergencyApp", "Failed to get SmsManager via getSystemService, using getDefault()", e)
-            @Suppress("DEPRECATION") SmsManager.getDefault()
-        }
-        
-        smsSender = SmsSender(this, smsManager, rateLimiter, adaptiveController, queueManager)
+        smsSender = SmsSender(this, { getSmsManager() }, rateLimiter, adaptiveController, queueManager)
         mockSender = MockSmsSender(rateLimiter, adaptiveController, queueManager)
         
-        manualGuard = ManualSendGuard(queueManager)
+        manualGuard = ManualSendGuard(queueManager, database.scenarioDao())
         
         // Lazarus system needs to use whatever provider is currently active
         lazarusSystem = LazarusRetrySystem(queueManager, adaptiveController) { getActiveSmsProvider() }
@@ -99,6 +91,26 @@ class EmergencyApp : Application() {
         EmergencyWidget.pushUpdate(this)
 
         Log.i("EmergencyApp", "Core messaging components initialized.")
+    }
+
+    /**
+     * Obtains a fresh SmsManager instance on each call. This avoids caching a stale
+     * reference at startup and handles dual-SIM devices where the default subscription
+     * may change between sends.
+     */
+    fun getSmsManager(): SmsManager? {
+        return try {
+            getSystemService(SmsManager::class.java)
+                ?: @Suppress("DEPRECATION") SmsManager.getDefault()
+        } catch (e: Exception) {
+            Log.e("EmergencyApp", "Failed to get SmsManager", e)
+            try {
+                @Suppress("DEPRECATION") SmsManager.getDefault()
+            } catch (e2: Exception) {
+                Log.e("EmergencyApp", "SmsManager.getDefault() also failed", e2)
+                null
+            }
+        }
     }
 
     /**

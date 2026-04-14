@@ -40,7 +40,7 @@ class MockSmsSender(
 
         if (firstResult) {
             Log.d(TAG, "[MOCK] COMPLETE (Attempt 1): ${task.recipient.phoneNumber}")
-            queueManager.markSuccess()
+            queueManager.markSuccess(task)
             return true
         }
 
@@ -51,7 +51,7 @@ class MockSmsSender(
             delay(200L)
             if (random.nextDouble() >= failureRate) {
                 Log.d(TAG, "[MOCK] COMPLETE (Attempt $attempt): ${task.recipient.phoneNumber}")
-                queueManager.markSuccess()
+                queueManager.markSuccess(task)
                 return true
             }
             Log.e(TAG, "[MOCK] FAILED (Attempt $attempt): ${task.recipient.phoneNumber}")

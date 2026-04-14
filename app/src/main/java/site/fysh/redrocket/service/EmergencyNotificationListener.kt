@@ -1,9 +1,11 @@
 package site.fysh.redrocket.service
 
 import android.app.Notification
+import android.content.Context
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
+import androidx.core.content.ContextCompat
 import site.fysh.redrocket.EmergencyApp
 import site.fysh.redrocket.model.PastAlert
 import site.fysh.redrocket.util.AlertSensitivity
@@ -50,6 +52,12 @@ class EmergencyNotificationListener : NotificationListenerService() {
         }
     }
 
+    override fun onListenerDisconnected() {
+        super.onListenerDisconnected()
+        Log.w(TAG, "Notification listener disconnected - emergency notification detection is disabled")
+        serviceScope.cancel()
+    }
+
     override fun onDestroy() {
         serviceScope.cancel()
         super.onDestroy()
@@ -72,7 +80,7 @@ class EmergencyNotificationListener : NotificationListenerService() {
 
             val fullContent = "$title $text $subText $ticker"
 
-            Log.d(TAG, "Received notification from: $packageName | Content: $fullContent")
+            if (site.fysh.redrocket.BuildConfig.DEBUG) Log.d(TAG, "Received notification from: $packageName | Content: $fullContent")
 
             // Skip system audio routing notifications - these are not emergency alerts and must
             // never appear in Alert History or trigger detection logic.
@@ -82,8 +90,18 @@ class EmergencyNotificationListener : NotificationListenerService() {
                 return
             }
 
+            val powerManager = getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
+            val wakeLock = powerManager?.newWakeLock(
+                android.os.PowerManager.PARTIAL_WAKE_LOCK, "RedRocket:NotificationProcessing"
+            )
+            wakeLock?.acquire(30_000L)
+
             serviceScope.launch {
-                processNotification(packageName, fullContent)
+                try {
+                    processNotification(packageName, fullContent)
+                } finally {
+                    if (wakeLock?.isHeld == true) wakeLock.release()
+                }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error processing incoming notification", e)
@@ -126,6 +144,11 @@ class EmergencyNotificationListener : NotificationListenerService() {
             return
         }
 
+        if (!site.fysh.redrocket.util.BroadcastDeduplicator.shouldProcess(content)) {
+            Log.i(TAG, "Duplicate notification detected within 30s window - skipping")
+            return
+        }
+
         // Read sensitivity - fail safely to MEDIUM
         val sensitivityStr = withTimeoutOrNull(3_000L) {
             app.settings.alertSensitivity.first()
@@ -165,9 +188,16 @@ class EmergencyNotificationListener : NotificationListenerService() {
         }
         Log.i(TAG, "Evaluating ${allScenarios.size} scenario(s) against notification from $packageName")
 
-        val contentLower = content.lowercase()
+        if (ContextCompat.checkSelfPermission(this@EmergencyNotificationListener, android.Manifest.permission.SEND_SMS)
+            != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            Log.e(TAG, "SEND_SMS permission revoked - cannot process emergency notification")
+            return
+        }
+
+        val contentLower = FalseAlarmDetector.normalize(content)
         var triggeredCount = 0
         val triggeredNames = mutableListOf<String>()
+        val enqueuedPhones = mutableSetOf<String>()
 
         for (scenario in allScenarios) {
             val keywords = scenario.description
@@ -184,6 +214,7 @@ class EmergencyNotificationListener : NotificationListenerService() {
             // - No keywords: wildcard — FalseAlarmDetector evaluates content quality against
             //   the sensitivity threshold (HIGH = broad, LOW = life-threatening only).
             val isMatched = if (keywords.isEmpty()) {
+                !FalseAlarmDetector.isBlockedDespiteKeywordMatch(content, userBlockPhrases) &&
                 FalseAlarmDetector.shouldTrigger(
                     content, emptyList(), isTrustedSource = true, sensitivity = sensitivity
                 )
@@ -225,9 +256,15 @@ class EmergencyNotificationListener : NotificationListenerService() {
 
             for (group in scenario.groups) {
                 if (group.recipients.isNotEmpty() && group.message.isNotBlank()) {
-                    app.queueManager.enqueueScenario(group.recipients, group.message, scenario.id)
-                    AppLogger.log(app.database, app.appScope, "group_processed",
-                        "Group '${group.name}' - ${group.recipients.size} contact(s) queued")
+                    val deduped = group.recipients.filter { r ->
+                        val norm = site.fysh.redrocket.util.normalizePhone(r.phoneNumber)
+                        enqueuedPhones.add(norm)  // returns false if already in set
+                    }
+                    if (deduped.isNotEmpty()) {
+                        app.queueManager.enqueueScenario(deduped, group.message, scenario.id)
+                        AppLogger.log(app.database, app.appScope, "group_processed",
+                            "Group '${group.name}' - ${deduped.size} contact(s) queued")
+                    }
                 }
             }
             triggeredNames.add(scenario.name)

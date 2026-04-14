@@ -22,6 +22,9 @@ class SmsDeliveryReceiver : BroadcastReceiver() {
 
         // Maps callbackId → (success: Boolean) callback registered by SmsSender.send()
         internal val pendingSent = ConcurrentHashMap<String, (Boolean) -> Unit>()
+
+        /** Last error code from a failed SMS_SENT broadcast (0 = no error). */
+        @Volatile var lastErrorType: Int = 0
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -42,6 +45,9 @@ class SmsDeliveryReceiver : BroadcastReceiver() {
                     Log.i("SmsDeliveryReceiver", "SMS_SENT $resultName (callbackId=$callbackId)")
                 } else if (!success) {
                     Log.w("SmsDeliveryReceiver", "SMS_SENT failed: $resultName")
+                }
+                if (!success) {
+                    lastErrorType = resultCode
                 }
                 pendingSent.remove(callbackId)?.invoke(success)
             }

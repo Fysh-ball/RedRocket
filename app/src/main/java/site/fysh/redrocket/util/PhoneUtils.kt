@@ -26,7 +26,12 @@ package site.fysh.redrocket.util
  */
 fun normalizePhone(number: String): String {
     val digits = number.filter { it.isDigit() }
-    return if (digits.length > 10) digits.takeLast(10) else digits
+    val hasPlus = number.trimStart().startsWith("+")
+    // Don't strip international numbers
+    if (hasPlus) return digits
+    return if (digits.length == 11 && digits.startsWith("1")) digits.drop(1)
+    else if (digits.length > 10) digits.takeLast(10)
+    else digits
 }
 
 /**
@@ -40,17 +45,35 @@ fun normalizePhone(number: String): String {
  */
 fun normalizePhone(number: String, regionCode: String): String {
     val digits = number.filter { it.isDigit() }
+    val hasPlus = number.trimStart().startsWith("+")
     return when (regionCode.uppercase()) {
         "AU" -> normalizeWithTrunkPrefix(digits, countryPrefix = "61", subscriberLength = 9)
         "NZ" -> normalizeWithTrunkPrefix(digits, countryPrefix = "64", subscriberLength = 9)
         "IN" -> {
-            // India: "+91" + 10-digit subscriber = 12 total digits
             if (digits.length == 12 && digits.startsWith("91")) digits.drop(2)
             else if (digits.length > 10) digits.takeLast(10)
             else digits
         }
-        else -> if (digits.length > 10) digits.takeLast(10) else digits
+        "US", "CA" -> {
+            // NANP: strip leading 1 from 11-digit numbers
+            if (digits.length == 11 && digits.startsWith("1")) digits.drop(1)
+            else if (digits.length > 10 && !hasPlus) digits.takeLast(10)
+            else digits
+        }
+        "GB" -> normalizeWithTrunkPrefix(digits, countryPrefix = "44", subscriberLength = 10)
+        else -> {
+            // For unknown regions with international prefix, keep full digits
+            if (hasPlus || digits.length <= 10) digits
+            else if (digits.length == 11 && digits.startsWith("1")) digits.drop(1) // likely NANP
+            else digits  // keep full international number
+        }
     }
+}
+
+/** Masks a phone number for safe logging: "+1555****67" */
+fun maskPhone(phone: String): String {
+    if (phone.length < 4) return "***"
+    return phone.take(2) + "*".repeat((phone.length - 4).coerceAtLeast(1)) + phone.takeLast(2)
 }
 
 /**

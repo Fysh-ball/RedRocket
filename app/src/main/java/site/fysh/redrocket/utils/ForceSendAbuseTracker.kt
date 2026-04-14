@@ -247,7 +247,7 @@ class ForceSendAbuseTracker(context: Context) {
             .putBoolean(KEY_EXTENDED_SLOW_DECAY, isInExtendedSlowDecay)
             .putLong(KEY_LAST_FORCE_SEND, lastForceSendTime)
             .putLong(KEY_LAST_DECAY, lastDecayTime)
-            .apply()
+            .commit()
     }
 }
 

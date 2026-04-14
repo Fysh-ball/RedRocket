@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 11,
-    "identityHash": "f634e33b3560b24e3ec2d2b0726ac457",
+    "identityHash": "95c3007a4992301ecb6a8171cdd88557",
     "entities": [
       {
         "tableName": "scenarios",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `description` TEXT NOT NULL, `message` TEXT NOT NULL, `recipients` TEXT NOT NULL, `groups` TEXT NOT NULL, `isLocked` INTEGER NOT NULL, `isFavorite` INTEGER NOT NULL, `orderIndex` INTEGER NOT NULL, `lastModified` INTEGER NOT NULL, `scheduleEnabled` INTEGER NOT NULL, `scheduleStartMinutes` INTEGER NOT NULL, `scheduleEndMinutes` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `description` TEXT NOT NULL, `message` TEXT NOT NULL, `recipients` TEXT NOT NULL, `groups` TEXT NOT NULL, `isLocked` INTEGER NOT NULL, `isFavorite` INTEGER NOT NULL, `orderIndex` INTEGER NOT NULL, `lastModified` INTEGER NOT NULL, PRIMARY KEY(`id`))",
         "fields": [
           {
             "fieldPath": "id",
@@ -65,24 +65,6 @@
           {
             "fieldPath": "lastModified",
             "columnName": "lastModified",
-            "affinity": "INTEGER",
-            "notNull": true
-          },
-          {
-            "fieldPath": "scheduleEnabled",
-            "columnName": "scheduleEnabled",
-            "affinity": "INTEGER",
-            "notNull": true
-          },
-          {
-            "fieldPath": "scheduleStartMinutes",
-            "columnName": "scheduleStartMinutes",
-            "affinity": "INTEGER",
-            "notNull": true
-          },
-          {
-            "fieldPath": "scheduleEndMinutes",
-            "columnName": "scheduleEndMinutes",
             "affinity": "INTEGER",
             "notNull": true
           }
@@ -308,12 +290,74 @@
         },
         "indices": [],
         "foreignKeys": []
+      },
+      {
+        "tableName": "pending_messages",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `recipientName` TEXT NOT NULL, `recipientPhone` TEXT NOT NULL, `message` TEXT NOT NULL, `scenarioId` TEXT NOT NULL, `status` TEXT NOT NULL, `retryCount` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "recipientName",
+            "columnName": "recipientName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "recipientPhone",
+            "columnName": "recipientPhone",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "message",
+            "columnName": "message",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "scenarioId",
+            "columnName": "scenarioId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "retryCount",
+            "columnName": "retryCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
       }
     ],
     "views": [],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'f634e33b3560b24e3ec2d2b0726ac457')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '95c3007a4992301ecb6a8171cdd88557')"
     ]
   }
 }
