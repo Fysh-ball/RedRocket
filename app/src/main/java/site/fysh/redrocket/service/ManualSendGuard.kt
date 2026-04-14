@@ -1,7 +1,9 @@
 package site.fysh.redrocket.service
 
+import android.util.Log
 import site.fysh.redrocket.model.Recipient
 import site.fysh.redrocket.model.Scenario
+import site.fysh.redrocket.model.ScenarioDao
 import site.fysh.redrocket.queue.MessageQueueManager
 import kotlinx.coroutines.*
 import kotlin.random.Random
@@ -10,7 +12,8 @@ import kotlin.random.Random
  * Security and safety guard for manual triggers.
  */
 class ManualSendGuard(
-    private val queueManager: MessageQueueManager
+    private val queueManager: MessageQueueManager,
+    private val scenarioDao: ScenarioDao
 ) {
     private var currentCaptcha: String? = null
     private var countdownJob: Job? = null
@@ -50,7 +53,18 @@ class ManualSendGuard(
             // destroyed mid-countdown (e.g. app backgrounded), the enqueue still completes.
             // The service will then send even if the UI is gone.
             withContext(NonCancellable) {
+                // Lock FIRST, then enqueue only scenarios we successfully locked
+                val lockedScenarios = mutableListOf<Scenario>()
                 for (scenario in validScenarios) {
+                    val rowsUpdated = scenarioDao.lockIfUnlocked(scenario.id)
+                    if (rowsUpdated > 0) {
+                        lockedScenarios.add(scenario)
+                    } else {
+                        Log.i("ManualSendGuard", "Scenario '${scenario.name}' already locked by concurrent trigger - skipping")
+                    }
+                }
+                // Then enqueue only successfully locked scenarios
+                for (scenario in lockedScenarios) {
                     for (group in scenario.groups) {
                         if (group.recipients.isNotEmpty() && group.message.isNotBlank()) {
                             queueManager.enqueueScenario(group.recipients, group.message, scenario.id)

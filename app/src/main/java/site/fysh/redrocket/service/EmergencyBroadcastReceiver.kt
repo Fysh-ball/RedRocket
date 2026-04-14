@@ -6,6 +6,8 @@ import android.content.Intent
 import android.util.Log
 import site.fysh.redrocket.EmergencyApp
 import site.fysh.redrocket.model.PastAlert
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
 import site.fysh.redrocket.util.AlertSensitivity
 import site.fysh.redrocket.util.FalseAlarmDetector
 import site.fysh.redrocket.utils.AppLogger
@@ -81,40 +83,26 @@ class EmergencyBroadcastReceiver : BroadcastReceiver() {
         Log.i(TAG, "Received broadcast action: $action")
 
         val pendingResult = goAsync()
+        val powerManager = context.getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
+        val wakeLock = powerManager?.newWakeLock(
+            android.os.PowerManager.PARTIAL_WAKE_LOCK, "RedRocket:BroadcastProcessing"
+        )
+        wakeLock?.acquire(30_000L)  // max 30s, auto-releases as safety net
         val app = context.applicationContext as EmergencyApp
 
         val messageBody: String = runCatching { extractMessageBody(intent) }.getOrElse { "" }
-        Log.i(TAG, "Cell broadcast body: ${messageBody.take(100)}")
+        if (site.fysh.redrocket.BuildConfig.DEBUG) Log.i(TAG, "Cell broadcast body: ${messageBody.take(100)}")
 
         app.appScope.launch(Dispatchers.IO) {
             try {
-                val allScenarios = withTimeoutOrNull(5_000L) {
-                    app.database.scenarioDao().getAllScenariosOnce()
-                } ?: run {
-                    Log.w(TAG, "DB timeout loading scenarios - cell broadcast ignored")
+                if (!site.fysh.redrocket.util.BroadcastDeduplicator.shouldProcess(messageBody)) {
+                    Log.i(TAG, "Duplicate broadcast detected within 30s window - skipping")
                     pendingResult.finish()
                     return@launch
                 }
-                Log.i(TAG, "Evaluating ${allScenarios.size} scenario(s) against cell broadcast")
-                if (messageBody.isNotBlank()) {
-                    AppLogger.log(app.database, app.appScope, "emergency_detected",
-                        "Cell broadcast: ${messageBody.take(120)}")
-                }
 
-                // Read sensitivity - fail safely to MEDIUM
-                val sensitivityStr = withTimeoutOrNull(3_000L) {
-                    app.settings.alertSensitivity.first()
-                } ?: "MEDIUM"
-                val sensitivity = try { AlertSensitivity.valueOf(sensitivityStr) } catch (_: Exception) { AlertSensitivity.MEDIUM }
-
-                // Load user-defined block phrases (any language).
-                // Timeout guards against a slow DB stalling the goAsync() 10s window.
-                val userBlockPhrases = withTimeoutOrNull(5_000L) {
-                    app.database.blockPhraseDao().getAllOnce().map { it.phrase }
-                } ?: emptyList()
-
-                // Log every cell broadcast BEFORE evaluation (resilience: record even if eval crashes).
-                // The row ID is kept so we can back-fill triggered scenario names after the loop.
+                // Log FIRST - before any DB operations that might time out (BUG-025).
+                // This ensures PastAlert is always recorded even if later loads stall.
                 val alertRowId = app.database.pastAlertDao().insertAlertAndGetId(
                     PastAlert(
                         messageContent = messageBody.ifBlank { "[Cell broadcast - no text body]" },
@@ -122,10 +110,47 @@ class EmergencyBroadcastReceiver : BroadcastReceiver() {
                         scenariosTriggered = ""
                     )
                 )
+                if (messageBody.isNotBlank()) {
+                    AppLogger.log(app.database, app.appScope, "emergency_detected",
+                        "Cell broadcast: ${messageBody.take(120)}")
+                }
+
+                // Tighter timeouts: 3s + 1s + 3s = 7s max, safely within goAsync() 10s window (BUG-024).
+                val allScenarios = withTimeoutOrNull(3_000L) {
+                    app.database.scenarioDao().getAllScenariosOnce()
+                } ?: run {
+                    Log.w(TAG, "DB timeout loading scenarios - cell broadcast ignored")
+                    pendingResult.finish()
+                    return@launch
+                }
+                Log.i(TAG, "Evaluating ${allScenarios.size} scenario(s) against cell broadcast")
+
+                // Check SEND_SMS permission before proceeding
+                if (ContextCompat.checkSelfPermission(context, android.Manifest.permission.SEND_SMS)
+                    != PackageManager.PERMISSION_GRANTED) {
+                    Log.e(TAG, "SEND_SMS permission revoked - cannot send emergency messages")
+                    AppLogger.log(app.database, app.appScope, "permission_error",
+                        "Cell broadcast received but SEND_SMS permission is revoked")
+                    pendingResult.finish()
+                    return@launch
+                }
+
+                // Read sensitivity - fail safely to MEDIUM
+                val sensitivityStr = withTimeoutOrNull(1_000L) {
+                    app.settings.alertSensitivity.first()
+                } ?: "MEDIUM"
+                val sensitivity = try { AlertSensitivity.valueOf(sensitivityStr) } catch (_: Exception) { AlertSensitivity.MEDIUM }
+
+                // Load user-defined block phrases (any language).
+                // Timeout guards against a slow DB stalling the goAsync() window.
+                val userBlockPhrases = withTimeoutOrNull(3_000L) {
+                    app.database.blockPhraseDao().getAllOnce().map { it.phrase }
+                } ?: emptyList()
 
                 var triggeredCount = 0
                 val triggeredNames = mutableListOf<String>()
-                val bodyLower = messageBody.lowercase()
+                val enqueuedPhones = mutableSetOf<String>()
+                val bodyLower = FalseAlarmDetector.normalize(messageBody)
 
                 for (scenario in allScenarios) {
                     // Skip invalid scenarios (no message or no recipients)
@@ -190,9 +215,15 @@ class EmergencyBroadcastReceiver : BroadcastReceiver() {
 
                     for (group in scenario.groups) {
                         if (group.recipients.isNotEmpty() && group.message.isNotBlank()) {
-                            app.queueManager.enqueueScenario(group.recipients, group.message, scenario.id)
-                            AppLogger.log(app.database, app.appScope, "group_processed",
-                                "Group '${group.name}' - ${group.recipients.size} contact(s) queued")
+                            val deduped = group.recipients.filter { r ->
+                                val norm = site.fysh.redrocket.util.normalizePhone(r.phoneNumber)
+                                enqueuedPhones.add(norm)  // returns false if already in set
+                            }
+                            if (deduped.isNotEmpty()) {
+                                app.queueManager.enqueueScenario(deduped, group.message, scenario.id)
+                                AppLogger.log(app.database, app.appScope, "group_processed",
+                                    "Group '${group.name}' - ${deduped.size} contact(s) queued")
+                            }
                         }
                     }
                     triggeredNames.add(scenario.name)
@@ -209,12 +240,24 @@ class EmergencyBroadcastReceiver : BroadcastReceiver() {
                     EmergencySendingService.startService(context)
                 } else {
                     Log.i(TAG, "No scenarios triggered by this cell broadcast")
+                    if (allScenarios.isEmpty() || allScenarios.none { it.isValid() }) {
+                        val nm = context.getSystemService(android.app.NotificationManager::class.java)
+                        val notif = androidx.core.app.NotificationCompat.Builder(context, "emergency_sending_channel")
+                            .setSmallIcon(android.R.drawable.ic_dialog_alert)
+                            .setContentTitle("Emergency Broadcast Received")
+                            .setContentText("No scenarios configured. Open Red Rocket to set up.")
+                            .setPriority(androidx.core.app.NotificationCompat.PRIORITY_HIGH)
+                            .setAutoCancel(true)
+                            .build()
+                        nm?.notify(9999, notif)
+                    }
                 }
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) {
                 Log.e(TAG, "Error processing cell broadcast", e)
             } finally {
+                if (wakeLock?.isHeld == true) wakeLock.release()
                 pendingResult.finish()
             }
         }

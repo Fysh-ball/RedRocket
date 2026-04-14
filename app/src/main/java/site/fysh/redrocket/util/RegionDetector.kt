@@ -8,7 +8,7 @@ import java.util.Locale
  * Detects the user's region (ISO 3166-1 alpha-2 country code) without location permission.
  *
  * Priority order:
- *   1. SIM card country ISO - READ_PHONE_STATE already in manifest; most reliable, persists offline
+ *   1. SIM card country ISO - no permission required; most reliable, persists offline
  *   2. Network/carrier ISO - available when SIM absent or roaming
  *   3. System locale country - set by user in Android Settings
  *   4. Fallback: "US"

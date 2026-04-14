@@ -2,7 +2,9 @@ package site.fysh.redrocket.ui
 
 import android.content.Intent
 import android.net.Uri
+import android.content.pm.PackageManager
 import android.util.Log
+import androidx.core.content.ContextCompat
 import androidx.documentfile.provider.DocumentFile
 import androidx.compose.runtime.Stable
 import androidx.lifecycle.ViewModel
@@ -328,7 +330,7 @@ class MainViewModel(
             val current = site.fysh.redrocket.BuildConfig.VERSION_NAME
             when {
                 lastSeen.isEmpty() -> {
-                    // First ever launch — record version silently, no dialog
+                    // First ever launch -- record version silently, no dialog
                     settings.setLastSeenVersion(current)
                 }
                 lastSeen != current -> {
@@ -340,7 +342,30 @@ class MainViewModel(
             }
         }
 
+        // Auto-unlock any scenarios that have been locked for more than 4 hours.
+        // Without a lockedAt column we cannot know the exact lock time, so we
+        // schedule a fresh 4h timer for every locked scenario on each app launch.
+        // This is conservative but ensures locks always clear eventually.
+        viewModelScope.launch {
+            val scenarios = scenarioDao.getAllScenariosOnce()
+            scenarios.filter { it.isLocked }.forEach { scenario ->
+                scheduleAutoUnlock(scenario.id)
+            }
+        }
+
         startMonitoring()
+    }
+
+    private fun scheduleAutoUnlock(scenarioId: String, delayMs: Long = 4 * 60 * 60 * 1000L) {
+        viewModelScope.launch {
+            delay(delayMs)
+            val scenario = scenarioDao.getScenarioById(scenarioId) ?: return@launch
+            if (scenario.isLocked) {
+                val unlocked = scenario.copy(isLocked = false)
+                scenarioDao.insertScenario(unlocked)
+                Log.i(TAG, "Scenario '${scenario.name}' auto-unlocked after ${delayMs / 3600000}h")
+            }
+        }
     }
 
     private fun startMonitoring() {
@@ -790,6 +815,12 @@ class MainViewModel(
 
     /** Core send execution - shared by captcha-verified and first-use (captcha-free) paths. */
     private suspend fun executeSend() {
+        if (ContextCompat.checkSelfPermission(app, android.Manifest.permission.SEND_SMS)
+            != PackageManager.PERMISSION_GRANTED) {
+            _uiState.update { it.copy(isManualCountdownActive = false, errorMessage = "SMS permission revoked - cannot send") }
+            return
+        }
+
         _uiState.update { it.copy(isManualCountdownActive = true, errorMessage = null, showManualSendDialog = false) }
 
         val allScenarios = _uiState.value.scenarios
@@ -823,19 +854,15 @@ class MainViewModel(
                     ) }
                     AppLogger.log(app.database, viewModelScope, "manual_send",
                         "${validScenarios.size} scenario(s) triggered manually - $totalRecipients contact(s)")
+                    // Locking is now handled atomically inside ManualSendGuard
+                    // before enqueuing, preventing the race window (BUG-013).
+                    // Update UI state for any scenarios that were locked.
                     for (scenario in validScenarios) {
-                        // Use the same atomic lock as auto-trigger paths so a concurrent EBR/ENL
-                        // trigger during the 4-second countdown cannot cause duplicate sends.
-                        val rowsUpdated = scenarioDao.lockIfUnlocked(scenario.id)
-                        if (rowsUpdated == 0) {
-                            Log.i(TAG, "[LOCKOUT] Scenario '${scenario.name}' already locked by concurrent trigger during countdown - skipping")
-                            continue
-                        }
                         val locked = scenario.copy(isLocked = true)
                         if (_uiState.value.currentScenario.id == scenario.id) {
                             _uiState.update { state -> state.copy(currentScenario = locked) }
                         }
-                        Log.i(TAG, "[LOCKOUT] Scenario '${scenario.name}' locked after manual send.")
+                        scheduleAutoUnlock(scenario.id)
                     }
                     viewModelScope.launch {
                         val historyDao = app.database.contactSendHistoryDao()
@@ -1179,8 +1206,10 @@ class MainViewModel(
                     }
                 }
             }
-            // Fallback to app-private external storage
-            autoBackupFile.writeText(json)
+            // Fallback to app-private external storage (atomic write via temp file)
+            val tempFile = File(autoBackupFile.parentFile, ".backup.tmp")
+            tempFile.writeText(json)
+            tempFile.renameTo(autoBackupFile)
             Log.d(TAG, "Auto-backup written to fallback: ${autoBackupFile.path}")
         } catch (e: CancellationException) {
             throw e
@@ -1229,9 +1258,22 @@ class MainViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val json = app.contentResolver.openInputStream(uri)?.use { stream ->
-                    val bytes = stream.readBytes()
-                    if (bytes.size > 5 * 1024 * 1024) null  // reject files > 5 MB
-                    else bytes.toString(Charsets.UTF_8)
+                    val maxSize = 5 * 1024 * 1024
+                    val buffer = java.io.ByteArrayOutputStream()
+                    val tempBuf = ByteArray(8192)
+                    var totalRead = 0
+                    var bytesRead: Int
+                    var oversized = false
+                    while (stream.read(tempBuf).also { bytesRead = it } != -1) {
+                        totalRead += bytesRead
+                        if (totalRead > maxSize) {
+                            oversized = true
+                            break
+                        }
+                        buffer.write(tempBuf, 0, bytesRead)
+                    }
+                    if (oversized) null
+                    else buffer.toByteArray().toString(Charsets.UTF_8)
                 } ?: run {
                     _uiState.update { it.copy(userMessage = "Import failed — file is too large or unreadable") }
                     return@launch

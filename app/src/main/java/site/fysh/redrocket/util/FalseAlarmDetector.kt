@@ -601,10 +601,17 @@ object FalseAlarmDetector {
      */
     fun keywordMatchesContent(keyword: String, contentNorm: String): Boolean {
         val kwNorm = normalize(keyword)
-        if (contentNorm.contains(kwNorm)) return true
+        if (kwNorm.isBlank()) return false
+        // Exact phrase match with word boundaries
+        val phrasePattern = Regex("(?:^|\\W)${Regex.escape(kwNorm)}(?:\\W|$)")
+        if (phrasePattern.containsMatchIn(contentNorm)) return true
+        // Significant-word fallback: any word >= 4 chars not in generic set
         return kwNorm.split("\\s+".toRegex())
             .filter { it.length >= 4 && it !in GENERIC_WORDS }
-            .any { word -> contentNorm.contains(word) }
+            .any { word ->
+                val wordPattern = Regex("(?:^|\\W)${Regex.escape(word)}(?:\\W|$)")
+                wordPattern.containsMatchIn(contentNorm)
+            }
     }
 
     /**
@@ -632,6 +639,13 @@ object FalseAlarmDetector {
 
         // Normalize once - all subsequent checks operate on `content`
         val content = normalize(message)
+
+        // Require minimum content to prevent empty/near-empty broadcasts from scoring
+        if (content.length < 10) {
+            Log.d(TAG, "Content too short (${content.length} chars) - DO NOT TRIGGER")
+            return false
+        }
+
         Log.d(TAG, "EVALUATING [trusted=$isTrustedSource sensitivity=$sensitivity threshold=$threshold]: \"${content.take(140)}\"")
 
         // Step 1: Hard Override - trusted source + extreme action or danger
@@ -750,7 +764,7 @@ object FalseAlarmDetector {
      * Hindi and Bengali words would be reduced to bare consonants.
      * NFC recompose after strip prevents Korean Hangul from remaining as decomposed jamo.
      */
-    private fun normalize(text: String): String {
+    internal fun normalize(text: String): String {
         val nfd = Normalizer.normalize(text.lowercase(), Normalizer.Form.NFD)
         val recomposed = Normalizer.normalize(RE_COMBINING.replace(nfd, ""), Normalizer.Form.NFC)
         return RE_SPACES.replace(RE_NON_WORD.replace(recomposed, " "), " ").trim()

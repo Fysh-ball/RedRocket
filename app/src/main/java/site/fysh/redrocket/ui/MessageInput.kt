@@ -34,13 +34,13 @@ fun MessageInput(
     // File picker - loads text file directly into message field, no dialog needed.
     // Read is bounded at 8KB so a user accidentally selecting a large file (e.g. a 50MB
     // log) cannot OOM the app — readText() would otherwise pull the entire file into
-    // memory before take(1600) discards everything beyond the SMS limit.
+    // memory before take(4683) discards everything beyond the 31-part SMS limit.
     val filePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
         if (uri != null) {
             try {
-                val MAX_READ_BYTES = 8192
+                val MAX_READ_BYTES = 16384
                 val raw = context.contentResolver.openInputStream(uri)?.use { stream ->
                     val buf = CharArray(MAX_READ_BYTES)
                     val reader = stream.bufferedReader()
@@ -53,7 +53,7 @@ fun MessageInput(
                     .replace("\u0000", "")
                     .replace(Regex("\\n{3,}"), "\n\n")
                     .trim()
-                    .take(1600)
+                    .take(4683)
                 onMessageChange(smsSafe)
             } catch (e: Exception) {
                 Toast.makeText(context, "Failed to read file", Toast.LENGTH_SHORT).show()
@@ -135,7 +135,7 @@ private fun MessageEditSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     fun saveAndDismiss() {
-        onSave(textFieldValue.text.replace("\u0000", "").take(1600))
+        onSave(textFieldValue.text.replace("\u0000", "").take(4683))
         onDismiss()
     }
 
@@ -157,7 +157,7 @@ private fun MessageEditSheet(
             OutlinedTextField(
                 value = textFieldValue,
                 onValueChange = { newValue ->
-                    val sanitized = newValue.text.replace("\u0000", "").take(1600)
+                    val sanitized = newValue.text.replace("\u0000", "").take(4683)
                     textFieldValue = if (sanitized != newValue.text) {
                         newValue.copy(
                             text = sanitized,

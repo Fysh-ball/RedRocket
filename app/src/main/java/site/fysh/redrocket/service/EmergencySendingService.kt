@@ -110,6 +110,9 @@ class EmergencySendingService : Service() {
     }
 
     private suspend fun processQueue(app: EmergencyApp) {
+        // Restore any messages persisted to Room before process death
+        app.queueManager.restoreFromDisk()
+
         // Wait up to 2s for the queue to be populated (guards against start-before-enqueue race)
         var waitMs = 0
         while (waitMs < 2000) {

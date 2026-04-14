@@ -2,6 +2,133 @@
 
 ---
 
+## v2.1.0 - Deep Audit: 46 reliability and safety fixes (2026-04-13)
+
+Full codebase audit covering SMS delivery, scenario matching, contact management, cell broadcast handling, response listening, data persistence, permissions, race conditions, and logging privacy. Every finding fixed without skipping any.
+
+### CRITICAL fixes (silent message loss / duplicate sends)
+
+#### LazarusRetrySystem.kt - bounded retry with circuit breaker
+- Lazarus retry loop was unbounded: when keepTrying=ON, it retried every 5 seconds forever with no cap. If the device permanently could not send (SIM removed, airplane mode), this drained battery indefinitely.
+- Added: max 50 passes, 5-pass zero-progress circuit breaker, exponential backoff (5s/10s/20s/40s/60s cap). On circuit breaker trigger, remaining messages move to the failed queue.
+- When keepTrying=OFF, Lazarus now moves remaining retries to failedQueue on exit, preventing the service loop from re-entering Lazarus in an infinite cycle.
+
+#### MessageQueueManager.kt + PendingMessage - durable queue persistence
+- Both primaryQueue and retryQueue were in-memory LinkedLists. If the process was killed mid-send (OOM, system reclaim), all unsent messages were permanently lost.
+- New Room entity `PendingMessage` persists every queued message to disk. On service restart, `restoreFromDisk()` recovers pending/retry messages. Successful sends delete the record; failures update status.
+- DB schema v10 to v11 (MIGRATION_10_11).
+
+#### ManualSendGuard.kt - lock before enqueue
+- Manual send enqueued messages first, then locked scenarios in the ViewModel callback. A concurrent auto-trigger during this window could enqueue the same messages again, causing every recipient to receive duplicate SMS.
+- ManualSendGuard now accepts ScenarioDao and calls lockIfUnlocked() BEFORE enqueuing. Only successfully locked scenarios get their messages queued.
+
+### HIGH fixes (delivery reliability, validation, privacy)
+
+#### SmsSender.kt - multipart SMS per-part tracking
+- Only part 1 of multipart messages had a sent callback. Parts 2+ failures were invisible. Now every part has its own PendingIntent; success requires ALL parts to report RESULT_OK.
+- DeliveryIntents now registered alongside SentIntents for delivery confirmation logging.
+- SMS_SENT timeout increased from 10s to 30s to handle congested networks during mass-alert events.
+
+#### EmergencyApp.kt - fresh SmsManager per send
+- SmsManager was cached once at startup and never refreshed. SIM hot-swap or default SIM changes left a stale reference. Now obtained fresh per send via a lambda provider.
+
+#### SmsDeliveryReceiver.kt + AdaptiveSendController.kt - radio error fast-fail
+- RESULT_ERROR_RADIO_OFF and RESULT_ERROR_NO_SERVICE were treated the same as other errors, causing each queued message to time out individually. Now these errors immediately force SEQUENTIAL mode for fast Lazarus transition.
+
+#### EmergencyBroadcastReceiver.kt + EmergencyNotificationListener.kt - accent normalization
+- Keyword matching used .lowercase() on content but FalseAlarmDetector.normalize() on keywords, stripping accents from one side but not the other. Non-ASCII keywords (French, German, Spanish) could fail to match. Both paths now use normalize().
+
+#### PhoneUtils.kt - international number preservation
+- The default normalizePhone() takeLast(10) silently corrupted UK (+44), German (+49), French (+33) and other non-NANP numbers. Added GB handling, explicit US/CA NANP rules, and international prefix preservation for numbers starting with +.
+
+#### MessageQueueManager.kt + RecipientsInput.kt - contact validation
+- Contacts imported from the phone address book were never validated with isValid(). Short codes, extensions, or malformed numbers could enter scenarios and waste retry capacity during real emergencies. Now validated at import and filtered at enqueue time.
+
+#### EmergencyBroadcastReceiver.kt - PastAlert logged first, tighter timeouts
+- PastAlert was inserted after scenario and block phrase loading. If those timed out, the broadcast was silently dropped with no record. PastAlert is now the first operation. DB timeouts reduced from 5s+3s+5s=13s to 3s+1s+3s=7s, safely within goAsync() 10s window.
+
+#### Converters.kt - serialization failure no longer erases contacts
+- TypeConverter returned null on Gson serialization failure. Room stored NULL, which deserialized as emptyList(), silently erasing all contacts from a scenario. Now lets exceptions propagate so the write fails visibly.
+
+#### All trigger paths - SEND_SMS checked before enqueuing
+- If SEND_SMS permission was revoked after setup, the entire pipeline ran (scenarios locked, services started) but every message failed silently. Now all three entry points (broadcast receiver, notification listener, manual send) check permission before locking or enqueuing.
+
+#### MessageQueueManager.kt + SmsSender.kt + LazarusRetrySystem.kt - phone masking
+- Phone numbers were logged in plaintext in release builds across multiple files. Added maskPhone() utility; all release logs now show masked numbers (e.g., "+1****67").
+
+### MEDIUM fixes
+
+#### SmsSender.kt - empty message reports failure to adaptive controller
+#### EmergencyNotificationListener.kt - block phrases checked for no-keyword scenarios
+#### FalseAlarmDetector.kt - word-boundary keyword matching
+- "fire" no longer matches "fireplace" or "firefox". Keywords now use word-boundary regex instead of substring contains().
+
+#### EmergencyBroadcastReceiver.kt + EmergencyNotificationListener.kt - cross-scenario phone dedup
+- Same contact in multiple matching scenarios received duplicate SMS. Now deduplicates by normalized phone number across all scenarios in a single trigger event.
+
+#### MainViewModel.kt - scenario auto-unlock after 4 hours
+- Locked scenarios never auto-reset, requiring manual unlock. A second emergency while the user forgot to unlock was silently ignored. Now auto-unlocks after 4 hours.
+
+#### FalseAlarmDetector.kt - minimum content length check
+- Empty or near-empty broadcast bodies on HIGH sensitivity scored enough to trigger. Now requires at least 10 characters.
+
+#### RecipientsInput.kt - contact picker normalization
+- Deduplication used raw string comparison. Now uses normalizePhone(). Also strips all non-digit/non-plus characters (was only spaces/hyphens).
+
+#### EmergencyBroadcastReceiver.kt + EmergencyNotificationListener.kt - WakeLocks
+- Neither trigger path acquired a WakeLock. CPU could sleep during DB operations in Doze mode. Both now acquire PARTIAL_WAKE_LOCK with 30s auto-release.
+
+#### SmsResponseReceiver.kt - negation-aware response parsing
+- "I'm unhurt", "No danger", "Not urgent" were falsely classified as EMERGENCY (code 3), sending inappropriate "Call 911" auto-replies. Added negation detection for "hurt", "danger", "urgent".
+- "I'm safe, will update you later" was classified as "Wants Updates" instead of "Safe". Safe indicators now checked before Update indicators.
+- Multiple-scenario contacts no longer get duplicate response notifications.
+
+#### SmsResponseReceiver.kt - auto-reply retry
+- The URGENT auto-reply ("Call 911...") was fire-and-forget with no retry. Now retries once on failure.
+
+#### AppDatabase.kt - WAL journal mode
+- Enabled WRITE_AHEAD_LOGGING for better corruption resilience on power loss.
+
+#### MainViewModel.kt - atomic backup write
+- Auto-backup used direct writeText(). Process kill mid-write left a corrupt file. Now writes to .backup.tmp then atomically renames.
+
+#### EmergencyNotificationListener.kt - onListenerDisconnected()
+- Notification listener disconnection was silently ignored. Now cancels scope and logs the event.
+
+#### BroadcastDeduplicator.kt (new) - 30-second dedup window
+- Rapid duplicate broadcasts (carrier retransmissions) and cross-path duplicates (same alert via cell broadcast + notification) both processed independently. New shared deduplicator with 30s window prevents double-processing.
+
+#### EmergencyBroadcastReceiver.kt - no-scenario notification
+- If a broadcast arrived before any scenarios were configured, it was silently logged to PastAlert with no user notification. Now posts a notification: "Emergency broadcast received - no scenarios configured."
+
+### LOW fixes
+
+#### MainViewModel.kt - bounded import read
+- Import read entire file into memory before checking 5MB limit. A very large file caused OOM. Now reads with a streaming bounded buffer.
+
+#### AppDatabase.kt - MIGRATION_8_9 only catches duplicate column errors
+- Was catching all exceptions; now only catches SQLException with "duplicate column" message.
+
+#### ForceSendAbuseTracker.kt - commit() for lockout persistence
+- Used apply() (async); lockout state could be lost on process kill. Changed to commit().
+
+#### AndroidManifest.xml - removed unused permission declarations
+- READ_SMS and READ_PHONE_STATE were declared but never requested at runtime. Removed.
+
+#### SmsResponseReceiver.kt - POST_NOTIFICATIONS check
+- Response notifications posted without checking POST_NOTIFICATIONS permission on Android 13+. Now checks before posting.
+
+#### proguard-rules.pro - strip debug/verbose logs in release
+- Added -assumenosideeffects to strip Log.d() and Log.v() from release builds.
+
+#### EmergencyBroadcastReceiver.kt, SmsResponseReceiver.kt, EmergencyNotificationListener.kt - PII gating
+- Cell broadcast body, SMS response body, and notification content were logged in release builds. Now gated behind BuildConfig.DEBUG.
+
+### MessageInput.kt - 31-part SMS limit
+- File picker and message editor limit increased from 1600 chars to 4683 chars (31-part SMS). Read buffer increased from 8KB to 16KB.
+
+---
+
 ## v2.0.10 - Hotfix: Global Keyword Detection toggle not respected
 
 ### service/EmergencyNotificationListener.kt - gate content matching on wideSpreadEnabled
