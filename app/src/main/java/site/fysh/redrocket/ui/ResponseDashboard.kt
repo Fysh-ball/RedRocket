@@ -269,7 +269,7 @@ fun ResponseDashboard(
                         ) {
                             Icon(
                                 Icons.Default.Inbox,
-                                contentDescription = null,
+                                contentDescription = "Empty inbox",
                                 modifier = Modifier.size(56.dp),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                             )

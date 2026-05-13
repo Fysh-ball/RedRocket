@@ -319,7 +319,7 @@ fun MainScreen(viewModel: MainViewModel) {
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            Icon(Icons.Default.NotificationsPaused, contentDescription = null)
+                            Icon(Icons.Default.NotificationsPaused, contentDescription = "Detection offline")
                             Column(modifier = Modifier.weight(1f)) {
                                 Text("Detection Offline", fontWeight = FontWeight.Bold)
                                 Text(
@@ -388,7 +388,7 @@ fun MainScreen(viewModel: MainViewModel) {
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            Icon(Icons.Default.NotificationsPaused, contentDescription = null)
+                            Icon(Icons.Default.NotificationsPaused, contentDescription = "Battery optimization warning")
                             Column(modifier = Modifier.weight(1f)) {
                                 Text("Battery Optimization Active", fontWeight = FontWeight.Bold)
                                 Text(
@@ -421,7 +421,7 @@ fun MainScreen(viewModel: MainViewModel) {
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            Icon(Icons.Default.Warning, contentDescription = null)
+                            Icon(Icons.Default.Warning, contentDescription = "OEM restriction warning")
                             Column(modifier = Modifier.weight(1f)) {
                                 Text("${Build.MANUFACTURER} Detected", fontWeight = FontWeight.Bold)
                                 Text(
@@ -457,7 +457,7 @@ fun MainScreen(viewModel: MainViewModel) {
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Icon(Icons.Default.SystemUpdateAlt, contentDescription = null)
+                            Icon(Icons.Default.SystemUpdateAlt, contentDescription = "Update available")
                             Column(modifier = Modifier.weight(1f)) {
                                 Text("v${uiState.updateAvailable} available", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                                 Text("Tap to download from GitHub", fontSize = 14.sp)
@@ -537,7 +537,7 @@ fun MainScreen(viewModel: MainViewModel) {
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Lock,
-                                contentDescription = null,
+                                contentDescription = "Scenario locked",
                                 tint = MaterialTheme.colorScheme.onErrorContainer
                             )
                             Column(modifier = Modifier.weight(1f)) {
