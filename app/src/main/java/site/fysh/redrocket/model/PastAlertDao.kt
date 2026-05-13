@@ -22,6 +22,9 @@ interface PastAlertDao {
     @Query("SELECT * FROM past_alerts ORDER BY triggeredAt DESC")
     suspend fun getAllAlertsOnce(): List<PastAlert>
 
+    @Query("DELETE FROM past_alerts WHERE id NOT IN (SELECT id FROM past_alerts ORDER BY triggeredAt DESC LIMIT 200)")
+    suspend fun pruneOldAlerts()
+
     @Query("DELETE FROM past_alerts")
     suspend fun clearAll()
 }

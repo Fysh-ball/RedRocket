@@ -19,6 +19,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -62,7 +67,7 @@ fun BrowserTabBar(
                         label = "tabBackground$index"
                     )
                     val tabTextColor by animateColorAsState(
-                        targetValue = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
+                        targetValue = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                         label = "tabTextColor$index"
                     )
 
@@ -77,6 +82,11 @@ fun BrowserTabBar(
                             .then(tabPositionModifier)
                             .clip(RoundedCornerShape(10.dp))
                             .background(tabBackground)
+                            .semantics {
+                                role = Role.Tab
+                                selected = isSelected
+                                contentDescription = label
+                            }
                             .clickable { onTabSelected(index) },
                         contentAlignment = Alignment.Center
                     ) {
@@ -88,7 +98,7 @@ fun BrowserTabBar(
                                 text = label,
                                 style = MaterialTheme.typography.labelLarge,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                fontSize = if (isSelected) 16.sp else 15.sp,
+                                fontSize = if (isSelected) 14.sp else 13.sp,
                                 color = tabTextColor
                             )
                             if (showDot) {

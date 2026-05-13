@@ -103,6 +103,28 @@ Tracks known bugs, edge cases, and unresolved issues.
 - User Manual missing → USER MANUAL section added to SettingsDialog with expandable accordion cards (Quick Start, Scenarios, Trigger Keywords, Dashboard, FAQ) and Replay Tutorial button
 - First-time tutorial not skippable → Skip setup button added to WelcomePage and PermissionsPage in FirstLaunchScreen
 
+- **[CRITICAL] ResponseRecordDao UPSERT allowed code-1 (Safe) to overwrite code-3 (URGENT)** → added `getResponseCode()` query; SmsResponseReceiver now checks existing code before insert and skips if existing is 3 and incoming is not 3
+- **[CRITICAL] EmergencyBroadcastReceiver + EmergencyNotificationListener used region-unaware `normalizePhone()` for recipient deduplication** → changed to `normalizePhone(r.phoneNumber, RegionSettings.effectiveRegion)` in both entry points; AU/NZ/GB users no longer get duplicate SMS
+- **[CRITICAL] GRAY theme dead code -- GrayColorScheme never referenced** → added `grayTheme` parameter to `EmergencyAppTheme`; wired from `MainActivity`; GRAY now correctly uses `GrayColorScheme` instead of `SystemDarkColorScheme`
+- **[CRITICAL] ManualSendDialog used AlertDialog with keyboard input (captcha)** → converted to `ModalBottomSheet` with `skipPartiallyExpanded`, `imePadding()`, `FocusRequester` with 200ms delay
+- **[HIGH] Debug section in SettingsDialog not gated by IS_PRODUCTION** → wrapped in `if (!BuildConfig.IS_PRODUCTION)`; production builds no longer expose debug toggle or simulator
+- **[HIGH] SMS body logged to production logcat** → guarded with `if (BuildConfig.DEBUG)` at SmsResponseReceiver.kt:350
+- **[HIGH] BrowserTabBar text color, font sizes, and accessibility** → selected text color changed from `onSurface` to `primary`; unselected alpha from 0.85f to 0.7f; font sizes from 16sp/15sp to 14sp/13sp; added `.semantics { role = Tab; selected; contentDescription }`
+- **[HIGH] Dashboard standby subtitle 15sp and caption 14sp** → changed to 14sp and 12sp per UX_RULES.md
+- **[MEDIUM] ManualSendGuard.secureSendAll() missing cross-group recipient dedup** → added `enqueuedPhones` set per scenario with region-aware normalizePhone, matching broadcast path pattern
+- **[MEDIUM] SmsResponseReceiver logged normalized phone numbers without maskPhone()** → replaced 7 bare `$normalizedSender` in log statements with `maskPhone(normalizedSender)`
+- **[MEDIUM] AppLogger test_send wrote full phone number to Room** → changed to `maskPhone(normalized)` in MainViewModel
+- **[MEDIUM] Contact name logged to production logcat** → guarded with `if (BuildConfig.DEBUG)` at SmsResponseReceiver.kt:500
+- **[MEDIUM] ForceSendAbuseTracker doc comment said 25-50 for MEDIUM_WARNING** → updated to 25-74 to match actual code
+- **[MEDIUM] PastAlert table had no prune limit** → added `pruneOldAlerts()` to PastAlertDao (keeps 200 most recent); called after insert in both entry points
+- **[MEDIUM] contact_send_history table had no cleanup** → added `pruneOldHistory()` to ContactSendHistoryDao (keeps 500 most recent by lastSentAt); called after recordSend in MainViewModel
+- **[MEDIUM] response_records orphaned when scenario deleted** → added `clearResponsesForScenario()` call for each ID before `deleteScenariosByIds()` in MainViewModel
+- **[MEDIUM] Test Send dialog used AlertDialog with keyboard** → converted to ModalBottomSheet
+- **[MEDIUM] Scenario rename dialog used AlertDialog with keyboard** → converted to ModalBottomSheet in ScenarioDropdown
+- **[MEDIUM] Group rename dialog used AlertDialog with keyboard** → converted to ModalBottomSheet in GroupsSection
+- **[MEDIUM] Region picker used AlertDialog with OutlinedTextField** → converted to ModalBottomSheet in TriggerInput
+- **[MEDIUM] SwipeToConfirm icon lacked contentDescription** → added `if (enabled) "Swipe right to send" else "Sending locked"`
+
 ---
 
 ## EDGE CASES

@@ -173,6 +173,7 @@ class EmergencyNotificationListener : NotificationListenerService() {
                 scenariosTriggered = ""
             )
         )
+        app.database.pastAlertDao().pruneOldAlerts()
 
         // Load ALL scenarios - every scenario actively listens for its trigger words
         val allScenarios = withTimeoutOrNull(5_000L) {
@@ -257,7 +258,7 @@ class EmergencyNotificationListener : NotificationListenerService() {
             for (group in scenario.groups) {
                 if (group.recipients.isNotEmpty() && group.message.isNotBlank()) {
                     val deduped = group.recipients.filter { r ->
-                        val norm = site.fysh.redrocket.util.normalizePhone(r.phoneNumber)
+                        val norm = site.fysh.redrocket.util.normalizePhone(r.phoneNumber, site.fysh.redrocket.util.RegionSettings.effectiveRegion)
                         enqueuedPhones.add(norm)  // returns false if already in set
                     }
                     if (deduped.isNotEmpty()) {

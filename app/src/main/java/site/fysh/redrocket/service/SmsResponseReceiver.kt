@@ -17,6 +17,7 @@ import site.fysh.redrocket.BuildConfig
 import site.fysh.redrocket.EmergencyApp
 import site.fysh.redrocket.model.ResponseRecord
 import site.fysh.redrocket.util.RegionSettings
+import site.fysh.redrocket.util.maskPhone
 import site.fysh.redrocket.util.normalizePhone
 import site.fysh.redrocket.utils.AppLogger
 import kotlinx.coroutines.CancellationException
@@ -328,7 +329,7 @@ class SmsResponseReceiver : BroadcastReceiver() {
                 val allScenarios = withTimeoutOrNull(5_000L) {
                     db.scenarioDao().getAllScenariosOnce()
                 } ?: run {
-                    Log.w(TAG, "DB timeout loading scenarios - ignoring SMS from $normalizedSender")
+                    Log.w(TAG, "DB timeout loading scenarios - ignoring SMS from ${maskPhone(normalizedSender)}")
                     pending.finish()
                     return@launch
                 }
@@ -338,7 +339,7 @@ class SmsResponseReceiver : BroadcastReceiver() {
                     .toSet()
 
                 if (normalizedSender !in knownPhones) {
-                    Log.d(TAG, "Sender $normalizedSender not in any scenario - ignoring")
+                    Log.d(TAG, "Sender ${maskPhone(normalizedSender)} not in any scenario - ignoring")
                     pending.finish()
                     return@launch
                 }
@@ -347,7 +348,7 @@ class SmsResponseReceiver : BroadcastReceiver() {
                 if (BuildConfig.DEBUG) Log.d(TAG, "SMS from sender='$sender', body='$body'")
 
                 val responseCode = parseResponseCode(body) ?: run {
-                    Log.d(TAG, "Body '$body' is not a recognizable response, ignoring")
+                    if (BuildConfig.DEBUG) Log.d(TAG, "Body '$body' is not a recognizable response, ignoring")
                     pending.finish()
                     return@launch
                 }
@@ -357,7 +358,7 @@ class SmsResponseReceiver : BroadcastReceiver() {
                 // Per-contact window check
                 // If contact's window is permanently expired, reject immediately
                 if (contactExpired.contains(normalizedSender)) {
-                    Log.d(TAG, "Contact $normalizedSender window permanently expired - ignoring")
+                    Log.d(TAG, "Contact ${maskPhone(normalizedSender)} window permanently expired - ignoring")
                     pending.finish()
                     return@launch
                 }
@@ -366,17 +367,17 @@ class SmsResponseReceiver : BroadcastReceiver() {
                 // just created the entry (first response), or the existing timestamp if already present.
                 val existingFirstTime = contactFirstResponseTime.putIfAbsent(normalizedSender, now)
                 if (existingFirstTime == null) {
-                    Log.i(TAG, "First response from $normalizedSender - 1-minute window started")
+                    Log.i(TAG, "First response from ${maskPhone(normalizedSender)} - 1-minute window started")
                 } else {
                     val elapsed = now - existingFirstTime
                     if (elapsed >= PER_CONTACT_WINDOW_MS) {
                         // 1-minute window expired - permanently stop listening to this contact
                         contactExpired.add(normalizedSender)
-                        Log.d(TAG, "Contact $normalizedSender 1-minute window expired (${elapsed}ms). Stopped listening.")
+                        Log.d(TAG, "Contact ${maskPhone(normalizedSender)} 1-minute window expired (${elapsed}ms). Stopped listening.")
                         pending.finish()
                         return@launch
                     }
-                    Log.d(TAG, "Contact $normalizedSender updating response within 1-min window (${elapsed}ms)")
+                    Log.d(TAG, "Contact ${maskPhone(normalizedSender)} updating response within 1-min window (${elapsed}ms)")
                 }
 
                 val responseText = when (responseCode) {
@@ -399,6 +400,12 @@ class SmsResponseReceiver : BroadcastReceiver() {
                                 Log.i(TAG, "MATCH: recipient='${recipient.name}' (${recipient.phoneNumber}), scenario='${scenario.name}', code=$responseCode")
                             } else {
                                 Log.i(TAG, "MATCH: scenario='${scenario.name}', code=$responseCode")
+                            }
+
+                            val existingCode = db.responseRecordDao().getResponseCode(scenario.id, recipient.phoneNumber)
+                            if (existingCode == 3 && responseCode != 3) {
+                                Log.d(TAG, "Skipping insert: existing URGENT (3) not overwritten by code $responseCode")
+                                continue
                             }
 
                             val record = ResponseRecord(
@@ -428,7 +435,7 @@ class SmsResponseReceiver : BroadcastReceiver() {
                 }
 
                 if (!matched) {
-                    Log.d(TAG, "No matching recipient found for sender='$normalizedSender'")
+                    Log.d(TAG, "No matching recipient found for sender='${maskPhone(normalizedSender)}'")
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -497,6 +504,6 @@ class SmsResponseReceiver : BroadcastReceiver() {
             .build()
 
         nm.notify(notifId, notification)
-        Log.d(TAG, "Showed notification for $recipientName: $responseText")
+        if (BuildConfig.DEBUG) Log.d(TAG, "Showed notification for $recipientName: $responseText")
     }
 }

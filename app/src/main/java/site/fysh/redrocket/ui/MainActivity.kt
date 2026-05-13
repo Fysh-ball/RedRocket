@@ -38,7 +38,8 @@ class MainActivity : ComponentActivity() {
                 AppTheme.GRAY   -> true  // always dark, uses Discord-style palette
             }
             val trueDark = uiState.theme == AppTheme.NIGHT
-            EmergencyAppTheme(darkTheme = darkTheme, trueDark = trueDark) {
+            val grayTheme = uiState.theme == AppTheme.GRAY
+            EmergencyAppTheme(darkTheme = darkTheme, trueDark = trueDark, grayTheme = grayTheme) {
                 when {
                     uiState.isInitializing -> {
                         // Hold on a blank surface until DataStore emits the first value.

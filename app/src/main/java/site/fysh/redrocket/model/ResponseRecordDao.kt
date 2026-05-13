@@ -8,6 +8,9 @@ interface ResponseRecordDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertResponse(record: ResponseRecord)
 
+    @Query("SELECT responseCode FROM response_records WHERE scenarioId = :scenarioId AND phoneNumber = :phoneNumber LIMIT 1")
+    suspend fun getResponseCode(scenarioId: String, phoneNumber: String): Int?
+
     @Query("SELECT * FROM response_records WHERE scenarioId = :scenarioId ORDER BY receivedAt DESC")
     fun getResponsesForScenario(scenarioId: String): Flow<List<ResponseRecord>>
 

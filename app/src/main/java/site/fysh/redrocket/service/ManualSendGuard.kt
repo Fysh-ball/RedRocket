@@ -65,9 +65,16 @@ class ManualSendGuard(
                 }
                 // Then enqueue only successfully locked scenarios
                 for (scenario in lockedScenarios) {
+                    val enqueuedPhones = mutableSetOf<String>()
                     for (group in scenario.groups) {
                         if (group.recipients.isNotEmpty() && group.message.isNotBlank()) {
-                            queueManager.enqueueScenario(group.recipients, group.message, scenario.id)
+                            val deduped = group.recipients.filter { r ->
+                                val norm = site.fysh.redrocket.util.normalizePhone(r.phoneNumber, site.fysh.redrocket.util.RegionSettings.effectiveRegion)
+                                enqueuedPhones.add(norm)
+                            }
+                            if (deduped.isNotEmpty()) {
+                                queueManager.enqueueScenario(deduped, group.message, scenario.id)
+                            }
                         }
                     }
                 }

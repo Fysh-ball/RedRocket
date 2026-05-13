@@ -118,10 +118,12 @@ private val LightColorScheme = lightColorScheme(
 fun EmergencyAppTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     trueDark: Boolean = false,
+    grayTheme: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
         darkTheme && trueDark -> TrueDarkColorScheme
+        darkTheme && grayTheme -> GrayColorScheme
         darkTheme -> SystemDarkColorScheme
         else -> LightColorScheme
     }

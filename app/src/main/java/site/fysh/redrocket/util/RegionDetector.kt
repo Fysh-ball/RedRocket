@@ -19,11 +19,12 @@ object RegionDetector {
         val tm = context.getSystemService(Context.TELEPHONY_SERVICE) as? TelephonyManager
 
         // 1. SIM card country - survives airplane mode, persists when no service
-        val simCountry = tm?.simCountryIso?.uppercase()?.takeIf { it.length == 2 }
+        // Dual-SIM devices (e.g. Samsung) may return comma-separated values like "ca,hk"
+        val simCountry = tm?.simCountryIso?.let { firstIso(it) }
         if (!simCountry.isNullOrEmpty()) return simCountry
 
         // 2. Network country - available when connected to carrier but no SIM installed
-        val networkCountry = tm?.networkCountryIso?.uppercase()?.takeIf { it.length == 2 }
+        val networkCountry = tm?.networkCountryIso?.let { firstIso(it) }
         if (!networkCountry.isNullOrEmpty()) return networkCountry
 
         // 3. System locale country - user's chosen region in Android Settings
@@ -32,4 +33,7 @@ object RegionDetector {
 
         return "US"
     }
+
+    private fun firstIso(raw: String): String? =
+        raw.split(',').firstNotNullOfOrNull { it.trim().uppercase().takeIf { c -> c.length == 2 } }
 }

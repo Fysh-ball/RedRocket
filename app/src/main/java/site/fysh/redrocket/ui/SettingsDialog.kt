@@ -48,9 +48,14 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import site.fysh.redrocket.BuildConfig
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsDialog(
     uiState: MainUiState,
@@ -385,6 +390,7 @@ fun SettingsDialog(
                     }
 
                     // Debug section
+                    if (!BuildConfig.IS_PRODUCTION) {
                     SettingsSection(title = "Debug Mode", icon = Icons.Default.BugReport, color = MaterialTheme.colorScheme.error) {
                         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -435,6 +441,7 @@ fun SettingsDialog(
                             }
                         }
                     }
+                    }
 
                     // Help section
                     SettingsSection(title = "Help \u0026 Resources", icon = Icons.AutoMirrored.Filled.MenuBook) {
@@ -475,66 +482,84 @@ fun SettingsDialog(
             }
         }
     if (showTestSendDialog) {
-        AlertDialog(
+        val testFocusRequester = remember { FocusRequester() }
+        val testSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ModalBottomSheet(
             onDismissRequest = { showTestSendDialog = false; testPhoneInput = TextFieldValue("") },
-            title = { Text("Send Test Message", fontWeight = FontWeight.Bold) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(
-                        "A real SMS will be sent to this number with a [TEST] prefix. Use your own number to confirm delivery. Standard carrier charges may apply.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    val focusManager = LocalFocusManager.current
-                    OutlinedTextField(
-                        value = testPhoneInput,
-                        onValueChange = { testPhoneInput = it },
-                        label = { Text("Phone number") },
-                        placeholder = { Text("+1 555 000 0000") },
-                        modifier = Modifier.fillMaxWidth(),
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Phone,
-                            imeAction = ImeAction.Send
-                        ),
-                        keyboardActions = KeyboardActions(onSend = {
-                            val phone = testPhoneInput.text.trim()
-                            if (phone.isNotBlank()) {
-                                focusManager.clearFocus()
-                                onSendTestMessage(phone)
-                                showTestSendDialog = false
-                                testPhoneInput = TextFieldValue("")
-                            }
-                        }),
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp)
-                    )
-                }
-            },
-            confirmButton = {
-                // Validate digit count to match RecipientsInput's 7..15 range so the
-                // user gets the same feedback in both code paths.
-                val phoneDigitsCount = testPhoneInput.text.filter { it.isDigit() }.length
-                val phoneValid = phoneDigitsCount in 7..15
-                Button(
-                    onClick = {
+            sheetState = testSheetState,
+            shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+            containerColor = MaterialTheme.colorScheme.surface,
+            tonalElevation = 0.dp
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .imePadding()
+                    .padding(bottom = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text("Send Test Message", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
+                Text(
+                    "A real SMS will be sent to this number with a [TEST] prefix. Use your own number to confirm delivery. Standard carrier charges may apply.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                val focusManager = LocalFocusManager.current
+                OutlinedTextField(
+                    value = testPhoneInput,
+                    onValueChange = { testPhoneInput = it },
+                    label = { Text("Phone number") },
+                    placeholder = { Text("+1 555 000 0000") },
+                    modifier = Modifier.fillMaxWidth().focusRequester(testFocusRequester),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Phone,
+                        imeAction = ImeAction.Send
+                    ),
+                    keyboardActions = KeyboardActions(onSend = {
                         val phone = testPhoneInput.text.trim()
-                        if (phoneValid) {
+                        if (phone.isNotBlank()) {
+                            focusManager.clearFocus()
                             onSendTestMessage(phone)
                             showTestSendDialog = false
                             testPhoneInput = TextFieldValue("")
                         }
-                    },
-                    enabled = phoneValid
+                    }),
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp)
+                )
+                val phoneDigitsCount = testPhoneInput.text.filter { it.isDigit() }.length
+                val phoneValid = phoneDigitsCount in 7..15
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Send")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showTestSendDialog = false; testPhoneInput = TextFieldValue("") }) {
-                    Text("Cancel")
+                    TextButton(onClick = { showTestSendDialog = false; testPhoneInput = TextFieldValue("") }) {
+                        Text("Cancel")
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Button(
+                        onClick = {
+                            val phone = testPhoneInput.text.trim()
+                            if (phoneValid) {
+                                onSendTestMessage(phone)
+                                showTestSendDialog = false
+                                testPhoneInput = TextFieldValue("")
+                            }
+                        },
+                        enabled = phoneValid,
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Send")
+                    }
                 }
             }
-        )
+        }
+        LaunchedEffect(Unit) {
+            delay(200)
+            testFocusRequester.requestFocus()
+        }
     }
 
     if (showSimConfirmDialog) {

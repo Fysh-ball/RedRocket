@@ -110,6 +110,7 @@ class EmergencyBroadcastReceiver : BroadcastReceiver() {
                         scenariosTriggered = ""
                     )
                 )
+                app.database.pastAlertDao().pruneOldAlerts()
                 if (messageBody.isNotBlank()) {
                     AppLogger.log(app.database, app.appScope, "emergency_detected",
                         "Cell broadcast: ${messageBody.take(120)}")
@@ -216,7 +217,7 @@ class EmergencyBroadcastReceiver : BroadcastReceiver() {
                     for (group in scenario.groups) {
                         if (group.recipients.isNotEmpty() && group.message.isNotBlank()) {
                             val deduped = group.recipients.filter { r ->
-                                val norm = site.fysh.redrocket.util.normalizePhone(r.phoneNumber)
+                                val norm = site.fysh.redrocket.util.normalizePhone(r.phoneNumber, site.fysh.redrocket.util.RegionSettings.effectiveRegion)
                                 enqueuedPhones.add(norm)  // returns false if already in set
                             }
                             if (deduped.isNotEmpty()) {

@@ -15,6 +15,7 @@ import site.fysh.redrocket.EmergencyApp
 import site.fysh.redrocket.model.*
 import site.fysh.redrocket.util.AlertSensitivity
 import site.fysh.redrocket.util.RegionSettings
+import site.fysh.redrocket.util.maskPhone
 import site.fysh.redrocket.util.normalizePhone
 import site.fysh.redrocket.utils.AppLogger
 import java.util.UUID
@@ -515,6 +516,9 @@ class MainViewModel(
             val validIds = ids.filter { id ->
                 _uiState.value.scenarios.find { id == it.id }?.isFavorite == false
             }
+            for (id in validIds) {
+                responseRecordDao.clearResponsesForScenario(id)
+            }
             scenarioDao.deleteScenariosByIds(validIds)
         }
     }
@@ -873,6 +877,7 @@ class MainViewModel(
                                 historyDao.recordSend(norm)
                             }
                         }
+                        historyDao.pruneOldHistory()
                     }
                     SmsResponseReceiver.startListening()
                     EmergencySendingService.startService(app)
@@ -1361,7 +1366,7 @@ class MainViewModel(
             app.queueManager.clearQueue()
             app.queueManager.enqueueScenario(listOf(recipient), message, "test-send-${UUID.randomUUID()}")
             EmergencySendingService.startService(app)
-            AppLogger.log(app.database, app.appScope, "test_send", "Test message sent to $normalized")
+            AppLogger.log(app.database, app.appScope, "test_send", "Test message sent to ${maskPhone(normalized)}")
         }
     }
 

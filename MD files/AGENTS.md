@@ -62,8 +62,7 @@ During work:
 
 ### Detection System
 - FalseAlarmDetector is the ONLY place detection decisions are made
-- Step order (0→7) must never change - steps are deterministic and ordered
-- AMBER_BLOCK (Step 0) must always run FIRST, before everything else
+- Step order (1→7) must never change - steps are deterministic and ordered
 - HARD_OVERRIDE (Step 1) must always run BEFORE scoring
 - Adding new phrases: add to the correct step's list only
 - Never add logic outside FalseAlarmDetector for trigger decisions
@@ -102,13 +101,14 @@ During work:
 
 ## SEVERITY CLASSIFICATION
 
-Priority: RED > ORANGE > GREEN
+Priority: RED > GREEN
 
 | Class | Keywords | Behavior |
 |---|---|---|
 | RED | "take shelter", "missile", "tornado", "imminent threat", "destructive winds" | Can trigger system |
-| ORANGE | "amber alert", "child abduction" | Log only - NEVER trigger |
 | GREEN | "this is a test", "drill" | Log only - NEVER trigger |
+
+AMBER alerts flow through the pipeline like any other alert. Users can suppress them with block phrases (e.g. "amber alert").
 
 Override: "this is not a test" → always RED regardless of other content.
 
