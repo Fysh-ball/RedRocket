@@ -22,12 +22,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import kotlinx.coroutines.delay
 import site.fysh.redrocket.model.Group
 import site.fysh.redrocket.model.Recipient
 import site.fysh.redrocket.model.Scenario
@@ -41,7 +44,7 @@ import sh.calvin.reorderable.rememberReorderableLazyListState
  * Mirrors ScenarioDropdown exactly: drag reorder, star/favorite protection,
  * long-press multi-select delete, rename via long-press on header.
  */
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun GroupsSection(
     scenario: Scenario,
@@ -376,32 +379,60 @@ fun GroupsSection(
     // Rename dialog triggered from header long-press
     val capturedRenamingId = renamingGroupId
     if (capturedRenamingId != null) {
-        AlertDialog(
+        val focusRequester = remember { FocusRequester() }
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+        ModalBottomSheet(
             onDismissRequest = { renamingGroupId = null },
-            title = { Text("Rename Group") },
-            text = {
+            sheetState = sheetState,
+            shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+            containerColor = MaterialTheme.colorScheme.surface,
+            tonalElevation = 0.dp
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .imePadding()
+                    .padding(bottom = 16.dp)
+            ) {
+                Text(
+                    "Rename Group",
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
                 OutlinedTextField(
                     value = newName,
                     onValueChange = { newName = it },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester)
                 )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    if (newName.isNotBlank()) {
-                        onRenameGroup(capturedRenamingId, newName)
+                Spacer(Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = { renamingGroupId = null }) {
+                        Text("Cancel")
                     }
-                    renamingGroupId = null
-                }) {
-                    Text("Rename")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { renamingGroupId = null }) {
-                    Text("Cancel")
+                    Spacer(Modifier.width(8.dp))
+                    TextButton(onClick = {
+                        if (newName.isNotBlank()) {
+                            onRenameGroup(capturedRenamingId, newName)
+                        }
+                        renamingGroupId = null
+                    }) {
+                        Text("Rename")
+                    }
                 }
             }
-        )
+        }
+
+        LaunchedEffect(Unit) {
+            delay(200)
+            focusRequester.requestFocus()
+        }
     }
 }

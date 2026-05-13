@@ -9,6 +9,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
@@ -106,6 +108,7 @@ fun AbuseLockoutDialog(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ManualSendDialog(
     onDismiss: () -> Unit,
@@ -114,56 +117,82 @@ fun ManualSendDialog(
     recipientCount: Int
 ) {
     var input by remember { mutableStateOf(TextFieldValue("")) }
-    AlertDialog(
+    val focusRequester = remember { FocusRequester() }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
-        title = { Text("Security Check", fontWeight = FontWeight.Bold) },
-        text = {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = captcha,
-                    fontSize = 48.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    letterSpacing = 8.sp,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Will send $recipientCount SMS message${if (recipientCount != 1) "s" else ""}. Standard carrier charges apply.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = input,
-                    onValueChange = { input = it },
-                    label = { Text("Please type in the code") },
-                    placeholder = { Text("6-character code") },
-                    singleLine = true,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .pointerInput(Unit) {
-                            awaitEachGesture {
+        sheetState = sheetState,
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+        containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = 0.dp
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .imePadding()
+                .padding(bottom = 16.dp)
+        ) {
+            Text("Security Check", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = captcha,
+                fontSize = 48.sp,
+                fontWeight = FontWeight.ExtraBold,
+                letterSpacing = 8.sp,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Will send $recipientCount SMS message${if (recipientCount != 1) "s" else ""}. Standard carrier charges apply.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(
+                value = input,
+                onValueChange = { input = it },
+                label = { Text("Please type in the code") },
+                placeholder = { Text("6-character code") },
+                singleLine = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(focusRequester)
+                    .pointerInput(Unit) {
+                        awaitEachGesture {
+                            awaitFirstDown(requireUnconsumed = false)
+                            waitForUpOrCancellation()
+                            val secondDown = withTimeoutOrNull(400) {
                                 awaitFirstDown(requireUnconsumed = false)
-                                waitForUpOrCancellation()
-                                val secondDown = withTimeoutOrNull(400) {
-                                    awaitFirstDown(requireUnconsumed = false)
-                                }
-                                if (secondDown != null) {
-                                    input = input.copy(selection = TextRange(0, input.text.length))
-                                }
+                            }
+                            if (secondDown != null) {
+                                input = input.copy(selection = TextRange(0, input.text.length))
                             }
                         }
-                )
+                    }
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TextButton(onClick = onDismiss) { Text("Cancel") }
+                Spacer(Modifier.width(8.dp))
+                Button(
+                    onClick = { onConfirm(input.text) },
+                    enabled = input.text.length == 6
+                ) { Text("Verify & Send") }
             }
-        },
-        confirmButton = {
-            Button(
-                onClick = { onConfirm(input.text) },
-                enabled = input.text.length == 6
-            ) { Text("Verify & Send") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
-    )
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        delay(200)
+        focusRequester.requestFocus()
+    }
 }

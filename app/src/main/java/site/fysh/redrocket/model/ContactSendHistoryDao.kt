@@ -23,4 +23,7 @@ interface ContactSendHistoryDao {
         incrementCount(normalizedPhone, now)
     }
 
+    @Query("DELETE FROM contact_send_history WHERE normalizedPhone NOT IN (SELECT normalizedPhone FROM contact_send_history ORDER BY lastSentAt DESC LIMIT 500)")
+    suspend fun pruneOldHistory()
+
 }

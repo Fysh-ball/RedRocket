@@ -23,7 +23,7 @@ import kotlin.math.min
  * Lockout tiers (by points):
  *   0:     No captcha / no timer
  *   1-24:  Captcha only
- *   25-50: Captcha + timer + "This app is for emergency automated messages"
+ *   25-74: Captcha + timer + "This app is for emergency automated messages"
  *   75-99: Captcha + timer + "This is not for group messaging, please use another messaging app"
  *   100+:  1-hour lockout: "Too many forced messages sent"
  *

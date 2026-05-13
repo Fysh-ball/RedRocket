@@ -328,14 +328,14 @@ fun ResponseDashboard(
                                 Spacer(Modifier.height(8.dp))
                                 Text(
                                     "${recipients.size} contact(s) ready",
-                                    fontSize = 15.sp,
+                                    fontSize = 14.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Spacer(Modifier.height(4.dp))
                                 Text(
                                     "Monitoring for emergency alerts",
-                                    fontSize = 14.sp,
+                                    fontSize = 12.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                                     textAlign = TextAlign.Center
                                 )

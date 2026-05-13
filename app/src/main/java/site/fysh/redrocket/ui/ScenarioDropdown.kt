@@ -22,6 +22,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.draw.shadow
@@ -29,6 +31,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import kotlinx.coroutines.delay
 import site.fysh.redrocket.model.Scenario
 import androidx.compose.foundation.lazy.rememberLazyListState
 import sh.calvin.reorderable.ReorderableItem
@@ -37,7 +40,7 @@ import sh.calvin.reorderable.rememberReorderableLazyListState
 /**
  * ScenarioDropdown handles scenario selection, management, and editing.
  */
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun ScenarioDropdown(
     scenarios: List<Scenario>,
@@ -308,32 +311,60 @@ fun ScenarioDropdown(
     // renamingScenarioId is cleared by a concurrent recomposition before the user taps.
     val capturedRenamingId = renamingScenarioId
     if (capturedRenamingId != null) {
-        AlertDialog(
+        val focusRequester = remember { FocusRequester() }
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+        ModalBottomSheet(
             onDismissRequest = { renamingScenarioId = null },
-            title = { Text("Rename Scenario") },
-            text = {
+            sheetState = sheetState,
+            shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+            containerColor = MaterialTheme.colorScheme.surface,
+            tonalElevation = 0.dp
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .imePadding()
+                    .padding(bottom = 16.dp)
+            ) {
+                Text(
+                    "Rename Scenario",
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
                 OutlinedTextField(
                     value = newName,
                     onValueChange = { newName = it },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester)
                 )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    if (newName.isNotBlank()) {
-                        onRenameScenario(capturedRenamingId, newName)
+                Spacer(Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = { renamingScenarioId = null }) {
+                        Text("Cancel")
                     }
-                    renamingScenarioId = null
-                }) {
-                    Text("Rename")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { renamingScenarioId = null }) {
-                    Text("Cancel")
+                    Spacer(Modifier.width(8.dp))
+                    TextButton(onClick = {
+                        if (newName.isNotBlank()) {
+                            onRenameScenario(capturedRenamingId, newName)
+                        }
+                        renamingScenarioId = null
+                    }) {
+                        Text("Rename")
+                    }
                 }
             }
-        )
+        }
+
+        LaunchedEffect(Unit) {
+            delay(200)
+            focusRequester.requestFocus()
+        }
     }
 }

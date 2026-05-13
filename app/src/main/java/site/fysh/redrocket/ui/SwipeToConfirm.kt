@@ -141,7 +141,7 @@ fun SwipeToConfirm(
         ) {
             Icon(
                 imageVector = if (enabled) Icons.AutoMirrored.Filled.ArrowForward else Icons.Default.Lock,
-                contentDescription = null,
+                contentDescription = if (enabled) "Swipe right to send" else "Sending locked",
                 modifier = Modifier.size(32.dp),
                 tint = if (enabled) MaterialTheme.colorScheme.onError
                        else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
