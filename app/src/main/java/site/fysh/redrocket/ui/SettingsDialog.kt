@@ -389,8 +389,8 @@ fun SettingsDialog(
                         }
                     }
 
-                    // Debug section
-                    if (!BuildConfig.IS_PRODUCTION) {
+                    // Debug section (hidden until developer mode unlocked via version tap)
+                    if (uiState.developerModeUnlocked) {
                     SettingsSection(title = "Debug Mode", icon = Icons.Default.BugReport, color = MaterialTheme.colorScheme.error) {
                         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {

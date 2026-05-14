@@ -27,6 +27,7 @@ class AppSettings(private val context: Context) {
         val TUTORIAL_SHOWN        = booleanPreferencesKey("tutorial_shown")
         val AUTO_BACKUP_URI       = stringPreferencesKey("auto_backup_uri")
         val LAST_SEEN_VERSION     = stringPreferencesKey("last_seen_version")
+        val DEVELOPER_MODE        = booleanPreferencesKey("developer_mode")
     }
 
     val isFirstLaunch: Flow<Boolean>   = context.dataStore.data.map { it[IS_FIRST_LAUNCH] ?: true }
@@ -43,6 +44,7 @@ class AppSettings(private val context: Context) {
     val tutorialShown: Flow<Boolean>   = context.dataStore.data.map { it[TUTORIAL_SHOWN] ?: false }
     val autoBackupUri: Flow<String>      = context.dataStore.data.map { it[AUTO_BACKUP_URI] ?: "" }
     val lastSeenVersion: Flow<String>    = context.dataStore.data.map { it[LAST_SEEN_VERSION] ?: "" }
+    val developerMode: Flow<Boolean>     = context.dataStore.data.map { it[DEVELOPER_MODE] ?: false }
 
     suspend fun setFirstLaunch(isFirst: Boolean) {
         context.dataStore.edit { it[IS_FIRST_LAUNCH] = isFirst }
@@ -98,6 +100,10 @@ class AppSettings(private val context: Context) {
 
     suspend fun setLastSeenVersion(version: String) {
         context.dataStore.edit { it[LAST_SEEN_VERSION] = version }
+    }
+
+    suspend fun setDeveloperMode(enabled: Boolean) {
+        context.dataStore.edit { it[DEVELOPER_MODE] = enabled }
     }
 
 }

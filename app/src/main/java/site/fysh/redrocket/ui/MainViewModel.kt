@@ -172,6 +172,12 @@ class MainViewModel(
             }
         }
 
+        viewModelScope.launch {
+            settings.developerMode.collect { devMode ->
+                _uiState.update { it.copy(developerModeUnlocked = devMode) }
+            }
+        }
+
         // Cache lastScenarioId so the scenarios collector never blocks on DataStore
         viewModelScope.launch {
             settings.lastScenarioId.collect { cachedLastScenarioId = it }
@@ -992,6 +998,37 @@ class MainViewModel(
 
     // --- Settings & Debugging ---
 
+    private var devTapCount = 0
+    private var devTapLastTime = 0L
+
+    fun onVersionTapped() {
+        val now = System.currentTimeMillis()
+        if (now - devTapLastTime > 2000) devTapCount = 0
+        devTapLastTime = now
+        devTapCount++
+
+        if (_uiState.value.developerModeUnlocked) {
+            if (devTapCount == 7) {
+                devTapCount = 0
+                viewModelScope.launch { settings.setDeveloperMode(false) }
+                _uiState.update { it.copy(userMessage = "Developer mode disabled") }
+            }
+            return
+        }
+
+        val remaining = 7 - devTapCount
+        when {
+            remaining == 0 -> {
+                devTapCount = 0
+                viewModelScope.launch { settings.setDeveloperMode(true) }
+                _uiState.update { it.copy(userMessage = "Developer mode enabled") }
+            }
+            remaining <= 3 -> {
+                _uiState.update { it.copy(userMessage = "$remaining taps to developer mode") }
+            }
+        }
+    }
+
     fun toggleDebug(enabled: Boolean) {
         viewModelScope.launch {
             settings.setDebugEnabled(enabled)
@@ -1473,5 +1510,6 @@ data class MainUiState(
     /** Release notes fetched from GitHub for the What's New dialog. Null while loading. */
     val whatsNewBody: String? = null,
     /** URI string of the user-chosen auto-backup folder. Empty = use app-private fallback. */
-    val autoBackupUri: String = ""
+    val autoBackupUri: String = "",
+    val developerModeUnlocked: Boolean = false
 )
