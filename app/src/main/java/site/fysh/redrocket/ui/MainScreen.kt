@@ -812,7 +812,10 @@ fun MainScreen(viewModel: MainViewModel) {
                     }
                     else -> {
                         // Render each non-blank line from the GitHub release body
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.verticalScroll(rememberScrollState())
+                        ) {
                             body.lines()
                                 .map { it.trim() }
                                 .filter { it.isNotBlank() }
