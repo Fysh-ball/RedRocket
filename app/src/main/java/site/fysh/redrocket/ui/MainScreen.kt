@@ -20,6 +20,8 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import site.fysh.redrocket.utils.AbuseLevel
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
@@ -196,7 +198,11 @@ fun MainScreen(viewModel: MainViewModel) {
                         Text(
                             "v${BuildConfig.VERSION_NAME}",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.clickable(
+                                indication = null,
+                                interactionSource = remember { MutableInteractionSource() }
+                            ) { viewModel.onVersionTapped() }
                         )
                     }
                     HorizontalDivider(modifier = Modifier.padding(top = 6.dp))
