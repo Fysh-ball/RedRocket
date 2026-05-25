@@ -48,6 +48,8 @@ The only outbound request is a read-only version check to GitHub on launch, to n
 
 No data collection. No telemetry. No analytics. Full stop.
 
+For the full privacy policy, data safety details, and permissions justification, see the [legal](legal/) folder.
+
 ---
 
 ## Setup
