@@ -42,7 +42,7 @@ class EmergencyWidget : AppWidgetProvider() {
             widgetId: Int
         ) {
             val isListening = SmsResponseReceiver.isListening()
-            val isSending = isServiceRunning(context)
+            val isSending = EmergencySendingService.isRunning
 
             val statusText = when {
                 isSending -> "Sending messages..."
@@ -66,19 +66,5 @@ class EmergencyWidget : AppWidgetProvider() {
             appWidgetManager.updateAppWidget(widgetId, views)
         }
 
-        /** Returns true if EmergencySendingService is currently running.
-         *  On API 26+, getRunningServices only returns services from the calling app —
-         *  that's exactly what we need here, so the deprecation is safe to suppress. */
-        @Suppress("DEPRECATION")
-        private fun isServiceRunning(context: Context): Boolean {
-            return try {
-                val manager = context.getSystemService(android.app.ActivityManager::class.java)
-                manager?.getRunningServices(Int.MAX_VALUE)
-                    ?.any { it.service.className == EmergencySendingService::class.java.name }
-                    ?: false
-            } catch (_: Exception) {
-                false
-            }
-        }
     }
 }

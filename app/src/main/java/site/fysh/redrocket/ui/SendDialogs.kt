@@ -161,7 +161,7 @@ fun ManualSendDialog(
         confirmButton = {
             Button(
                 onClick = { onConfirm(input.text) },
-                enabled = input.text.length == 6
+                enabled = input.text.equals(captcha, ignoreCase = true)
             ) { Text("Verify & Send") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }

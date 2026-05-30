@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
@@ -76,8 +77,10 @@ fun GroupsSection(
 
     // If selected group was deleted, fall back to first
     val selectedGroup: Group? = groups.find { it.id == selectedGroupId } ?: groups.firstOrNull()
-    if (selectedGroup != null && selectedGroupId != selectedGroup.id) {
-        selectedGroupId = selectedGroup.id
+    SideEffect {
+        if (selectedGroup != null && selectedGroupId != selectedGroup.id) {
+            selectedGroupId = selectedGroup.id
+        }
     }
 
     var showDialog by remember { mutableStateOf(false) }
@@ -227,11 +230,16 @@ fun GroupsSection(
                                 }) {
                                     Text("All")
                                 }
-                                IconButton(onClick = {
-                                    onDeleteGroups(selectedIds.toList())
-                                    multiSelectMode = false
-                                    selectedIds.clear()
-                                }) {
+                                IconButton(
+                                    enabled = selectedIds.isNotEmpty(),
+                                    onClick = {
+                                        if (selectedIds.isNotEmpty()) {
+                                            onDeleteGroups(selectedIds.toList())
+                                            multiSelectMode = false
+                                            selectedIds.clear()
+                                        }
+                                    }
+                                ) {
                                     Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
                                 }
                                 IconButton(onClick = { multiSelectMode = false }) {
@@ -382,7 +390,7 @@ fun GroupsSection(
             text = {
                 OutlinedTextField(
                     value = newName,
-                    onValueChange = { newName = it },
+                    onValueChange = { if (it.length <= 100) newName = it },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )

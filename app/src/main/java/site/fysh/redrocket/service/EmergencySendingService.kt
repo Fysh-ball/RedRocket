@@ -24,6 +24,8 @@ class EmergencySendingService : Service() {
 
     companion object {
         const val ACTION_STOP = "site.fysh.redrocket.STOP_SENDING"
+        @Volatile var isRunning = false
+            private set
 
         fun startService(context: Context) {
             Log.d("EmergencySendingService", "Requesting service start")
@@ -39,6 +41,7 @@ class EmergencySendingService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        isRunning = true
         createNotificationChannel()
     }
 
@@ -296,9 +299,12 @@ class EmergencySendingService : Service() {
 
     override fun onDestroy() {
         Log.d(TAG, "Service destroyed")
+        isRunning = false
         serviceScope.cancel()
         // Clear pending SMS callbacks so SmsDeliveryReceiver doesn't hold stale lambdas
         // referencing the now-dead coroutine scope.
+        val abandoned = SmsDeliveryReceiver.pendingSent.size
+        if (abandoned > 0) Log.w(TAG, "Abandoned $abandoned pending SMS callbacks on destroy")
         SmsDeliveryReceiver.pendingSent.clear()
         getSystemService(NotificationManager::class.java)?.cancel(NOTIFICATION_ID)
         stopForeground(STOP_FOREGROUND_REMOVE)

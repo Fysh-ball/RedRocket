@@ -285,10 +285,10 @@ private fun TutorialCard(
     }
 }
 
-private data class ConfettiParticle(
-    val x: Float, val y: Float,
-    val vx: Float, val vy: Float,
-    val rotation: Float, val vRotation: Float,
+private class ConfettiParticle(
+    var x: Float, var y: Float,
+    var vx: Float, var vy: Float,
+    var rotation: Float, val vRotation: Float,
     val color: Color, val w: Float, val h: Float
 )
 
@@ -310,37 +310,35 @@ fun TutorialCompleteOverlay(onDismiss: () -> Unit) {
         val screenW = with(density) { maxWidth.toPx() }
         val screenH = with(density) { maxHeight.toPx() }
 
-        var particles by remember {
+        val particles = remember {
             val rand = java.util.Random()
-            mutableStateOf(
-                (0 until 64).map { i ->
-                    val fromLeft = i < 32
-                    ConfettiParticle(
-                        x = if (fromLeft) -particleW else screenW,
-                        y = rand.nextFloat() * screenH * 0.35f,
-                        vx = if (fromLeft) rand.nextFloat() * 10f + 4f else -(rand.nextFloat() * 10f + 4f),
-                        vy = -(rand.nextFloat() * 10f + 3f),
-                        rotation = rand.nextFloat() * 360f,
-                        vRotation = (rand.nextFloat() - 0.5f) * 12f,
-                        color = confettiColors[i % confettiColors.size],
-                        w = particleW * (0.7f + rand.nextFloat() * 0.6f),
-                        h = particleH * (0.7f + rand.nextFloat() * 0.6f)
-                    )
-                }
-            )
+            (0 until 64).map { i ->
+                val fromLeft = i < 32
+                ConfettiParticle(
+                    x = if (fromLeft) -particleW else screenW,
+                    y = rand.nextFloat() * screenH * 0.35f,
+                    vx = if (fromLeft) rand.nextFloat() * 10f + 4f else -(rand.nextFloat() * 10f + 4f),
+                    vy = -(rand.nextFloat() * 10f + 3f),
+                    rotation = rand.nextFloat() * 360f,
+                    vRotation = (rand.nextFloat() - 0.5f) * 12f,
+                    color = confettiColors[i % confettiColors.size],
+                    w = particleW * (0.7f + rand.nextFloat() * 0.6f),
+                    h = particleH * (0.7f + rand.nextFloat() * 0.6f)
+                )
+            }
         }
+        var tick by remember { mutableStateOf(0L) }
 
         LaunchedEffect(Unit) {
             while (true) {
                 delay(16)
-                particles = particles.map { p ->
-                    p.copy(
-                        x = p.x + p.vx,
-                        y = p.y + p.vy,
-                        vy = p.vy + 0.45f,
-                        rotation = (p.rotation + p.vRotation) % 360f
-                    )
+                particles.forEach { p ->
+                    p.x += p.vx
+                    p.y += p.vy
+                    p.vy += 0.45f
+                    p.rotation = (p.rotation + p.vRotation) % 360f
                 }
+                tick++
             }
         }
 
@@ -403,9 +401,9 @@ fun TutorialCompleteOverlay(onDismiss: () -> Unit) {
 
         // Confetti drawn on top of everything - Canvas has no pointer input so the
         // card's button remains fully clickable.
-        val currentParticles = particles
+        @Suppress("UNUSED_EXPRESSION") tick
         Canvas(modifier = Modifier.fillMaxSize()) {
-            currentParticles.forEach { p ->
+            particles.forEach { p ->
                 withTransform({
                     translate(left = p.x, top = p.y)
                     rotate(degrees = p.rotation, pivot = Offset(p.w / 2f, p.h / 2f))

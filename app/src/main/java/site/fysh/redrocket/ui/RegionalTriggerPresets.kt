@@ -167,7 +167,7 @@ private val PRESETS_DE = listOf(
         "Waldbrand", "Waldbrandwarnung", "Feuerwarnung", "Evakuierung Feuer", "Flächenbrand"
     ), "🔥"),
     TriggerPreset("Winter Storm", listOf(
-        "Wintersturnwarnung", "Schneesturm", "Blizzard", "Eisregen", "starker Schneefall"
+        "Wintersturmwarnung", "Schneesturm", "Blizzard", "Eisregen", "starker Schneefall"
     ), "❄️")
 )
 
@@ -480,7 +480,7 @@ private val PRESETS_DA = listOf(
         "tornadovarsel", "tornado", "trombe", "vindvarsel"
     ), "🌪️"),
     TriggerPreset("Tsunami", listOf(
-        "tsunami", "tsunamivarsel", "flodbølge", "kystalarM"
+        "tsunami", "tsunamivarsel", "flodbølge", "kystalarm"
     ), "🌊"),
     TriggerPreset("Volcano", listOf(
         "vulkanudbrud", "vulkan", "lavastrøm", "vulkansk aske", "vulkanvarsel"
@@ -1073,7 +1073,8 @@ fun localizedTriggerPresets(regionCode: String): List<TriggerPreset> =
         "SA", "AE", "EG", "JO",
         "KW", "QA", "BH", "OM"  -> PRESETS_AR
         "TR"                     -> PRESETS_TR
-        "ID", "PH"               -> PRESETS_ID
+        "ID"                     -> PRESETS_ID
+        "PH"                     -> PRESETS_EN
         "IN"                     -> PRESETS_HI
         else                     -> PRESETS_EN   // US, CA, GB, AU, NZ, IE, ZA, NG, …
     }

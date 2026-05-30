@@ -43,6 +43,8 @@ class SmsSender(
     private val requestCounter = AtomicInteger(1000)
     private val timeFormatter = DateTimeFormatter.ofPattern("h:mm a")
 
+    private fun nextRequestCode(): Int = requestCounter.getAndUpdate { (it + 1 - 1000) % 100_000 + 1000 }
+
     override suspend fun send(task: MessageTask): Boolean = withContext(Dispatchers.IO) {
         // Runtime permission check - SEND_SMS must be granted before each attempt.
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.SEND_SMS)
@@ -119,7 +121,7 @@ class SmsSender(
         parts: ArrayList<String>
     ): Boolean {
         val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            PendingIntent.FLAG_MUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         } else {
             PendingIntent.FLAG_UPDATE_CURRENT
         }
@@ -158,7 +160,7 @@ class SmsSender(
 
                         val sentIntents = ArrayList<PendingIntent?>().apply {
                             for (i in parts.indices) {
-                                val reqCode = requestCounter.getAndIncrement()
+                                val reqCode = nextRequestCode()
                                 add(PendingIntent.getBroadcast(
                                     context, reqCode,
                                     Intent(context, SmsDeliveryReceiver::class.java).apply {
@@ -175,7 +177,7 @@ class SmsSender(
 
                         val deliveryIntents = ArrayList<PendingIntent?>().apply {
                             for (i in parts.indices) {
-                                val deliveryReqCode = requestCounter.getAndIncrement()
+                                val deliveryReqCode = nextRequestCode()
                                 add(PendingIntent.getBroadcast(
                                     context, deliveryReqCode,
                                     Intent(context, SmsDeliveryReceiver::class.java).apply {
@@ -213,7 +215,7 @@ class SmsSender(
                             SmsDeliveryReceiver.pendingSent.remove(callbackId)
                         }
 
-                        val reqCode = requestCounter.getAndIncrement()
+                        val reqCode = nextRequestCode()
                         val sentIntent = PendingIntent.getBroadcast(
                             context, reqCode,
                             Intent(context, SmsDeliveryReceiver::class.java).apply {
@@ -223,7 +225,7 @@ class SmsSender(
                             flags
                         )
 
-                        val deliveryReqCode = requestCounter.getAndIncrement()
+                        val deliveryReqCode = nextRequestCode()
                         val deliveryIntent = PendingIntent.getBroadcast(
                             context, deliveryReqCode,
                             Intent(context, SmsDeliveryReceiver::class.java).apply {

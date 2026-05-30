@@ -70,8 +70,8 @@ class EmergencyBroadcastReceiver : BroadcastReceiver() {
                     return body
                 }
             }
-        } catch (_: Exception) {
-            // SmsCbMessage class not accessible or method doesn't exist
+        } catch (e: Exception) {
+            Log.d(TAG, "SmsCbMessage reflection failed: ${e.message}")
         }
 
         Log.d(TAG, "No message body found in extras keys: ${extras.keySet()}")
@@ -115,7 +115,8 @@ class EmergencyBroadcastReceiver : BroadcastReceiver() {
                         "Cell broadcast: ${messageBody.take(120)}")
                 }
 
-                // Tighter timeouts: 3s + 1s + 3s = 7s max, safely within goAsync() 10s window (BUG-024).
+                // goAsync() has a 10s system limit. Timeout budget: 3s + 1s + 3s = 7s max.
+                // If adding more DB ops, reduce individual timeouts so total stays under 9s.
                 val allScenarios = withTimeoutOrNull(3_000L) {
                     app.database.scenarioDao().getAllScenariosOnce()
                 } ?: run {

@@ -4,8 +4,10 @@ import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -50,6 +52,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.window.Dialog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import site.fysh.redrocket.BuildConfig
 
 @Composable
 fun SettingsDialog(
@@ -79,6 +82,9 @@ fun SettingsDialog(
     var showTestSendDialog by remember { mutableStateOf(false) }
     var showSimConfirmDialog by remember { mutableStateOf(false) }
     var testPhoneInput by remember { mutableStateOf(TextFieldValue("")) }
+    var devTapCount by remember { mutableStateOf(0) }
+    val devUnlocked = uiState.isDebugEnabled || devTapCount >= 7
+    val context = LocalContext.current
 
     val exportLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json")
@@ -384,52 +390,60 @@ fun SettingsDialog(
                         }
                     }
 
-                    // Debug section
-                    SettingsSection(title = "Debug Mode", icon = Icons.Default.BugReport, color = MaterialTheme.colorScheme.error) {
-                        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.BugReport, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp))
-                                Spacer(Modifier.width(12.dp))
-                                Text("Developer Debug Tools", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                                Switch(checked = uiState.isDebugEnabled, onCheckedChange = onToggleDebug, colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.error, checkedTrackColor = MaterialTheme.colorScheme.errorContainer))
-                            }
-                            if (uiState.isDebugEnabled) {
-                                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text("Force Sequential Sending", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                                        Switch(checked = uiState.isForceSequential, onCheckedChange = onForceSequentialChange)
-                                    }
-                                    OutlinedTextField(
-                                        value = simCount,
-                                        onValueChange = { newValue ->
-                                            simCount = newValue.copy(text = newValue.text.filter { c -> c.isDigit() })
-                                        },
-                                        label = { Text("Simulation Batch Size") },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                        shape = RoundedCornerShape(12.dp)
-                                    )
-                                    OutlinedTextField(
-                                        value = simFailureRatePercent,
-                                        onValueChange = { newValue ->
-                                            val numeric = newValue.text.filter { it.isDigit() }
-                                            val clamped = numeric.toIntOrNull()?.coerceIn(0, 100)?.toString() ?: ""
-                                            simFailureRatePercent = newValue.copy(text = clamped)
-                                            onFailureRateChange((clamped.toDoubleOrNull() ?: 0.0) / 100.0)
-                                        },
-                                        label = { Text("Simulated Network Failure") },
-                                        suffix = { Text("%") },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                        shape = RoundedCornerShape(12.dp)
-                                    )
-                                    Button(
-                                        onClick = { showSimConfirmDialog = true },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        shape = RoundedCornerShape(12.dp),
-                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
-                                    ) {
-                                        Text("Run Mock Sending Test")
+                    // Debug section - hidden until unlocked by tapping version 7 times
+                    if (devUnlocked) {
+                        // Auto-enable debug on first unlock
+                        LaunchedEffect(devUnlocked) {
+                            if (!uiState.isDebugEnabled) onToggleDebug(true)
+                        }
+                        SettingsSection(title = "Debug Mode", icon = Icons.Default.BugReport, color = MaterialTheme.colorScheme.error) {
+                            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.BugReport, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp))
+                                    Spacer(Modifier.width(12.dp))
+                                    Text("Developer Debug Tools", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                                    Switch(checked = uiState.isDebugEnabled, onCheckedChange = onToggleDebug, colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.error, checkedTrackColor = MaterialTheme.colorScheme.errorContainer))
+                                }
+                                if (uiState.isDebugEnabled) {
+                                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text("Force Sequential Sending", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                                            Switch(checked = uiState.isForceSequential, onCheckedChange = onForceSequentialChange)
+                                        }
+                                        OutlinedTextField(
+                                            value = simCount,
+                                            onValueChange = { newValue ->
+                                                val numeric = newValue.text.filter { c -> c.isDigit() }
+                                                val clamped = numeric.toIntOrNull()?.coerceIn(1, 1000)?.toString() ?: ""
+                                                simCount = newValue.copy(text = clamped)
+                                            },
+                                            label = { Text("Simulation Batch Size") },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                            shape = RoundedCornerShape(12.dp)
+                                        )
+                                        OutlinedTextField(
+                                            value = simFailureRatePercent,
+                                            onValueChange = { newValue ->
+                                                val numeric = newValue.text.filter { it.isDigit() }
+                                                val clamped = numeric.toIntOrNull()?.coerceIn(0, 100)?.toString() ?: ""
+                                                simFailureRatePercent = newValue.copy(text = clamped)
+                                                onFailureRateChange((clamped.toDoubleOrNull() ?: 0.0) / 100.0)
+                                            },
+                                            label = { Text("Simulated Network Failure") },
+                                            suffix = { Text("%") },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                            shape = RoundedCornerShape(12.dp)
+                                        )
+                                        Button(
+                                            onClick = { showSimConfirmDialog = true },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            shape = RoundedCornerShape(12.dp),
+                                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                                        ) {
+                                            Text("Run Mock Sending Test")
+                                        }
                                     }
                                 }
                             }
@@ -454,6 +468,33 @@ fun SettingsDialog(
                                 UserManualSection(onReplayTutorial = onReplayTutorial)
                             }
                         }
+                    }
+                    // Version tap target - tap 7 times to unlock dev mode
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                if (!devUnlocked) {
+                                    devTapCount++
+                                    val remaining = 7 - devTapCount
+                                    when {
+                                        remaining in 1..3 -> Toast
+                                            .makeText(context, "You are $remaining steps away from being a developer.", Toast.LENGTH_SHORT)
+                                            .show()
+                                        remaining == 0 -> Toast
+                                            .makeText(context, "You are now a developer!", Toast.LENGTH_SHORT)
+                                            .show()
+                                    }
+                                }
+                            }
+                            .padding(vertical = 12.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            "Red Rocket v${BuildConfig.VERSION_NAME}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        )
                     }
                 }
 

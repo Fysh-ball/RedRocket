@@ -78,7 +78,7 @@ fun MainScreen(viewModel: MainViewModel) {
     // 0 = Alert System, 1 = Dashboard
     var selectedTab by remember { mutableStateOf(0) }
     var lastSeenDashboardAt by remember { mutableLongStateOf(0L) }
-    val hasUnreadResponses = responses.any { it.receivedAt > lastSeenDashboardAt }
+    val hasUnreadResponses by remember { derivedStateOf { responses.any { it.receivedAt > lastSeenDashboardAt } } }
 
     // Hoisted so the tutorial step-4 LaunchedEffect can programmatically scroll to the message field.
     // verticalScroll(enabled=false) blocks gestures but animateScrollTo() still works.
@@ -449,7 +449,7 @@ fun MainScreen(viewModel: MainViewModel) {
                                         android.net.Uri.parse("https://github.com/Fysh-ball/RedRocket/releases")
                                     )
                                 )
-                            } catch (_: Exception) {}
+                            } catch (e: Exception) { android.util.Log.w("MainScreen", "Failed to open URL: ${e.message}") }
                         }
                     ) {
                         Row(

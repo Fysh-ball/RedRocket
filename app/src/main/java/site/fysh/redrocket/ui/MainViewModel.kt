@@ -107,6 +107,7 @@ class MainViewModel(
     @Volatile private var sendStartTime: Long = 0
     @Volatile private var lastTestSendTime: Long = 0
     @Volatile private var cachedLastScenarioId: String? = null
+    private var autoSaveJob: Job? = null
     private var undoTimerJob: Job? = null
     private var monitoringJob: Job? = null
 
@@ -428,8 +429,10 @@ class MainViewModel(
     }
 
     private fun autoSave() {
-        val current = _uiState.value.currentScenario
-        viewModelScope.launch {
+        autoSaveJob?.cancel()
+        autoSaveJob = viewModelScope.launch {
+            delay(500)
+            val current = _uiState.value.currentScenario
             scenarioDao.insertScenario(current)
             showUndoPopup()
         }
@@ -472,6 +475,7 @@ class MainViewModel(
     fun onMessageChange(newMessage: String) {
         if (_uiState.value.currentScenario.message == newMessage) return
         undoStack.addLast(_uiState.value.currentScenario.copy())
+        if (undoStack.size > 50) undoStack.removeFirst()
         _uiState.update {
             it.copy(currentScenario = it.currentScenario.copy(message = newMessage))
         }
@@ -481,6 +485,7 @@ class MainViewModel(
     fun onKeywordsChange(newKeywords: String) {
         if (_uiState.value.currentScenario.description == newKeywords) return
         undoStack.addLast(_uiState.value.currentScenario.copy())
+        if (undoStack.size > 50) undoStack.removeFirst()
         _uiState.update {
             it.copy(currentScenario = it.currentScenario.copy(description = newKeywords))
         }
@@ -500,8 +505,8 @@ class MainViewModel(
     fun onRenameScenario(scenarioId: String, newName: String) {
         viewModelScope.launch {
             val scenario = scenarioDao.getScenarioById(scenarioId)
-            scenario?.let {
-                val updated = it.copy(name = newName)
+            scenario?.let { s ->
+                val updated = s.copy(name = newName)
                 scenarioDao.insertScenario(updated)
                 if (_uiState.value.currentScenario.id == scenarioId) {
                     _uiState.update { it.copy(currentScenario = updated) }
@@ -515,7 +520,12 @@ class MainViewModel(
             val validIds = ids.filter { id ->
                 _uiState.value.scenarios.find { id == it.id }?.isFavorite == false
             }
-            scenarioDao.deleteScenariosByIds(validIds)
+            if (validIds.isEmpty()) return@launch
+            androidx.room.withTransaction(app.database) {
+                responseRecordDao.clearResponsesForScenarios(validIds)
+                app.database.pendingMessageDao().deleteByScenarioIds(validIds)
+                scenarioDao.deleteScenariosByIds(validIds)
+            }
         }
     }
 
@@ -563,6 +573,7 @@ class MainViewModel(
         val group = current.groups.find { it.id == groupId } ?: return
         if (group.isFavorite) return  // Starred groups cannot be deleted
         undoStack.addLast(current)
+        if (undoStack.size > 50) undoStack.removeFirst()
         val updated = current.copy(groups = current.groups.filter { it.id != groupId })
         _uiState.update { it.copy(currentScenario = updated) }
         viewModelScope.launch { scenarioDao.insertScenario(updated) }
@@ -578,6 +589,7 @@ class MainViewModel(
         val remaining = current.groups.filter { it.id !in validIds }
         if (remaining.isEmpty()) return  // Never delete all groups
         undoStack.addLast(current)
+        if (undoStack.size > 50) undoStack.removeFirst()
         val updated = current.copy(groups = remaining)
         _uiState.update { it.copy(currentScenario = updated) }
         viewModelScope.launch { scenarioDao.insertScenario(updated) }
@@ -667,6 +679,7 @@ class MainViewModel(
         if (valid.isEmpty()) return
 
         undoStack.addLast(current)
+        if (undoStack.size > 50) undoStack.removeFirst()
         _uiState.update { state ->
             state.copy(currentScenario = state.currentScenario.copy(
                 groups = state.currentScenario.groups.map { g ->
@@ -683,6 +696,7 @@ class MainViewModel(
 
     fun onRemoveRecipientFromGroup(groupId: String, recipient: Recipient) {
         undoStack.addLast(_uiState.value.currentScenario)
+        if (undoStack.size > 50) undoStack.removeFirst()
         _uiState.update { state ->
             state.copy(currentScenario = state.currentScenario.copy(
                 groups = state.currentScenario.groups.map { g ->
@@ -698,6 +712,7 @@ class MainViewModel(
         val group = current.groups.find { it.id == groupId } ?: return
         if (group.message == message) return
         undoStack.addLast(current)
+        if (undoStack.size > 50) undoStack.removeFirst()
         _uiState.update { state ->
             state.copy(currentScenario = state.currentScenario.copy(
                 groups = state.currentScenario.groups.map { g ->
@@ -801,9 +816,6 @@ class MainViewModel(
         // First ever force send: skip captcha entirely - countdown starts immediately
         if (!_uiState.value.forceSendUsed) {
             viewModelScope.launch {
-                settings.setForceSendUsed(true)
-            }
-            viewModelScope.launch {
                 executeSend()
             }
             return
@@ -819,6 +831,10 @@ class MainViewModel(
             != PackageManager.PERMISSION_GRANTED) {
             _uiState.update { it.copy(isManualCountdownActive = false, errorMessage = "SMS permission revoked - cannot send") }
             return
+        }
+
+        if (!_uiState.value.forceSendUsed) {
+            settings.setForceSendUsed(true)
         }
 
         _uiState.update { it.copy(isManualCountdownActive = true, errorMessage = null, showManualSendDialog = false) }
@@ -1009,7 +1025,14 @@ class MainViewModel(
     fun runDebugSimulation(count: Int, failureRate: Double) {
         viewModelScope.launch {
             _uiState.update { it.copy(isSending = true, totalCount = count) }
-            debugSimulator.runLoadTest(count, failureRate)
+            try {
+                debugSimulator.runLoadTest(count, failureRate)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e(TAG, "Debug simulation failed: ${e.message}", e)
+                _uiState.update { it.copy(isSending = false) }
+            }
         }
     }
 
@@ -1060,6 +1083,7 @@ class MainViewModel(
 
     fun clearAllContacts() {
         undoStack.addLast(_uiState.value.currentScenario.copy())
+        if (undoStack.size > 50) undoStack.removeFirst()
         _uiState.update { state ->
             state.copy(currentScenario = state.currentScenario.copy(
                 recipients = emptyList(),
@@ -1282,6 +1306,7 @@ class MainViewModel(
                 // Gson bypasses constructors — null-safe all fields that lack non-null defaults
                 val scenarios = backup?.scenarios.orEmpty().map { s ->
                     s.copy(
+                        id = UUID.randomUUID().toString(),
                         name = s.name ?: "Imported Scenario",
                         description = s.description ?: "",
                         message = s.message ?: "",
@@ -1289,7 +1314,10 @@ class MainViewModel(
                             g.copy(
                                 name = g.name ?: "Group",
                                 message = g.message ?: "",
-                                recipients = g.recipients.orEmpty()
+                                recipients = g.recipients.orEmpty().filter { r ->
+                                    val digits = r.phoneNumber.count { it.isDigit() }
+                                    digits in 7..15
+                                }
                             )
                         }
                     )
@@ -1298,13 +1326,13 @@ class MainViewModel(
                 if ((backup?.version ?: 0) > BACKUP_CURRENT_VERSION) {
                     _uiState.update { it.copy(userMessage = "Backup was created by a newer version of Red Rocket. Import may be incomplete.") }
                 }
-                // Scenarios: REPLACE on ID conflict so existing data is updated correctly
-                app.database.scenarioDao().insertScenarios(scenarios)
-                // Block phrases: deduplicated by phrase text
-                val existingPhrases = app.database.blockPhraseDao().getAllOnce().map { it.phrase }.toSet()
-                blockPhrases
-                    .filter { it !in existingPhrases }
-                    .forEach { phrase -> app.database.blockPhraseDao().insert(BlockPhrase(phrase = phrase)) }
+                androidx.room.withTransaction(app.database) {
+                    app.database.scenarioDao().insertScenarios(scenarios)
+                    val existingPhrases = app.database.blockPhraseDao().getAllOnce().map { it.phrase }.toSet()
+                    blockPhrases
+                        .filter { it !in existingPhrases }
+                        .forEach { phrase -> app.database.blockPhraseDao().insert(BlockPhrase(phrase = phrase)) }
+                }
                 // Settings: apply if present in backup
                 backup?.settings?.let { s ->
                     s.theme?.let { app.settings.setTheme(it) }

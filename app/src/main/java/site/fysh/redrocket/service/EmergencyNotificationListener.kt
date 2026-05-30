@@ -36,9 +36,9 @@ class EmergencyNotificationListener : NotificationListenerService() {
         Log.e(TAG, "Uncaught exception in notification listener scope", throwable)
     }
 
-    // Var so it can be recreated on rebind - Android may call onListenerConnected()
-    // without calling onCreate() again, leaving a cancelled scope from a prior bind.
-    private var serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO + exceptionHandler)
+    // Initialized as cancelled so no work runs until onListenerConnected() creates a live scope.
+    // Android may call onListenerConnected() without calling onCreate() again.
+    private var serviceScope = CoroutineScope(SupervisorJob().also { it.cancel() } + Dispatchers.IO + exceptionHandler)
 
     private val app by lazy { application as EmergencyApp }
 

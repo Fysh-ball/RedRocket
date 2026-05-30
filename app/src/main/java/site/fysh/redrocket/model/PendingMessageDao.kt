@@ -27,6 +27,9 @@ interface PendingMessageDao {
     @Query("DELETE FROM pending_messages WHERE id = :id")
     suspend fun delete(id: Long)
 
+    @Query("DELETE FROM pending_messages WHERE scenarioId IN (:scenarioIds)")
+    suspend fun deleteByScenarioIds(scenarioIds: List<String>)
+
     @Query("DELETE FROM pending_messages")
     suspend fun deleteAll()
 

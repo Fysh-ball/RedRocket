@@ -22,10 +22,10 @@ class Converters {
         return try {
             gson.fromJson(value, recipientListType)
         } catch (e: JsonSyntaxException) {
-            Log.e("Converters", "Failed to deserialize recipient list: corrupted JSON", e)
+            Log.e("Converters", "Corrupted JSON: $value", e)
             emptyList()
         } catch (e: Exception) {
-            Log.e("Converters", "Unexpected error deserializing recipient list", e)
+            Log.e("Converters", "Corrupted JSON: $value", e)
             emptyList()
         }
     }
@@ -41,10 +41,10 @@ class Converters {
         return try {
             gson.fromJson(value, groupListType)
         } catch (e: JsonSyntaxException) {
-            Log.e("Converters", "Failed to deserialize group list: corrupted JSON", e)
+            Log.e("Converters", "Corrupted JSON: $value", e)
             emptyList()
         } catch (e: Exception) {
-            Log.e("Converters", "Unexpected error deserializing group list", e)
+            Log.e("Converters", "Corrupted JSON: $value", e)
             emptyList()
         }
     }

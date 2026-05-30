@@ -58,29 +58,6 @@ private val TrueDarkColorScheme = darkColorScheme(
     inversePrimary      = TrueDarkPrimaryContainer
 )
 
-/** Neutral Gray dark scheme - follows system dark mode, more muted than Discord */
-private val GrayColorScheme = darkColorScheme(
-    primary             = GrayPrimary,
-    primaryContainer    = GrayPrimaryContainer,
-    background          = GrayBackground,
-    surface             = GraySurface,
-    surfaceVariant      = GraySurfaceVariant,
-    onBackground        = GrayOnBackground,
-    onSurface           = GrayOnBackground,
-    onSurfaceVariant    = GrayOnSurfaceVariant,
-    outline             = GrayOutline,
-    outlineVariant      = GraySurfaceVariant,
-    error               = GrayError,
-    onError             = DiscordWhite,
-    errorContainer      = DiscordRedDark,
-    onErrorContainer    = GrayOnBackground,
-    onPrimary           = DiscordWhite,
-    onPrimaryContainer  = DiscordWhite,
-    inverseSurface      = GrayOnBackground,
-    inverseOnSurface    = GrayBackground,
-    inversePrimary      = GrayPrimaryContainer
-)
-
 /** Amazon-inspired light scheme */
 private val LightColorScheme = lightColorScheme(
     primary             = AmazonOrange,

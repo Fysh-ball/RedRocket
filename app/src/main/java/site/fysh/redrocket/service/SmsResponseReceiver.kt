@@ -21,6 +21,7 @@ import site.fysh.redrocket.util.normalizePhone
 import site.fysh.redrocket.utils.AppLogger
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -156,6 +157,8 @@ class SmsResponseReceiver : BroadcastReceiver() {
         fun stopListening() {
             listenStartTime = 0L
             _listenStartTimeFlow.value = 0L
+            contactFirstResponseTime.clear()
+            contactExpired.clear()
             // commit() is intentional here: if the process dies immediately after stopListening(),
             // apply() might not flush before death, causing listening to incorrectly restore on restart.
             prefs?.edit()?.putLong(KEY_LISTEN_START, 0L)?.commit()
@@ -440,7 +443,7 @@ class SmsResponseReceiver : BroadcastReceiver() {
         }
     }
 
-    private fun sendAutoReply(context: Context, destination: String) {
+    private suspend fun sendAutoReply(context: Context, destination: String) {
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.SEND_SMS)
             != PackageManager.PERMISSION_GRANTED
         ) {
@@ -465,7 +468,7 @@ class SmsResponseReceiver : BroadcastReceiver() {
                     else Log.i(TAG, "Auto-reply sent successfully")
                 } catch (e: Exception) {
                     Log.e(TAG, "Auto-reply attempt ${attempt + 1} failed", e)
-                    if (attempt == 0) Thread.sleep(1000) // brief wait before retry
+                    if (attempt == 0) delay(1000) // brief wait before retry
                 }
             }
             if (!sent) {

@@ -1,9 +1,13 @@
 package site.fysh.redrocket.model
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "pending_messages")
+@Entity(
+    tableName = "pending_messages",
+    indices = [Index("status")]
+)
 data class PendingMessage(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val recipientName: String,

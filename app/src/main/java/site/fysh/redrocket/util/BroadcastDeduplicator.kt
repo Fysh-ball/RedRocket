@@ -28,7 +28,7 @@ object BroadcastDeduplicator {
      * Returns false if the same content was seen within the last 30 seconds.
      */
     fun shouldProcess(content: String): Boolean {
-        val hash = content.trim().lowercase().hashCode().toString()
+        val hash = content.trim().lowercase()
         val now = System.currentTimeMillis()
         synchronized(recent) {
             val lastSeen = recent[hash]

@@ -85,6 +85,7 @@ class LazarusRetrySystem(
 
                 var passSuccessCount = 0
 
+                val provider = providerFactory()
                 repeat(passSize) {
                     val task = queueManager.nextRetryTask() ?: return@repeat
 
@@ -93,7 +94,7 @@ class LazarusRetrySystem(
                     )
 
                     // send() handles the 200ms rate-limit delay and calls markSuccess() internally
-                    val success = providerFactory().send(task)
+                    val success = provider.send(task)
                     if (success) {
                         passSuccessCount++
                         queueManager.noteRetrySucceeded()

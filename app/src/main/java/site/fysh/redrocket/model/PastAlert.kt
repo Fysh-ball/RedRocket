@@ -8,7 +8,7 @@ import androidx.room.PrimaryKey
  */
 @Entity(tableName = "past_alerts")
 data class PastAlert(
-    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val messageContent: String,
     val triggeredAt: Long = System.currentTimeMillis(),
     val source: String = "",            // "cell_broadcast", "notification", "manual"

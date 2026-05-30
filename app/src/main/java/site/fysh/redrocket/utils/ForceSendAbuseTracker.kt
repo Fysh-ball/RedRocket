@@ -152,8 +152,8 @@ class ForceSendAbuseTracker(context: Context) {
     private fun applyDecay() {
         val now = System.currentTimeMillis()
         val elapsedMs = now - lastDecayTime
+        if (elapsedMs < 0) { lastDecayTime = now; return }
         if (elapsedMs < 1000) {
-            lastDecayTime = now  // Prevent a large elapsed-time spike if clock jumps forward later
             return
         }
 
@@ -247,7 +247,7 @@ class ForceSendAbuseTracker(context: Context) {
             .putBoolean(KEY_EXTENDED_SLOW_DECAY, isInExtendedSlowDecay)
             .putLong(KEY_LAST_FORCE_SEND, lastForceSendTime)
             .putLong(KEY_LAST_DECAY, lastDecayTime)
-            .commit()
+            .apply()
     }
 }
 

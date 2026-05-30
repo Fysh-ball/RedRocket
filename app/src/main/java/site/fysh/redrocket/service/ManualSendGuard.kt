@@ -5,6 +5,7 @@ import site.fysh.redrocket.model.Recipient
 import site.fysh.redrocket.model.Scenario
 import site.fysh.redrocket.model.ScenarioDao
 import site.fysh.redrocket.queue.MessageQueueManager
+import site.fysh.redrocket.util.normalizePhone
 import kotlinx.coroutines.*
 import kotlin.random.Random
 
@@ -64,10 +65,17 @@ class ManualSendGuard(
                     }
                 }
                 // Then enqueue only successfully locked scenarios
+                val enqueuedPhones = mutableSetOf<String>()
                 for (scenario in lockedScenarios) {
                     for (group in scenario.groups) {
                         if (group.recipients.isNotEmpty() && group.message.isNotBlank()) {
-                            queueManager.enqueueScenario(group.recipients, group.message, scenario.id)
+                            val deduped = group.recipients.filter { r ->
+                                val norm = normalizePhone(r.phoneNumber)
+                                enqueuedPhones.add(norm)
+                            }
+                            if (deduped.isNotEmpty()) {
+                                queueManager.enqueueScenario(deduped, group.message, scenario.id)
+                            }
                         }
                     }
                 }

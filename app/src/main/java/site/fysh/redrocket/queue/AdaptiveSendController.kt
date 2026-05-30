@@ -41,6 +41,7 @@ class AdaptiveSendController {
      * This is accepted because state transitions are idempotent — the second transition
      * is a no-op semantically (state ends in SEQUENTIAL with both counters at 0 either way).
      */
+    @Synchronized
     fun reportResult(success: Boolean) {
         if (success) {
             val successes = consecutiveSuccesses.incrementAndGet()

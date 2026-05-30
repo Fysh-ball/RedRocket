@@ -61,11 +61,15 @@ fun normalizePhone(number: String, regionCode: String): String {
             else digits
         }
         "GB" -> normalizeWithTrunkPrefix(digits, countryPrefix = "44", subscriberLength = 10)
+        "PR", "VI", "GU", "AS", "MP" -> {
+            // NANP territories: same logic as US/CA
+            if (digits.length == 11 && digits.startsWith("1")) digits.drop(1)
+            else if (digits.length > 10 && !hasPlus) digits.takeLast(10)
+            else digits
+        }
         else -> {
-            // For unknown regions with international prefix, keep full digits
             if (hasPlus || digits.length <= 10) digits
-            else if (digits.length == 11 && digits.startsWith("1")) digits.drop(1) // likely NANP
-            else digits  // keep full international number
+            else digits
         }
     }
 }

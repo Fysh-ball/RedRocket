@@ -22,11 +22,14 @@ interface ResponseRecordDao {
     """)
     fun getLatestResponsePerRecipient(scenarioId: String): Flow<List<ResponseRecord>>
 
-    @Query("SELECT * FROM response_records ORDER BY receivedAt DESC")
+    @Query("SELECT * FROM response_records ORDER BY receivedAt DESC LIMIT 500")
     fun getAllLatestResponses(): Flow<List<ResponseRecord>>
 
     @Query("DELETE FROM response_records WHERE scenarioId = :scenarioId")
     suspend fun clearResponsesForScenario(scenarioId: String)
+
+    @Query("DELETE FROM response_records WHERE scenarioId IN (:scenarioIds)")
+    suspend fun clearResponsesForScenarios(scenarioIds: List<String>)
 
     @Query("DELETE FROM response_records")
     suspend fun clearAllResponses()

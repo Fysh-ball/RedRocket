@@ -74,8 +74,8 @@ object UpdateChecker {
 
     /** Returns true if [latest] is a higher version number than [current]. */
     private fun isNewerVersion(latest: String, current: String): Boolean {
-        val l = latest.split(".").mapNotNull { it.toIntOrNull() }
-        val c = current.split(".").mapNotNull { it.toIntOrNull() }
+        val l = latest.split(".").mapNotNull { it.replace(Regex("[^0-9].*"), "").toIntOrNull() }
+        val c = current.split(".").mapNotNull { it.replace(Regex("[^0-9].*"), "").toIntOrNull() }
         for (i in 0 until maxOf(l.size, c.size)) {
             val lv = l.getOrElse(i) { 0 }
             val cv = c.getOrElse(i) { 0 }

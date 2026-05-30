@@ -97,7 +97,7 @@ fun SwipeToConfirm(
                 .padding(6.dp)
                 .clip(CircleShape)
                 .background(thumbColor)
-                .pointerInput(enabled, maxOffset) {
+                .pointerInput(enabled) {
                     if (!enabled) return@pointerInput
                     detectDragGestures(
                         onDragStart = { isDragging = true },

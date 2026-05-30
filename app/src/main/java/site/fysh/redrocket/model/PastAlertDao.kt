@@ -16,10 +16,10 @@ interface PastAlertDao {
     @Query("UPDATE past_alerts SET scenariosTriggered = :names WHERE id = :id")
     suspend fun updateScenariosTriggered(id: Long, names: String)
 
-    @Query("SELECT * FROM past_alerts ORDER BY triggeredAt DESC")
+    @Query("SELECT * FROM past_alerts ORDER BY triggeredAt DESC LIMIT 1000")
     fun getAllAlerts(): Flow<List<PastAlert>>
 
-    @Query("SELECT * FROM past_alerts ORDER BY triggeredAt DESC")
+    @Query("SELECT * FROM past_alerts ORDER BY triggeredAt DESC LIMIT 1000")
     suspend fun getAllAlertsOnce(): List<PastAlert>
 
     @Query("DELETE FROM past_alerts")
