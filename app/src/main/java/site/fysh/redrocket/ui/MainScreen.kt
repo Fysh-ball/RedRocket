@@ -696,6 +696,7 @@ fun MainScreen(viewModel: MainViewModel) {
                     onExportScenarios = { uri -> viewModel.exportScenarios(uri) },
                     onImportScenarios = { uri -> viewModel.importScenarios(uri) },
                     onSendTestMessage = { phone -> viewModel.sendTestMessage(phone) },
+                    onLocationEnrichmentToggle = { viewModel.onLocationEnrichmentToggle(it) },
                     onReplayTutorial = {
                         showSettings = false
                         viewModel.resetTutorial()

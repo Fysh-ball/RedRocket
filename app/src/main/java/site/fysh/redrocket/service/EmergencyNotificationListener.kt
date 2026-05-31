@@ -19,8 +19,10 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import site.fysh.redrocket.util.AlertEnricher
 
 /**
  * Monitors notifications for emergency triggers.
@@ -149,6 +151,17 @@ class EmergencyNotificationListener : NotificationListenerService() {
             return
         }
 
+        // Fire enrichment early so it runs in parallel with scenario loading and evaluation.
+        // 2s timeout - if it fails or times out, original message is sent as-is.
+        val enrichmentDeferred = serviceScope.async {
+            try {
+                AlertEnricher.enrich(this@EmergencyNotificationListener, timeoutMs = 2000L)
+            } catch (e: Exception) {
+                Log.w(TAG, "AlertEnricher failed - proceeding without enrichment", e)
+                null
+            }
+        }
+
         // Read sensitivity - fail safely to MEDIUM
         val sensitivityStr = withTimeoutOrNull(3_000L) {
             app.settings.alertSensitivity.first()
@@ -198,6 +211,9 @@ class EmergencyNotificationListener : NotificationListenerService() {
         var triggeredCount = 0
         val triggeredNames = mutableListOf<String>()
         val enqueuedPhones = mutableSetOf<String>()
+
+        // Await enrichment (already running in parallel since dedup check) - null if failed/timed out
+        val enrichment = enrichmentDeferred.await()
 
         for (scenario in allScenarios) {
             val keywords = scenario.description
@@ -261,7 +277,12 @@ class EmergencyNotificationListener : NotificationListenerService() {
                         enqueuedPhones.add(norm)  // returns false if already in set
                     }
                     if (deduped.isNotEmpty()) {
-                        app.queueManager.enqueueScenario(deduped, group.message, scenario.id)
+                        val finalMessage = if (enrichment != null) {
+                            "${group.message}\n\n$enrichment"
+                        } else {
+                            group.message
+                        }
+                        app.queueManager.enqueueScenario(deduped, finalMessage, scenario.id)
                         AppLogger.log(app.database, app.appScope, "group_processed",
                             "Group '${group.name}' - ${deduped.size} contact(s) queued")
                     }

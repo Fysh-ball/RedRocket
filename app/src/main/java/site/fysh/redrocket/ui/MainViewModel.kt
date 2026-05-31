@@ -160,6 +160,11 @@ class MainViewModel(
             }
         }
         viewModelScope.launch {
+            settings.locationEnrichmentEnabled.collect { enabled ->
+                _uiState.update { it.copy(isLocationEnrichmentEnabled = enabled) }
+            }
+        }
+        viewModelScope.launch {
             settings.theme.collect { themeStr ->
                 val theme = when (themeStr) {
                     "LIGHT" -> AppTheme.LIGHT
@@ -1047,6 +1052,10 @@ class MainViewModel(
         }
     }
 
+    fun onLocationEnrichmentToggle(enabled: Boolean) {
+        viewModelScope.launch { settings.setLocationEnrichmentEnabled(enabled) }
+    }
+
 
     /** Immediately re-checks notification listener permission. Call from ON_RESUME. */
     fun refreshNotificationPermission() {
@@ -1496,5 +1505,6 @@ data class MainUiState(
     /** Release notes fetched from GitHub for the What's New dialog. Null while loading. */
     val whatsNewBody: String? = null,
     /** URI string of the user-chosen auto-backup folder. Empty = use app-private fallback. */
-    val autoBackupUri: String = ""
+    val autoBackupUri: String = "",
+    val isLocationEnrichmentEnabled: Boolean = false
 )

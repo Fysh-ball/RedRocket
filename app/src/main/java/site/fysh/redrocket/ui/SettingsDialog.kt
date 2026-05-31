@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.ui.res.painterResource
 import site.fysh.redrocket.R
@@ -69,6 +70,7 @@ fun SettingsDialog(
     onExportScenarios: (android.net.Uri) -> Unit = {},
     onImportScenarios: (android.net.Uri) -> Unit = {},
     onSendTestMessage: (String) -> Unit = {},
+    onLocationEnrichmentToggle: (Boolean) -> Unit = {},
     onReplayTutorial: () -> Unit = {},
     onDismiss: () -> Unit
 ) {
@@ -287,6 +289,52 @@ fun SettingsDialog(
                                         Text("Extended monitoring uses more battery", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
                                     }
                                 }
+                            }
+                        }
+                    }
+
+                    // Location enrichment section
+                    SettingsSection(title = "Location", icon = Icons.Default.LocationOn) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        "Enrich alerts with location",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        "Adds nearby event details from Event Horizon to outgoing messages",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                val locationPermissionLauncher = rememberLauncherForActivityResult(
+                                    ActivityResultContracts.RequestPermission()
+                                ) { granted ->
+                                    if (granted) {
+                                        onLocationEnrichmentToggle(true)
+                                    }
+                                    // If denied, toggle stays off - no action needed
+                                }
+                                Switch(
+                                    checked = uiState.isLocationEnrichmentEnabled,
+                                    onCheckedChange = { enabled ->
+                                        if (!enabled) {
+                                            onLocationEnrichmentToggle(false)
+                                        } else {
+                                            val hasPermission = androidx.core.content.ContextCompat.checkSelfPermission(
+                                                context,
+                                                android.Manifest.permission.ACCESS_COARSE_LOCATION
+                                            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                                            if (hasPermission) {
+                                                onLocationEnrichmentToggle(true)
+                                            } else {
+                                                locationPermissionLauncher.launch(android.Manifest.permission.ACCESS_COARSE_LOCATION)
+                                            }
+                                        }
+                                    }
+                                )
                             }
                         }
                     }

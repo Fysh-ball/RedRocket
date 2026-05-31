@@ -73,10 +73,12 @@ android {
             applicationIdSuffix = ".dev"
             versionNameSuffix = "-dev"
             buildConfigField("Boolean", "IS_PRODUCTION", "false")
+            buildConfigField("String", "EHW_API_URL", "\"http://10.0.2.2:3000\"")
         }
         create("production") {
             dimension = "environment"
             buildConfigField("Boolean", "IS_PRODUCTION", "true")
+            buildConfigField("String", "EHW_API_URL", "\"https://event-horizon.fysh.site\"")
         }
     }
     compileOptions {
