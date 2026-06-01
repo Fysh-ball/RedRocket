@@ -21,6 +21,7 @@ import java.util.UUID
 import site.fysh.redrocket.queue.*
 import site.fysh.redrocket.service.*
 import site.fysh.redrocket.utils.*
+import androidx.room.withTransaction
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -526,7 +527,7 @@ class MainViewModel(
                 _uiState.value.scenarios.find { id == it.id }?.isFavorite == false
             }
             if (validIds.isEmpty()) return@launch
-            androidx.room.withTransaction(app.database) {
+            app.database.withTransaction {
                 responseRecordDao.clearResponsesForScenarios(validIds)
                 app.database.pendingMessageDao().deleteByScenarioIds(validIds)
                 scenarioDao.deleteScenariosByIds(validIds)
@@ -1335,7 +1336,7 @@ class MainViewModel(
                 if ((backup?.version ?: 0) > BACKUP_CURRENT_VERSION) {
                     _uiState.update { it.copy(userMessage = "Backup was created by a newer version of Red Rocket. Import may be incomplete.") }
                 }
-                androidx.room.withTransaction(app.database) {
+                app.database.withTransaction {
                     app.database.scenarioDao().insertScenarios(scenarios)
                     val existingPhrases = app.database.blockPhraseDao().getAllOnce().map { it.phrase }.toSet()
                     blockPhrases
