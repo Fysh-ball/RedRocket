@@ -6,6 +6,18 @@ When an emergency alert hits your device, Red Rocket detects it, matches it agai
 
 ---
 
+## Project status
+
+This repository is the live home of Red Rocket.
+
+- Current code line: v2
+- License: GPL-3.0
+- Platform: Android
+
+If you are looking at older references to "v1" or "red-rocket-v2", those are stale. The maintained code and releases live here.
+
+---
+
 ## What it does
 
 **Automated alert detection**
@@ -81,3 +93,9 @@ This app was designed and quality tested by me. While I wish I could have writte
 If you did find this app useful please consider donating me a cup of rice!
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/C0C71L2ELD)
+
+---
+
+## License
+
+Red Rocket is licensed under the GNU General Public License v3.0. See [LICENSE](LICENSE).
