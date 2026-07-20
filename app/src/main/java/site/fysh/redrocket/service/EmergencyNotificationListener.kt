@@ -140,14 +140,55 @@ class EmergencyNotificationListener : NotificationListenerService() {
 
         val isSystemEmergencyAlert = isKnownEmergencyPackage || isContentMatch
 
-        // Hard stop: not a known WEA package AND not a content match (or wide-spread is off).
-        if (!isSystemEmergencyAlert) {
-            Log.v(TAG, "Non-emergency notification from $packageName - ignored (wideSpread=$wideSpreadOn)")
+        // RULE 3: logging happens before filtering. An emergency-plausible
+        // notification must leave a trace even when it will not trigger.
+        //
+        // "Emergency-plausible" is deliberately NOT gated on wideSpreadEnabled:
+        // that setting governs whether content matches may TRIGGER, and using it
+        // to gate LOGGING is what let an Amber alert from an unlisted package
+        // vanish with no record at all (the old code returned here, and the only
+        // trace was a Log.v that never reached AppLogger or the UI).
+        //
+        // The line sits at "plausible" rather than "everything the listener
+        // sees" on purpose. This service sees every notification on the device;
+        // logging all of them would bury real alerts under ordinary traffic and
+        // break rule 3's "entries must never disappear from the UI" while
+        // satisfying its letter. Obvious non-emergency traffic returns below and
+        // is never written.
+        val isEmergencyPlausible = isKnownEmergencyPackage || looksLikeEASContent(content)
+        if (!isEmergencyPlausible) {
+            Log.v(TAG, "Non-emergency notification from $packageName - ignored (not plausible)")
             return
         }
 
         if (!site.fysh.redrocket.util.BroadcastDeduplicator.shouldProcess(content)) {
             Log.i(TAG, "Duplicate notification detected within 30s window - skipping")
+            return
+        }
+
+        // LOG BEFORE FILTER. Written before the trigger gate below, so a plausible
+        // alert leaves a trace whether or not it goes on to trigger anything.
+        // Row ID is kept so triggered scenario names can be back-filled after the loop.
+        //
+        // source: "alert" is what this path has always written for known-package
+        // WEA/EAS. "notification" marks the case this fix exists for - plausible
+        // content from a package outside the detector list, which previously
+        // produced no record at all.
+        val easAlertRowId: Long = app.database.pastAlertDao().insertAlertAndGetId(
+            PastAlert(
+                messageContent = content.ifBlank { "[EAS alert - no text retrieved]" }.take(500),
+                source = if (isKnownEmergencyPackage) "alert" else "notification",
+                scenariosTriggered = ""
+            )
+        )
+
+        // TRIGGER GATE, unchanged in meaning: a content match may only trigger when
+        // Global Keyword Detection is on. Reaching this point with it off now leaves
+        // the row above as the trace, where before the notification vanished.
+        // Logging is not triggering: nothing below this line was reachable before
+        // that is reachable now.
+        if (!isSystemEmergencyAlert) {
+            Log.i(TAG, "Plausible notification from $packageName logged but not triggering (wideSpread=$wideSpreadOn)")
             return
         }
 
@@ -173,19 +214,6 @@ class EmergencyNotificationListener : NotificationListenerService() {
         val userBlockPhrases = withTimeoutOrNull(5_000L) {
             app.database.blockPhraseDao().getAllOnce().map { it.phrase }
         } ?: emptyList()
-
-        // EAS/WEA notifications are logged unconditionally before any filtering so
-        // they always appear in Alert History regardless of scenario configuration.
-        // Row ID is kept so triggered scenario names can be back-filled after the loop.
-        // Note: isSystemEmergencyAlert is always true here — the !isSystemEmergencyAlert
-        // guard at line 119 returns early, so this code is only reached for EAS alerts.
-        val easAlertRowId: Long = app.database.pastAlertDao().insertAlertAndGetId(
-            PastAlert(
-                messageContent = content.ifBlank { "[EAS alert - no text retrieved]" }.take(500),
-                source = "alert",
-                scenariosTriggered = ""
-            )
-        )
 
         // Load ALL scenarios - every scenario actively listens for its trigger words
         val allScenarios = withTimeoutOrNull(5_000L) {
@@ -299,9 +327,9 @@ class EmergencyNotificationListener : NotificationListenerService() {
             )
         }
 
-        // (Non-EAS path removed: processNotification() returns early at line 119 for
-        // non-emergency packages, so this point is only ever reached for EAS alerts.
-        // The back-fill above handles the only logging path needed.)
+        // Every notification that reaches this far was already written to PastAlert
+        // before the trigger gate, so the back-fill above is the only logging work
+        // remaining. Nothing is logged after a trigger decision.
 
         if (triggeredCount > 0) {
             AppLogger.log(app.database, app.appScope, "emergency_detected",
