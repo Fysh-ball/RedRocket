@@ -161,11 +161,6 @@ class EmergencyNotificationListener : NotificationListenerService() {
             return
         }
 
-        if (!site.fysh.redrocket.util.BroadcastDeduplicator.shouldProcess(content)) {
-            Log.i(TAG, "Duplicate notification detected within 30s window - skipping")
-            return
-        }
-
         // LOG BEFORE FILTER. Written before the trigger gate below, so a plausible
         // alert leaves a trace whether or not it goes on to trigger anything.
         // Row ID is kept so triggered scenario names can be back-filled after the loop.
@@ -189,6 +184,24 @@ class EmergencyNotificationListener : NotificationListenerService() {
         // that is reachable now.
         if (!isSystemEmergencyAlert) {
             Log.i(TAG, "Plausible notification from $packageName logged but not triggering (wideSpread=$wideSpreadOn)")
+            return
+        }
+
+        // Dedup gates the SEND, not the LOG. It sits below the insert on purpose:
+        // both copies of a duplicated alert leave their own trace, while only one
+        // of them proceeds to trigger. Previously this returned before the insert,
+        // so the second copy vanished exactly the way the Amber did.
+        //
+        // This ordering is a prerequisite for the eh_feed integration, where the
+        // same alert legitimately arrives twice (radio and feed) and the design
+        // requires both to be logged while only one send fires.
+        // scenariosTriggered is deliberately left empty on this path. A suppressed
+        // duplicate fired no send, so it is an ordinary untriggered row and stays
+        // prunable. Writing a marker here would make every duplicate permanently
+        // immune to the prune, since that policy treats any non-empty value as
+        // load-bearing evidence.
+        if (!site.fysh.redrocket.util.BroadcastDeduplicator.shouldProcess(content)) {
+            Log.i(TAG, "Duplicate notification within 30s window - logged, send suppressed")
             return
         }
 

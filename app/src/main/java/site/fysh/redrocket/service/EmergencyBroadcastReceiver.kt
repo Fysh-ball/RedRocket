@@ -95,14 +95,9 @@ class EmergencyBroadcastReceiver : BroadcastReceiver() {
 
         app.appScope.launch(Dispatchers.IO) {
             try {
-                if (!site.fysh.redrocket.util.BroadcastDeduplicator.shouldProcess(messageBody)) {
-                    Log.i(TAG, "Duplicate broadcast detected within 30s window - skipping")
-                    pendingResult.finish()
-                    return@launch
-                }
-
-                // Log FIRST - before any DB operations that might time out (BUG-025).
-                // This ensures PastAlert is always recorded even if later loads stall.
+                // Log FIRST - before any DB operations that might time out (BUG-025),
+                // and before dedup. This ensures PastAlert is always recorded even if
+                // later loads stall.
                 val alertRowId = app.database.pastAlertDao().insertAlertAndGetId(
                     PastAlert(
                         messageContent = messageBody.ifBlank { "[Cell broadcast - no text body]" },
@@ -113,6 +108,16 @@ class EmergencyBroadcastReceiver : BroadcastReceiver() {
                 if (messageBody.isNotBlank()) {
                     AppLogger.log(app.database, app.appScope, "emergency_detected",
                         "Cell broadcast: ${messageBody.take(120)}")
+                }
+
+                // Dedup gates the SEND, not the LOG. Both copies of a duplicated
+                // broadcast leave their own trace; only one proceeds to trigger.
+                // scenariosTriggered stays empty because no send fired, which keeps
+                // the row prunable like any other untriggered row.
+                if (!site.fysh.redrocket.util.BroadcastDeduplicator.shouldProcess(messageBody)) {
+                    Log.i(TAG, "Duplicate broadcast within 30s window - logged, send suppressed")
+                    pendingResult.finish()
+                    return@launch
                 }
 
                 // goAsync() has a 10s system limit. Timeout budget: 3s + 1s + 3s = 7s max.
