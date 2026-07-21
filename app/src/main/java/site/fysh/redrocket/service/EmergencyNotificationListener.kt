@@ -92,11 +92,24 @@ class EmergencyNotificationListener : NotificationListenerService() {
                 return
             }
 
-            val powerManager = getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
-            val wakeLock = powerManager?.newWakeLock(
-                android.os.PowerManager.PARTIAL_WAKE_LOCK, "RedRocket:NotificationProcessing"
-            )
-            wakeLock?.acquire(30_000L)
+            // The wakelock buys reliability under Doze. It is NOT a precondition for
+            // detection, and must never be able to prevent it. A missing permission or
+            // an OEM power-manager restriction should cost us Doze resilience, not the
+            // entire detection path. Same fail-safe posture as fail-open on the alert
+            // contract: the safety-critical path degrades, it does not die silently.
+            //
+            // This exact failure disabled notification detection from v2.1.0 until it
+            // was found on-device: acquire() threw SecurityException above the launch
+            // below, and the outer catch swallowed it, so processNotification never ran.
+            val wakeLock = try {
+                val powerManager = getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
+                powerManager?.newWakeLock(
+                    android.os.PowerManager.PARTIAL_WAKE_LOCK, "RedRocket:NotificationProcessing"
+                )?.also { it.acquire(30_000L) }
+            } catch (e: Exception) {
+                Log.e(TAG, "Wakelock unavailable - processing without it (Doze reliability reduced)", e)
+                null
+            }
 
             serviceScope.launch {
                 try {
