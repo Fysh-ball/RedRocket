@@ -26,6 +26,20 @@ import kotlin.math.sqrt
 object AlertEnricher {
     private const val TAG = "AlertEnricher"
 
+    /**
+     * Search radius for the "Nearby:" line, in kilometres.
+     *
+     * City-sized, not metro-sized. This was 50km, which reaches well past a
+     * city into neighbouring towns, so the line could report something an hour
+     * away as "nearby" on an emergency SMS. 15km covers a typical city from a
+     * central point while staying inside it.
+     *
+     * Deliberately conservative. A miss costs nothing, since enrichment is
+     * optional decoration on the outbound message, but a hit that points
+     * somewhere the recipient is not costs credibility at the worst moment.
+     */
+    private const val SEARCH_RADIUS_KM = 15
+
     suspend fun enrich(context: Context, timeoutMs: Long = 2000L): String? {
         return withTimeoutOrNull(timeoutMs) {
             try {
@@ -75,10 +89,18 @@ object AlertEnricher {
         return null
     }
 
+    // Internal so the query contract is pinned by a test. The endpoint ignores
+    // unknown parameters rather than rejecting them, so a misspelled name here
+    // would silently widen the search instead of failing.
+    internal fun buildNearbyUrl(base: String, lat: Double, lon: Double): String =
+        "$base/api/v1/events/nearby" +
+            "?lat=$lat&lon=$lon" +
+            "&radius_km=$SEARCH_RADIUS_KM&since=1h&min_score=30&limit=3"
+
     private fun fetchNearbyContext(location: Location): String? {
-        val url = "${BuildConfig.EHW_API_URL}/api/v1/events/nearby" +
-            "?lat=${location.latitude}&lon=${location.longitude}" +
-            "&radius_km=50&since=1h&min_score=30&limit=3"
+        val url = buildNearbyUrl(
+            BuildConfig.EHW_API_URL, location.latitude, location.longitude
+        )
         val connection = URL(url).openConnection() as HttpURLConnection
         try {
             connection.connectTimeout = 2_000

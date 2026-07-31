@@ -112,6 +112,32 @@ class AlertEnricherTest {
         assertNull(AlertEnricher.parseTopEvent(blank, devLat, devLon))
     }
 
+    /**
+     * The search radius is city-sized on purpose. It was 50km, which reaches
+     * past a city into neighbouring towns and could label something an hour
+     * away as "nearby" on an emergency SMS. Widening it is a deliberate
+     * decision, so it should have to break a test.
+     */
+    @Test
+    fun `search radius stays city-sized`() {
+        val url = AlertEnricher.buildNearbyUrl("https://x", 40.7, -74.0)
+        assertEquals(true, url.contains("&radius_km=15&"))
+    }
+
+    /**
+     * The endpoint ignores unknown query parameters instead of rejecting them,
+     * so a typo here would silently drop a filter and widen the search rather
+     * than fail. Pin the exact string.
+     */
+    @Test
+    fun `nearby url matches the endpoint contract`() {
+        assertEquals(
+            "https://x/api/v1/events/nearby" +
+                "?lat=40.7&lon=-74.0&radius_km=15&since=1h&min_score=30&limit=3",
+            AlertEnricher.buildNearbyUrl("https://x", 40.7, -74.0)
+        )
+    }
+
     /** Sub-kilometre distances render in metres, not as "0.0km". */
     @Test
     fun `very close events render in metres`() {
