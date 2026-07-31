@@ -94,6 +94,12 @@ android {
         compose = true
         buildConfig = true
     }
+
+    testOptions {
+        // AlertEnricher logs on the degraded path. Unmocked android.util.Log
+        // throws in JVM unit tests, which would fail the test for the wrong reason.
+        unitTests.isReturnDefaultValues = true
+    }
 }
 
 ksp {
@@ -133,6 +139,7 @@ dependencies {
     implementation("androidx.core:core-splashscreen:1.0.1")
 
     testImplementation(libs.junit)
+    testImplementation(libs.org.json)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
