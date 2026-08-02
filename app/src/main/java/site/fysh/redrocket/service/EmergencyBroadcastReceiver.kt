@@ -83,11 +83,23 @@ class EmergencyBroadcastReceiver : BroadcastReceiver() {
         Log.i(TAG, "Received broadcast action: $action")
 
         val pendingResult = goAsync()
-        val powerManager = context.getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
-        val wakeLock = powerManager?.newWakeLock(
-            android.os.PowerManager.PARTIAL_WAKE_LOCK, "RedRocket:BroadcastProcessing"
-        )
-        wakeLock?.acquire(30_000L)  // max 30s, auto-releases as safety net
+        // Same fail-safe posture as the notification listener: the wakelock is a
+        // reliability aid, never a precondition for processing a cell broadcast.
+        //
+        // Unwrapped this is worse here than in the listener. onReceive has no outer
+        // try/catch, so a throw propagates out with the goAsync() pendingResult above
+        // already outstanding, which crashes the process and violates rule 2. The
+        // radio path is the primary, never-gated path; it must not be able to die
+        // because the power manager said no.
+        val wakeLock = try {
+            val powerManager = context.getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
+            powerManager?.newWakeLock(
+                android.os.PowerManager.PARTIAL_WAKE_LOCK, "RedRocket:BroadcastProcessing"
+            )?.also { it.acquire(30_000L) }  // max 30s, auto-releases as safety net
+        } catch (e: Exception) {
+            Log.e(TAG, "Wakelock unavailable - processing broadcast without it", e)
+            null
+        }
         val app = context.applicationContext as EmergencyApp
 
         val messageBody: String = runCatching { extractMessageBody(intent) }.getOrElse { "" }
@@ -95,14 +107,9 @@ class EmergencyBroadcastReceiver : BroadcastReceiver() {
 
         app.appScope.launch(Dispatchers.IO) {
             try {
-                if (!site.fysh.redrocket.util.BroadcastDeduplicator.shouldProcess(messageBody)) {
-                    Log.i(TAG, "Duplicate broadcast detected within 30s window - skipping")
-                    pendingResult.finish()
-                    return@launch
-                }
-
-                // Log FIRST - before any DB operations that might time out (BUG-025).
-                // This ensures PastAlert is always recorded even if later loads stall.
+                // Log FIRST - before any DB operations that might time out (BUG-025),
+                // and before dedup. This ensures PastAlert is always recorded even if
+                // later loads stall.
                 val alertRowId = app.database.pastAlertDao().insertAlertAndGetId(
                     PastAlert(
                         messageContent = messageBody.ifBlank { "[Cell broadcast - no text body]" },
@@ -113,6 +120,16 @@ class EmergencyBroadcastReceiver : BroadcastReceiver() {
                 if (messageBody.isNotBlank()) {
                     AppLogger.log(app.database, app.appScope, "emergency_detected",
                         "Cell broadcast: ${messageBody.take(120)}")
+                }
+
+                // Dedup gates the SEND, not the LOG. Both copies of a duplicated
+                // broadcast leave their own trace; only one proceeds to trigger.
+                // scenariosTriggered stays empty because no send fired, which keeps
+                // the row prunable like any other untriggered row.
+                if (!site.fysh.redrocket.util.BroadcastDeduplicator.shouldProcess(messageBody)) {
+                    Log.i(TAG, "Duplicate broadcast within 30s window - logged, send suppressed")
+                    pendingResult.finish()
+                    return@launch
                 }
 
                 // goAsync() has a 10s system limit. Timeout budget: 3s + 1s + 3s = 7s max.

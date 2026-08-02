@@ -31,7 +31,23 @@ import kotlinx.coroutines.launch
  * Main Application class for initializing core messaging components.
  */
 class EmergencyApp : Application() {
-    
+
+    companion object {
+        /**
+         * Alert-log retention for rows that never fired a send. Age-out, not
+         * count-out: emergency review happens on human timescales, so "did my
+         * phone see that alert last month" has to be answerable.
+         */
+        private const val PAST_ALERT_RETENTION_MS = 90L * 24 * 60 * 60 * 1000
+
+        /**
+         * Untriggered rows always kept regardless of age, so a quiet phone never
+         * empties its own Alert History. Rows that fired a send are never pruned
+         * at all and are not counted against this floor.
+         */
+        private const val PAST_ALERT_KEEP_NEWEST_UNTRIGGERED = 200
+    }
+
     lateinit var queueManager: MessageQueueManager
     lateinit var adaptiveController: AdaptiveSendController
     lateinit var rateLimiter: RateLimiter
@@ -79,6 +95,21 @@ class EmergencyApp : Application() {
             settings.debugEnabled.collect { enabled ->
                 isDebugModeEnabled = enabled
                 Log.d("EmergencyApp", "Debug Mode changed: $enabled")
+            }
+        }
+
+        // Bound the alert log once per app start, off the main thread. Not on the
+        // insert path: prune urgency is low, and a DB scan while an alert is being
+        // processed is exactly the wrong time to spend I/O. Fails soft per rule 2 -
+        // a failed prune must never take down startup.
+        appScope.launch(Dispatchers.IO) {
+            try {
+                val cutoff = System.currentTimeMillis() - PAST_ALERT_RETENTION_MS
+                val removed = database.pastAlertDao()
+                    .pruneUntriggered(cutoff, PAST_ALERT_KEEP_NEWEST_UNTRIGGERED)
+                if (removed > 0) Log.i("EmergencyApp", "Pruned $removed untriggered alert log row(s)")
+            } catch (e: Exception) {
+                Log.e("EmergencyApp", "PastAlert prune failed - log left unbounded this run", e)
             }
         }
 
