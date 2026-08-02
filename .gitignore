@@ -5,3 +5,19 @@ build/
 local.properties
 *.iml
 .cxx/
+
+# Credentials. The release keystore password lives in local.properties
+# (already ignored above); these cover the key material itself and the
+# other places Android projects accumulate credentials, so a copy landing
+# inside the repo cannot be committed by accident.
+*.jks
+*.keystore
+*.p12
+keystore.properties
+signing.properties
+google-services.json
+.env
+.env.*
+*.pem
+id_rsa*
+id_ed25519*
