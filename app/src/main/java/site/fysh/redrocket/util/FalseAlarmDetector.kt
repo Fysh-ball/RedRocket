@@ -771,6 +771,22 @@ object FalseAlarmDetector {
     }
 
     /**
+     * True if [content] states outright that it is a test or a drill, in any of the
+     * languages [HARD_TEST_PHRASES] covers.
+     *
+     * This is the same vocabulary the Hard Block in [shouldTrigger] uses, exposed so
+     * that anything else needing "is this a test" asks the one list rather than
+     * growing its own English-only copy. Deliberately does NOT consult
+     * SOFT_TEST_PHRASES: those are single words like "drill" and "exercise" that are
+     * worth a scoring penalty but are far too loose to assert a message is not real.
+     */
+    internal fun isExplicitTestBroadcast(content: String): Boolean {
+        if (content.isBlank()) return false
+        val normalized = normalize(content)
+        return HARD_TEST_PHRASES.any { normalized.contains(it) }
+    }
+
+    /**
      * Returns true if the original (unnormalized) message is predominantly uppercase.
      * Requires ≥10 alphabetic characters and >70 % uppercase.
      */

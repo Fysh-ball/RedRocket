@@ -26,6 +26,20 @@ import kotlin.math.sqrt
 object AlertEnricher {
     private const val TAG = "AlertEnricher"
 
+    /**
+     * Search radius for the "Nearby:" line, in kilometres.
+     *
+     * City-sized, not metro-sized. This was 50km, which reaches well past a
+     * city into neighbouring towns, so the line could report something an hour
+     * away as "nearby" on an emergency SMS. 15km covers a typical city from a
+     * central point while staying inside it.
+     *
+     * Deliberately conservative. A miss costs nothing, since enrichment is
+     * optional decoration on the outbound message, but a hit that points
+     * somewhere the recipient is not costs credibility at the worst moment.
+     */
+    private const val SEARCH_RADIUS_KM = 15
+
     suspend fun enrich(context: Context, timeoutMs: Long = 2000L): String? {
         return withTimeoutOrNull(timeoutMs) {
             try {
@@ -75,10 +89,18 @@ object AlertEnricher {
         return null
     }
 
+    // Internal so the query contract is pinned by a test. The endpoint ignores
+    // unknown parameters rather than rejecting them, so a misspelled name here
+    // would silently widen the search instead of failing.
+    internal fun buildNearbyUrl(base: String, lat: Double, lon: Double): String =
+        "$base/api/v1/events/nearby" +
+            "?lat=$lat&lon=$lon" +
+            "&radius_km=$SEARCH_RADIUS_KM&since=1h&min_score=30&limit=3"
+
     private fun fetchNearbyContext(location: Location): String? {
-        val url = "${BuildConfig.EHW_API_URL}/api/v1/events/nearby" +
-            "?lat=${location.latitude}&lon=${location.longitude}" +
-            "&radius_km=50&since=1h&min_score=30&limit=3"
+        val url = buildNearbyUrl(
+            BuildConfig.EHW_API_URL, location.latitude, location.longitude
+        )
         val connection = URL(url).openConnection() as HttpURLConnection
         try {
             connection.connectTimeout = 2_000
@@ -92,7 +114,7 @@ object AlertEnricher {
             }
 
             val json = connection.inputStream.use { it.bufferedReader().readText() }
-            return parseTopEvent(json, location)
+            return parseTopEvent(json, location.latitude, location.longitude)
         } catch (e: Exception) {
             Log.d(TAG, "EHW API call failed: ${e.message}")
             return null
@@ -101,7 +123,9 @@ object AlertEnricher {
         }
     }
 
-    private fun parseTopEvent(json: String, deviceLocation: Location): String? {
+    // Takes plain doubles rather than an android.location.Location so the parsing
+    // and geometry can be unit tested off-device against a real captured payload.
+    internal fun parseTopEvent(json: String, devLat: Double, devLon: Double): String? {
         val root = JSONObject(json)
         val events = root.optJSONArray("events") ?: return null
         if (events.length() == 0) return null
@@ -109,20 +133,22 @@ object AlertEnricher {
         val event = events.getJSONObject(0)
         val title = event.optString("title", "").ifBlank { return null }
 
-        val evtLat = event.optDouble("latitude", Double.NaN)
-        val evtLon = event.optDouble("longitude", Double.NaN)
+        // EHW nests coordinates under "location", it has no top-level latitude /
+        // longitude keys. Reading them flat meant both values were always NaN, so
+        // every enrichment silently degraded to the bare title and the distance
+        // and bearing code below had never once run.
+        val loc = event.optJSONObject("location")
+        val evtLat = loc?.optDouble("lat", Double.NaN) ?: Double.NaN
+        val evtLon = loc?.optDouble("lon", Double.NaN) ?: Double.NaN
 
         val distanceStr = if (!evtLat.isNaN() && !evtLon.isNaN()) {
-            val km = haversineKm(
-                deviceLocation.latitude, deviceLocation.longitude,
-                evtLat, evtLon
-            )
-            val bearing = bearing(
-                deviceLocation.latitude, deviceLocation.longitude,
-                evtLat, evtLon
-            )
+            val km = haversineKm(devLat, devLon, evtLat, evtLon)
+            val bearing = bearing(devLat, devLon, evtLat, evtLon)
             ", ${formatDistance(km)} ${compassDirection(bearing)}"
         } else {
+            // Degrade to title-only, but say so. This branch being silent is what
+            // let the flat-key bug survive: the output stayed plausible.
+            Log.w(TAG, "Event ${event.optString("id", "?")} carried no usable coordinates - title only")
             ""
         }
 
