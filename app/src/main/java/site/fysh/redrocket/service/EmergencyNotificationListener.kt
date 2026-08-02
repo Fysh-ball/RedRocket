@@ -9,6 +9,7 @@ import androidx.core.content.ContextCompat
 import site.fysh.redrocket.EmergencyApp
 import site.fysh.redrocket.model.PastAlert
 import site.fysh.redrocket.util.AlertSensitivity
+import site.fysh.redrocket.util.EasContentMatcher
 import site.fysh.redrocket.util.EmergencyPackageDetector
 import site.fysh.redrocket.util.FalseAlarmDetector
 import site.fysh.redrocket.utils.AppLogger
@@ -110,23 +111,6 @@ class EmergencyNotificationListener : NotificationListenerService() {
         }
     }
 
-    /**
-     * Content-based EAS fallback: catches WEA/EAS from OEM packages not in the
-     * static known-package list. Matches FCC-mandated WEA category names and the
-     * generic "Emergency Alert" notification title used across many OEM builds.
-     */
-    private fun looksLikeEASContent(content: String): Boolean {
-        val upper = content.uppercase()
-        return upper.contains("WIRELESS EMERGENCY ALERT") ||
-               upper.contains("PRESIDENTIAL ALERT") ||
-               upper.contains("EXTREME ALERT") ||
-               upper.contains("SEVERE ALERT") ||
-               upper.contains("AMBER ALERT") ||
-               upper.contains("CIVIL EMERGENCY") ||
-               upper.contains("NATIONAL EMERGENCY") ||
-               upper.contains("EMERGENCY ALERT")
-    }
-
     private suspend fun processNotification(packageName: String, content: String) {
         // Path 1: Always check known system WEA/EAS packages (never gated on settings).
         val isKnownEmergencyPackage = EmergencyPackageDetector.isEmergencyAlertPackage(packageName)
@@ -136,7 +120,10 @@ class EmergencyNotificationListener : NotificationListenerService() {
         val wideSpreadOn = withTimeoutOrNull(2_000L) {
             app.settings.wideSpreadEnabled.first()
         } ?: false
-        val isContentMatch = wideSpreadOn && looksLikeEASContent(content)
+        // Bilingual (see EasContentMatcher): a Quebec handset renders the same
+        // cell broadcast entirely in French, and the previous English-only list
+        // matched none of it.
+        val isContentMatch = wideSpreadOn && EasContentMatcher.looksLikeEASContent(content)
 
         val isSystemEmergencyAlert = isKnownEmergencyPackage || isContentMatch
 
