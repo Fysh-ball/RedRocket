@@ -17,6 +17,7 @@ import site.fysh.redrocket.BuildConfig
 import site.fysh.redrocket.EmergencyApp
 import site.fysh.redrocket.model.ResponseRecord
 import site.fysh.redrocket.util.RegionSettings
+import site.fysh.redrocket.util.maskPhone
 import site.fysh.redrocket.util.normalizePhone
 import site.fysh.redrocket.utils.AppLogger
 import kotlinx.coroutines.CancellationException
@@ -350,7 +351,7 @@ class SmsResponseReceiver : BroadcastReceiver() {
                 if (BuildConfig.DEBUG) Log.d(TAG, "SMS from sender='$sender', body='$body'")
 
                 val responseCode = parseResponseCode(body) ?: run {
-                    Log.d(TAG, "Body '$body' is not a recognizable response, ignoring")
+                    Log.d(TAG, "Body (${body.length} chars) is not a recognizable response, ignoring")
                     pending.finish()
                     return@launch
                 }
@@ -399,7 +400,7 @@ class SmsResponseReceiver : BroadcastReceiver() {
                         val normalizedRecipient = normalizePhone(recipient.phoneNumber, region)
                         if (normalizedRecipient == normalizedSender) {
                             if (BuildConfig.DEBUG) {
-                                Log.i(TAG, "MATCH: recipient='${recipient.name}' (${recipient.phoneNumber}), scenario='${scenario.name}', code=$responseCode")
+                                Log.i(TAG, "MATCH: recipient=${maskPhone(recipient.phoneNumber)}, scenario='${scenario.name}', code=$responseCode")
                             } else {
                                 Log.i(TAG, "MATCH: scenario='${scenario.name}', code=$responseCode")
                             }

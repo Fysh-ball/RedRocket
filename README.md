@@ -79,3 +79,9 @@ This app was designed and quality tested by me. While I wish I could have writte
 If you did find this app useful please consider donating me a cup of rice!
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/C0C71L2ELD)
+
+---
+
+## License
+
+Red Rocket is licensed under the GNU Affero General Public License v3.0. See [LICENSE](LICENSE).

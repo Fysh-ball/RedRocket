@@ -83,7 +83,7 @@ class SmsSender(
 
             val parts = sm.divideMessage(fullMessage)
             if (BuildConfig.DEBUG) {
-                Log.i(TAG, "Sending SMS to ${task.recipient.phoneNumber} (${parts.size} part(s), ${fullMessage.length} chars)")
+                Log.i(TAG, "Sending SMS to ${maskPhone(task.recipient.phoneNumber)} (${parts.size} part(s), ${fullMessage.length} chars)")
             }
 
             val success = sendWithConfirmation(sm, task.recipient.phoneNumber, fullMessage, parts)

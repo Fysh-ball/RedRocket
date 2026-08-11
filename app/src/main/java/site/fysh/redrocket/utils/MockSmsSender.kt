@@ -5,6 +5,7 @@ import site.fysh.redrocket.queue.AdaptiveSendController
 import site.fysh.redrocket.queue.MessageQueueManager
 import site.fysh.redrocket.queue.MessageTask
 import site.fysh.redrocket.service.SmsProvider
+import site.fysh.redrocket.util.maskPhone
 import kotlinx.coroutines.delay
 import java.util.Random
 
@@ -23,7 +24,7 @@ class MockSmsSender(
     override suspend fun send(task: MessageTask): Boolean {
         val responseInstructions = "\n\nPlease respond with:\n1 = Safe\n2 = Safe, want updates\n3 = NEED HELP URGENT\n\nTHIS IS AN AUTOMATED MESSAGE"
         val fullMessage = task.message + responseInstructions
-        Log.d(TAG, "[MOCK] Would send to ${task.recipient.phoneNumber}: ${fullMessage.take(100)}...")
+        Log.d(TAG, "[MOCK] Would send to ${maskPhone(task.recipient.phoneNumber)}: ${fullMessage.length} chars")
 
         val adaptiveDelay = adaptiveController.getRequiredDelayMs()
         rateLimiter.waitForNextSlot(adaptiveDelay)

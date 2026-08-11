@@ -21,3 +21,16 @@ google-services.json
 *.pem
 id_rsa*
 id_ed25519*
+
+# Local tooling and OS cruft. These carry the developer's machine paths and
+# internal working notes; neither belongs in a public repo.
+.claude/
+.continue/
+.DS_Store
+Thumbs.db
+
+# Build outputs
+app/release/
+*.aab
+*.dex
+/captures
