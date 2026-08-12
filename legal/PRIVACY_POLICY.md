@@ -1,6 +1,6 @@
 # Red Rocket Privacy Policy
 
-**Effective Date:** May 25, 2026
+**Effective Date:** August 12, 2026
 **Developer:** Fysh-ball
 **Contact:** redrocket@fysh.site
 
@@ -12,7 +12,10 @@ Red Rocket is a personal emergency broadcast app that detects emergency alerts o
 
 ## Data Collection and Storage
 
-Red Rocket operates **entirely on your device**. There are no servers, no cloud services, no analytics, and no tracking.
+Red Rocket stores everything **on your device**. There is no account, no server holding
+your data, no analytics and no tracking. Two network requests do leave the device and
+both are described under "Network requests" below: a version check, and an optional
+alert-enrichment lookup that is off until you turn it on.
 
 ### Data stored locally on your device:
 
@@ -29,7 +32,8 @@ Red Rocket operates **entirely on your device**. There are no servers, no cloud 
 
 ### Data NOT collected:
 
-- No location data
+- No location data, unless you enable alert enrichment (off by default), which sends
+  your approximate coordinates at the moment an alert fires. See "Network requests".
 - No device identifiers or fingerprints
 - No usage analytics or telemetry
 - No advertising identifiers
@@ -39,14 +43,35 @@ Red Rocket operates **entirely on your device**. There are no servers, no cloud 
 
 ## Data Sharing
 
-Red Rocket does **not** share any data with third parties. Period.
+Red Rocket does **not** sell, rent or trade your data, and contains no advertising or
+analytics SDKs.
 
-- No data is sent to external servers
 - No data is sold, rented, or traded
 - No advertising or analytics SDKs are included
-- No third-party services receive your data
+- Your contacts, scenarios, messages, alert history and logs never leave the device
 
-The only data that leaves your device is the SMS messages you configure the app to send to your chosen emergency contacts.
+## Network requests
+
+This section exists because an earlier version of this policy said no data was ever
+transmitted over the network, which was not accurate. Every request the app can make
+is listed here.
+
+**1. Version check (always on).** On launch the app makes a read-only request to
+GitHub to see whether a newer release exists. It sends nothing about you: no
+identifier, no contacts, no settings.
+
+**2. Alert enrichment (optional, off by default).** If you switch this on in settings,
+then when an alert is detected the app reads your approximate (coarse) location and
+sends the latitude and longitude to the Event Horizon Web API, asking what events are
+happening within 15 km so the alert can be shown with context. The request carries the
+coordinates and nothing else: no identifier, no contact data, no alert text. The
+result is displayed and not stored. If you leave this setting off, or deny the
+location permission, no location is ever read and no such request is ever made.
+
+**3. SMS.** The messages you configure are sent through your device's native SMS
+stack to the contacts you chose. Your carrier handles them as it does any other text.
+
+There is nothing else. No telemetry, no crash reporting, no account sync.
 
 ## How the App Works
 
@@ -55,7 +80,9 @@ The only data that leaves your device is the SMS messages you configure the app 
 3. **SMS sending**: When a real emergency is detected, the app sends your pre-configured SMS messages to your chosen contacts via your device's native SMS capability
 4. **Response tracking**: The app monitors incoming SMS replies from your emergency contacts
 
-All of this happens on-device. No internet connection is required for core functionality.
+Detection, filtering, sending and response tracking all happen on-device, and none of
+them need an internet connection. Only the two requests under "Network requests"
+above use the network, and neither is required for the app to protect you.
 
 ## Permissions Used
 
@@ -82,7 +109,9 @@ Red Rocket is not directed at children under 13. We do not knowingly collect dat
 
 ## Security
 
-All data is stored in your device's private app storage, which is sandboxed by Android and not accessible to other apps. No data is transmitted over the network (except the SMS messages you explicitly configure).
+All data is stored in your device's private app storage, which is sandboxed by Android
+and not accessible to other apps. The only things that leave the device are the SMS
+messages you explicitly configure and the requests listed under "Network requests".
 
 ## Changes to This Policy
 

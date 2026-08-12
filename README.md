@@ -44,7 +44,9 @@ Export your scenarios to a file. Restore them on a new device in seconds.
 
 No accounts. No servers. Your contacts, scenarios, and messages never leave your device.
 
-The only outbound request is a read-only version check to GitHub on launch, to notify you when an update is available. No personal data is sent.
+In a default install the only outbound request is a read-only version check to GitHub on launch, to notify you when an update is available. No personal data is sent.
+
+One optional feature adds a second request. Alert enrichment is **off by default**; if you switch it on, then when an alert fires the app sends your approximate coordinates to the Event Horizon Web API to ask what is happening within 15 km, so the alert can be shown with context. Leave it off and no location ever leaves the phone. Full detail in [legal/PERMISSIONS_JUSTIFICATION.md](legal/PERMISSIONS_JUSTIFICATION.md).
 
 No data collection. No telemetry. No analytics. Full stop.
 

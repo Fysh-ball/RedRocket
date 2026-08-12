@@ -10,7 +10,9 @@ Reference document for completing the Data Safety section in Google Play Console
 Yes - the app handles messages (SMS) and contacts.
 
 **Is all of the user data collected by your app encrypted in transit?**
-SMS messages are sent via the device's native SMS stack. The app does not transmit data over the internet.
+Yes for everything that travels over the internet: the version check and the optional
+alert-enrichment request are both HTTPS. SMS is sent via the device's native SMS stack
+and is carrier-handled, not app-encrypted.
 
 **Do you provide a way for users to request that their data is deleted?**
 Yes - users can clear all data via Android Settings > Apps > Red Rocket > Clear Data, or by uninstalling the app.
@@ -40,7 +42,15 @@ Yes - users can clear all data via Android Settings > Apps > Red Rocket > Clear 
 - **Collected**: No
 
 ### Location
-- **Collected**: No
+- **Collected**: Yes, approximate location only, and only if the user enables alert
+  enrichment. The setting is off by default and the app is fully functional without it.
+- **Shared**: Yes, with the Event Horizon Web API, which is operated by the same
+  developer. Coordinates only; no identifier accompanies the request.
+- **Ephemeral**: Yes. The coordinates are used for the one lookup and are not stored.
+- **Required**: No
+- **Purpose**: App functionality - showing what is happening near the user at the
+  moment an alert fires.
+- **Precise location**: No. ACCESS_COARSE_LOCATION only.
 
 ### Photos and videos
 - **Collected**: No
@@ -85,6 +95,11 @@ Yes - users can clear all data via Android Settings > Apps > Red Rocket > Clear 
 ## Notes for Form Completion
 
 - The "Messages" category covers both outbound emergency SMS and inbound response tracking
-- Contact data is entered manually by the user, not read from the device contacts (unless READ_CONTACTS permission is added later)
-- All data stays on-device in a Room database
-- The app has no network layer beyond the device SMS stack
+- Contact data is either typed by the user or chosen from the device address book via
+  the READ_CONTACTS picker, which is optional and requested at runtime. Either way it
+  is stored locally and never uploaded.
+- All user data stays on-device in a Room database
+- The app does make network requests: an always-on read-only version check that sends
+  nothing about the user, and an optional alert-enrichment lookup (off by default)
+  that sends approximate coordinates. Both are covered above. An earlier revision of
+  this document stated the app had no network layer, which was wrong.
