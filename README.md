@@ -46,7 +46,9 @@ No accounts. No servers. Your contacts, scenarios, and messages never leave your
 
 In a default install the only outbound request is a read-only version check to GitHub on launch, to notify you when an update is available. No personal data is sent.
 
-One optional feature adds a second request. Alert enrichment is **off by default**; if you switch it on, then when an alert fires the app sends your approximate coordinates to the Event Horizon Web API to ask what is happening within 15 km, so the alert can be shown with context. Leave it off and no location ever leaves the phone. Full detail in [legal/PERMISSIONS_JUSTIFICATION.md](legal/PERMISSIONS_JUSTIFICATION.md).
+One optional feature adds a second request, and it exists because Red Rocket has a companion. [Event Horizon Web](https://event-horizon.fysh.site) is a separate app that maps what is happening and where; the two are independent and each works alone, but they cover different halves of the same moment. Red Rocket tells your people. Event Horizon tells you what you are looking at.
+
+Alert enrichment is what connects them, and it is **off by default**; if you switch it on, then when an alert fires the app sends your approximate coordinates to the Event Horizon Web API to ask what is happening within 15 km, so the alert can be shown with context. Leave it off and no location ever leaves the phone. Full detail in [legal/PERMISSIONS_JUSTIFICATION.md](legal/PERMISSIONS_JUSTIFICATION.md).
 
 No data collection. No telemetry. No analytics. Full stop.
 
