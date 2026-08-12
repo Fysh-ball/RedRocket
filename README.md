@@ -82,6 +82,16 @@ If you did find this app useful please consider donating me a cup of rice!
 
 ---
 
+## Privacy and permissions
+
+Red Rocket has no accounts, no analytics and no backend of its own. What it
+collects, what it never leaves the device with, and why it asks for each
+permission are written out in full:
+
+- [Privacy policy](legal/PRIVACY_POLICY.md)
+- [Permissions justification](legal/PERMISSIONS_JUSTIFICATION.md)
+- [Play Store data safety answers](legal/DATA_SAFETY_RESPONSES.md)
+
 ## License
 
 Red Rocket is licensed under the GNU Affero General Public License v3.0. See [LICENSE](LICENSE).
