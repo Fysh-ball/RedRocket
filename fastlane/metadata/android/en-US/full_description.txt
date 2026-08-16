@@ -1,10 +1,10 @@
 When an emergency alert reaches your phone, Red Rocket reads it, checks it against scenarios you wrote in advance, and sends your pre-written message to the people you chose. No fumbling with your phone in the dark, no trying to remember who to call first.
 
-It works without an account, without a server, and without sending your contacts anywhere.
+There's no account and no server, and your contacts never leave the device.
 
 <b>How it decides</b>
 
-Red Rocket listens for emergency broadcasts through Android's cell broadcast system and its notification listener. Before it sends anything it runs eight checks in a fixed order, including a hard block on test alerts, multilingual phrase matching, and a trust check on which app the alert came from. It does not fire on tests.
+Red Rocket listens for emergency broadcasts through Android's cell broadcast system and its notification listener. Before it sends anything it runs eight checks in a fixed order, including a hard block on test alerts, multilingual phrase matching, and a trust check on which app the alert came from. It doesn't fire on tests.
 
 Presets cover 14 disaster categories with detection keywords in 22 languages across 35 countries. The app picks your region from the SIM and you can override it.
 
@@ -18,14 +18,14 @@ Messages go out in parallel. If the network is struggling and sends start failin
 
 <b>Replies come back</b>
 
-After sending, Red Rocket watches for replies. Contacts answer with 1 for safe, 2 for safe but wants updates, or 3 for emergency. The dashboard shows who answered, what they said, and who has not answered yet.
+After sending, Red Rocket watches for replies. Contacts answer with 1 for safe, 2 for safe but wants updates, or 3 for emergency. The dashboard shows who answered, what they said, and who hasn't answered yet.
 
 <b>Also included</b>
 
-- Manual send with a captcha and countdown, so it cannot go off by accident
+- Manual send with a captcha and countdown, so it can't go off by accident
 - A home screen widget showing status without opening the app
 - Backup and restore of your scenarios to a file
-- Optional alert enrichment: off by default, and when on it sends only approximate coordinates to Event Horizon Web to ask what is happening within 15 km
+- Optional alert enrichment. It's off by default, and when it's on it sends approximate coordinates to Event Horizon Web and nothing else, to ask what's happening within 15 km
 
 <b>Privacy</b>
 
@@ -33,6 +33,6 @@ No accounts, no telemetry, no analytics. Contacts, scenarios and messages stay o
 
 <b>Honesty about how it was built</b>
 
-Red Rocket was written with AI assistance, inside a written engineering specification, and the disclosure is in the repository as HOW_THIS_WAS_BUILT.md. It covers the method, the numbers you can count yourself, and where the project is weak.
+Red Rocket was written with AI assistance, inside a written engineering specification. The disclosure is in the repository as HOW_THIS_WAS_BUILT.md and it covers the method, the numbers you can count yourself, and where the project is weak.
 
 Red Rocket is not a replacement for official emergency services or your country's alert system.

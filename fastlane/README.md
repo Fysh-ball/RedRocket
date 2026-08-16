@@ -16,8 +16,8 @@ changelog for that build.
 
 ## Still missing
 
-`images/phoneScreenshots/` is empty. Screenshots have to come off a real
-device, so they are not generated here. Four are enough: the dashboard, a
-scenario with its keywords, the group and message editor, and the response
-view after replies have come in. Take them on a phone with fake contacts,
-not real ones, since these images are public.
+`images/phoneScreenshots/` is empty. Screenshots have to come off a real device
+so they can't be generated here. Four are enough: the dashboard, a scenario with
+its keywords, the group and message editor, and the response view after replies
+have come in. Take them on a phone with fake contacts, since these images end up
+public.
