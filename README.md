@@ -6,6 +6,19 @@ When an emergency alert hits your device, Red Rocket detects it, matches it agai
 
 ---
 
+## Download
+
+Latest release: **[github.com/Fysh-ball/RedRocket/releases/latest](https://github.com/Fysh-ball/RedRocket/releases/latest)**
+
+Download the APK and open it. Android will ask you to allow installs from this
+source the first time.
+
+To have it update itself, add this repository to
+[Obtainium](https://github.com/ImranR98/Obtainium) once. See
+[Keeping Red Rocket updated](#keeping-red-rocket-updated).
+
+---
+
 ## What it does
 
 **Automated alert detection**
@@ -80,6 +93,10 @@ Alternatively, when you open Red Rocket, it checks GitHub once and shows a small
 
 This app was designed and quality tested by me. While I wish I could have written it all myself, current world events makes me believe that this app needed to exist ASAP. While most of the issues have been ironed out, I am only human. I probably did make mistakes so please if there are any issues report it and I'll fix it right away. I use this app too lol.
 
+Red Rocket was built with AI assistance, under a written engineering spec
+that lives in this repo. How that actually works, what constrains it, and
+where the process is weak: [How Red Rocket was built](HOW_THIS_WAS_BUILT.md).
+
 If you did find this app useful please consider donating me a cup of rice!
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/C0C71L2ELD)
@@ -95,6 +112,7 @@ permission are written out in full:
 - [Privacy policy](legal/PRIVACY_POLICY.md)
 - [Permissions justification](legal/PERMISSIONS_JUSTIFICATION.md)
 - [Play Store data safety answers](legal/DATA_SAFETY_RESPONSES.md)
+- [How Red Rocket was built](HOW_THIS_WAS_BUILT.md)
 
 ## License
 
