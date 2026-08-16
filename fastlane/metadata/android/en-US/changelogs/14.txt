@@ -1,9 +1,9 @@
-2.2.0: audit of all 78 source files, 46 findings fixed, plus optional Event Horizon alert enrichment. Database migrates v11 to v12 on first launch.
+Audit of all 78 source files, 46 findings fixed, plus optional Event Horizon alert enrichment. Database migrates v11 to v12 on first launch.
 
-Security: PendingIntents are immutable, imports regenerate scenario IDs, dedup uses a full content hash.
+Security: immutable PendingIntents, imports regenerate scenario IDs, dedup uses a full content hash.
 
-Delivery: manual send dedupes numbers across scenarios, retry passes resolve the SMS provider once.
+Delivery: manual send dedupes numbers across scenarios; retry passes resolve the SMS provider once.
 
-Data: scenario deletion cleans up orphaned records, imports run in one transaction, queries are bounded.
+Data: deleting a scenario clears orphaned records, imports run in one transaction.
 
-UI: developer mode now behind a 7-tap unlock, captcha only enables on a correct match.
+UI: developer mode behind a 7-tap unlock, captcha enables only on a correct match.
