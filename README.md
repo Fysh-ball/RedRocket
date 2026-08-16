@@ -91,7 +91,7 @@ Alternatively, when you open Red Rocket, it checks GitHub once and shows a small
 
 ## A note
 
-This app was designed and quality tested by me. While I wish I could have written it all myself, current world events makes me believe that this app needed to exist ASAP. While most of the issues have been ironed out, I am only human. I probably did make mistakes so please if there are any issues report it and I'll fix it right away. I use this app too lol.
+This app was designed and quality tested by me. While I wish I could have written it myself, current world events makes me believe that this app needed to exist ASAP. While most of the issues have been ironed out, I am only human. I probably did make mistakes so please if there are any issues report it and I'll fix it right away. I use this app too lol.
 
 Red Rocket was built with AI assistance, under a written engineering spec
 that lives in this repo. How that actually works, what constrains it, and
